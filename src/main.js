@@ -24,6 +24,58 @@ let currentUser = null;
 let quotes = [];
 let unsubscribe = null;
 
+// Toast notifications
+const toastContainer = document.getElementById('toastContainer');
+
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    toastContainer.appendChild(toast);
+
+    setTimeout(() => {
+        toast.classList.add('exiting');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// Confirm modal
+const confirmModal = document.getElementById('confirmModal');
+const confirmTitle = document.getElementById('confirmTitle');
+const confirmMessage = document.getElementById('confirmMessage');
+const confirmActionBtn = document.getElementById('confirmAction');
+const confirmCancel = document.getElementById('confirmCancel');
+
+let confirmCallback = null;
+
+function showConfirm(title, message, actionText, callback) {
+    confirmTitle.textContent = title;
+    confirmMessage.textContent = message;
+    confirmActionBtn.textContent = actionText;
+    confirmCallback = callback;
+    confirmModal.classList.add('active');
+}
+
+confirmCancel.addEventListener('click', () => {
+    confirmModal.classList.remove('active');
+    confirmCallback = null;
+});
+
+confirmActionBtn.addEventListener('click', async () => {
+    if (confirmCallback) {
+        await confirmCallback();
+    }
+    confirmModal.classList.remove('active');
+    confirmCallback = null;
+});
+
+confirmModal.addEventListener('click', (e) => {
+    if (e.target === confirmModal) {
+        confirmModal.classList.remove('active');
+        confirmCallback = null;
+    }
+});
+
 // DOM Elements
 const loadingScreen = document.getElementById('loadingScreen');
 const authScreen = document.getElementById('authScreen');
@@ -281,7 +333,7 @@ document.getElementById('quoteForm').addEventListener('submit', async (e) => {
         closeModal();
     } catch (error) {
         console.error('Error saving quote:', error);
-        alert('Error al guardar la cita');
+        showToast('Error al guardar la cita', 'error');
     }
 
     saveBtn.disabled = false;
@@ -289,15 +341,21 @@ document.getElementById('quoteForm').addEventListener('submit', async (e) => {
 });
 
 // Delete quote
-window.deleteQuote = async (id) => {
-    if (confirm('¿Eliminar esta cita?')) {
-        try {
-            await deleteDoc(doc(db, 'quotes', id));
-        } catch (error) {
-            console.error('Error deleting quote:', error);
-            alert('Error al eliminar la cita');
+window.deleteQuote = (id) => {
+    showConfirm(
+        '¿Eliminar esta cita?',
+        'Esta acción no se puede deshacer.',
+        'Eliminar',
+        async () => {
+            try {
+                await deleteDoc(doc(db, 'quotes', id));
+                showToast('Cita eliminada', 'success');
+            } catch (error) {
+                console.error('Error deleting quote:', error);
+                showToast('Error al eliminar la cita', 'error');
+            }
         }
-    }
+    );
 };
 
 // Render quotes
