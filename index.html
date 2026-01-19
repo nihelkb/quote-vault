@@ -118,25 +118,140 @@
 
         <div class="filters">
             <input type="text" class="search-box" id="searchInput" data-i18n-placeholder="quotes.searchPlaceholder" placeholder="Buscar por texto, autor o fuente...">
-            <select id="filterCollection">
-                <option value="" data-i18n="quotes.allCollections">Todas las colecciones</option>
-            </select>
-            <select id="filterStance" data-i18n-options>
-                <option value="" data-i18n="quotes.allStances">Todas las posturas</option>
-                <option value="favor" data-i18n="stances.favor">A favor</option>
-                <option value="contra" data-i18n="stances.contra">En contra</option>
-                <option value="neutral" data-i18n="stances.neutral">Neutral</option>
-            </select>
-            <select id="filterFavorite" data-i18n-options>
-                <option value="" data-i18n="quotes.all">Todas</option>
-                <option value="true" data-i18n="quotes.favorites">Destacadas</option>
-            </select>
-            <select id="sortBy" data-i18n-options>
-                <option value="newest" data-i18n="quotes.newest">Más recientes</option>
-                <option value="oldest" data-i18n="quotes.oldest">Más antiguas</option>
-                <option value="author" data-i18n="quotes.byAuthor">Por autor</option>
-            </select>
-            <button class="btn btn-primary" id="newQuoteBtn" data-i18n="quotes.newQuote">+ Nueva cita</button>
+
+            <!-- Collection Filter -->
+            <div class="custom-select" id="collectionSelect">
+                <button type="button" class="custom-select-btn">
+                    <span class="selected-text" data-i18n="quotes.allCollections">Todas las colecciones</span>
+                    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
+                <div class="custom-select-dropdown">
+                    <button type="button" class="custom-select-option active" data-value="">
+                        <span data-i18n="quotes.allCollections">Todas las colecciones</span>
+                        <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </button>
+                </div>
+                <select id="filterCollection" hidden>
+                    <option value="">Todas las colecciones</option>
+                </select>
+            </div>
+
+            <!-- Stance Filter -->
+            <div class="custom-select" id="stanceSelect">
+                <button type="button" class="custom-select-btn">
+                    <span class="selected-text" data-i18n="quotes.allStances">Todas las posturas</span>
+                    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
+                <div class="custom-select-dropdown">
+                    <button type="button" class="custom-select-option active" data-value="">
+                        <span data-i18n="quotes.allStances">Todas las posturas</span>
+                        <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </button>
+                    <button type="button" class="custom-select-option" data-value="favor">
+                        <span data-i18n="stances.favor">A favor</span>
+                        <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </button>
+                    <button type="button" class="custom-select-option" data-value="contra">
+                        <span data-i18n="stances.contra">En contra</span>
+                        <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </button>
+                    <button type="button" class="custom-select-option" data-value="neutral">
+                        <span data-i18n="stances.neutral">Neutral</span>
+                        <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </button>
+                </div>
+                <select id="filterStance" hidden>
+                    <option value="">Todas las posturas</option>
+                    <option value="favor">A favor</option>
+                    <option value="contra">En contra</option>
+                    <option value="neutral">Neutral</option>
+                </select>
+            </div>
+
+            <!-- Favorite Filter -->
+            <div class="custom-select" id="favoriteSelect">
+                <button type="button" class="custom-select-btn">
+                    <span class="selected-text" data-i18n="quotes.all">Todas</span>
+                    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
+                <div class="custom-select-dropdown">
+                    <button type="button" class="custom-select-option active" data-value="">
+                        <span data-i18n="quotes.all">Todas</span>
+                        <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </button>
+                    <button type="button" class="custom-select-option" data-value="true">
+                        <span data-i18n="quotes.favorites">Destacadas</span>
+                        <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </button>
+                </div>
+                <select id="filterFavorite" hidden>
+                    <option value="">Todas</option>
+                    <option value="true">Destacadas</option>
+                </select>
+            </div>
+
+            <!-- Sort -->
+            <div class="custom-select" id="sortSelect">
+                <button type="button" class="custom-select-btn">
+                    <span class="selected-text" data-i18n="quotes.newest">Más recientes</span>
+                    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
+                <div class="custom-select-dropdown">
+                    <button type="button" class="custom-select-option active" data-value="newest">
+                        <span data-i18n="quotes.newest">Más recientes</span>
+                        <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </button>
+                    <button type="button" class="custom-select-option" data-value="oldest">
+                        <span data-i18n="quotes.oldest">Más antiguas</span>
+                        <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </button>
+                    <button type="button" class="custom-select-option" data-value="author">
+                        <span data-i18n="quotes.byAuthor">Por autor</span>
+                        <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </button>
+                </div>
+                <select id="sortBy" hidden>
+                    <option value="newest">Más recientes</option>
+                    <option value="oldest">Más antiguas</option>
+                    <option value="author">Por autor</option>
+                </select>
+            </div>
+
+            <button class="btn btn-primary btn-icon-text" id="newQuoteBtn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span data-i18n="quotes.newQuote">Nueva cita</span>
+            </button>
         </div>
 
         <div class="view-controls">

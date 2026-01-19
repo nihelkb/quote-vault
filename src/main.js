@@ -70,6 +70,12 @@ const elements = {
     filterFavorite: document.getElementById('filterFavorite'),
     sortBy: document.getElementById('sortBy'),
 
+    // Custom selects
+    collectionSelect: document.getElementById('collectionSelect'),
+    stanceSelect: document.getElementById('stanceSelect'),
+    favoriteSelect: document.getElementById('favoriteSelect'),
+    sortSelect: document.getElementById('sortSelect'),
+
     // View controls
     viewList: document.getElementById('viewList'),
     viewCompare: document.getElementById('viewCompare'),
@@ -378,7 +384,7 @@ function updateCollectionSelects() {
     updateAllCollectionSelects({
         filter: elements.filterCollection,
         form: elements.quoteCollection
-    }, state.collections);
+    }, state.collections, elements.collectionSelect);
 }
 
 // ============================================================================
@@ -431,10 +437,63 @@ async function handleQuoteSubmit(e) {
 // ============================================================================
 function setupFilterListeners() {
     elements.searchInput.addEventListener('input', renderQuotes);
-    elements.filterCollection.addEventListener('change', renderQuotes);
-    elements.filterStance.addEventListener('change', renderQuotes);
-    elements.filterFavorite.addEventListener('change', renderQuotes);
-    elements.sortBy.addEventListener('change', renderQuotes);
+
+    // Setup custom selects
+    setupCustomSelect(elements.stanceSelect, elements.filterStance);
+    setupCustomSelect(elements.favoriteSelect, elements.filterFavorite);
+    setupCustomSelect(elements.sortSelect, elements.sortBy);
+    setupCustomSelect(elements.collectionSelect, elements.filterCollection);
+
+    // Close all dropdowns when clicking outside
+    document.addEventListener('click', (e) => {
+        document.querySelectorAll('.custom-select.open').forEach(select => {
+            if (!select.contains(e.target)) {
+                select.classList.remove('open');
+            }
+        });
+    });
+}
+
+function setupCustomSelect(customSelect, hiddenSelect) {
+    const btn = customSelect.querySelector('.custom-select-btn');
+    const dropdown = customSelect.querySelector('.custom-select-dropdown');
+    const selectedText = btn.querySelector('.selected-text');
+
+    // Toggle dropdown
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Close other dropdowns
+        document.querySelectorAll('.custom-select.open').forEach(s => {
+            if (s !== customSelect) s.classList.remove('open');
+        });
+        customSelect.classList.toggle('open');
+    });
+
+    // Handle option selection
+    dropdown.querySelectorAll('.custom-select-option').forEach(option => {
+        option.addEventListener('click', () => {
+            const value = option.dataset.value;
+            const text = option.querySelector('span').textContent;
+
+            // Update hidden select
+            hiddenSelect.value = value;
+
+            // Update button text
+            selectedText.textContent = text;
+
+            // Update active state
+            dropdown.querySelectorAll('.custom-select-option').forEach(opt => {
+                opt.classList.toggle('active', opt === option);
+            });
+
+            // Close dropdown
+            customSelect.classList.remove('open');
+
+            // Trigger change event
+            hiddenSelect.dispatchEvent(new Event('change'));
+            renderQuotes();
+        });
+    });
 }
 
 function setupViewListeners() {
