@@ -22,7 +22,10 @@ import {
 
 let currentUser = null;
 let quotes = [];
+let collections = [];
 let unsubscribe = null;
+let unsubscribeCollections = null;
+let currentView = 'list';
 
 // Toast notifications
 const toastContainer = document.getElementById('toastContainer');
@@ -257,12 +260,46 @@ function subscribeToQuotes() {
     );
 
     unsubscribe = onSnapshot(q, (snapshot) => {
-        quotes = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
+        quotes = snapshot.docs.map(d => ({
+            id: d.id,
+            ...d.data()
         }));
         renderQuotes();
         updateStats();
+    });
+
+    // Subscribe to collections
+    const collectionsQuery = query(
+        collection(db, 'collections'),
+        where('userId', '==', currentUser.uid)
+    );
+
+    unsubscribeCollections = onSnapshot(collectionsQuery, (snapshot) => {
+        collections = snapshot.docs.map(d => ({
+            id: d.id,
+            ...d.data()
+        }));
+        // Sort by name in client
+        collections.sort((a, b) => a.name.localeCompare(b.name));
+        updateCollectionSelects();
+    });
+}
+
+// Update collection dropdowns
+function updateCollectionSelects() {
+    const selects = [
+        document.getElementById('filterCollection'),
+        document.getElementById('quoteCollection')
+    ];
+
+    selects.forEach((select, index) => {
+        const currentValue = select.value;
+        const defaultOption = index === 0 ? 'Todas las colecciones' : 'Sin colección';
+
+        select.innerHTML = `<option value="">${defaultOption}</option>` +
+            collections.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+
+        select.value = currentValue;
     });
 }
 
@@ -274,6 +311,7 @@ window.openModal = (quoteId = null) => {
 
     form.reset();
     document.getElementById('quoteId').value = '';
+    document.getElementById('quoteCollection').value = '';
 
     if (quoteId) {
         const quote = quotes.find(q => q.id === quoteId);
@@ -283,7 +321,7 @@ window.openModal = (quoteId = null) => {
             document.getElementById('quoteText').value = quote.text;
             document.getElementById('quoteAuthor').value = quote.author;
             document.getElementById('quoteSource').value = quote.source || '';
-            document.getElementById('quoteType').value = quote.type;
+            document.getElementById('quoteCollection').value = quote.collectionId || '';
             document.getElementById('quoteStance').value = quote.stance;
             document.getElementById('quoteTags').value = (quote.tags || []).join(', ');
             document.getElementById('quoteNotes').value = quote.notes || '';
@@ -308,16 +346,18 @@ document.getElementById('quoteForm').addEventListener('submit', async (e) => {
     saveBtn.textContent = 'Guardando...';
 
     const id = document.getElementById('quoteId').value;
+    const collectionId = document.getElementById('quoteCollection').value;
+
     const quoteData = {
         text: document.getElementById('quoteText').value.trim(),
         author: document.getElementById('quoteAuthor').value.trim(),
         source: document.getElementById('quoteSource').value.trim(),
-        type: document.getElementById('quoteType').value,
+        collectionId: collectionId || null,
         stance: document.getElementById('quoteStance').value,
         tags: document.getElementById('quoteTags').value
             .split(',')
             .map(t => t.trim().toLowerCase())
-            .filter(t => t),
+            .filter(Boolean),
         notes: document.getElementById('quoteNotes').value.trim(),
         userId: currentUser.uid,
         updatedAt: new Date().toISOString()
@@ -328,9 +368,11 @@ document.getElementById('quoteForm').addEventListener('submit', async (e) => {
             await updateDoc(doc(db, 'quotes', id), quoteData);
         } else {
             quoteData.createdAt = new Date().toISOString();
+            quoteData.favorite = false;
             await addDoc(collection(db, 'quotes'), quoteData);
         }
         closeModal();
+        showToast(id ? 'Cita actualizada' : 'Cita guardada', 'success');
     } catch (error) {
         console.error('Error saving quote:', error);
         showToast('Error al guardar la cita', 'error');
@@ -360,11 +402,18 @@ window.deleteQuote = (id) => {
 
 // Render quotes
 function renderQuotes() {
+    if (currentView === 'compare') {
+        renderCompareView();
+        return;
+    }
+
     const list = document.getElementById('quotesList');
     const emptyState = document.getElementById('emptyState');
     const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const filterType = document.getElementById('filterType').value;
+    const filterCollection = document.getElementById('filterCollection').value;
     const filterStance = document.getElementById('filterStance').value;
+    const filterFavorite = document.getElementById('filterFavorite').value;
+    const sortBy = document.getElementById('sortBy').value;
 
     let filtered = quotes.filter(q => {
         const matchesSearch = !searchTerm ||
@@ -372,9 +421,17 @@ function renderQuotes() {
             q.author.toLowerCase().includes(searchTerm) ||
             (q.source && q.source.toLowerCase().includes(searchTerm)) ||
             (q.tags && q.tags.some(t => t.includes(searchTerm)));
-        const matchesType = !filterType || q.type === filterType;
+        const matchesCollection = !filterCollection || q.collectionId === filterCollection;
         const matchesStance = !filterStance || q.stance === filterStance;
-        return matchesSearch && matchesType && matchesStance;
+        const matchesFavorite = !filterFavorite || q.favorite === true;
+        return matchesSearch && matchesCollection && matchesStance && matchesFavorite;
+    });
+
+    // Sort
+    filtered.sort((a, b) => {
+        if (sortBy === 'oldest') return new Date(a.createdAt) - new Date(b.createdAt);
+        if (sortBy === 'author') return a.author.localeCompare(b.author);
+        return new Date(b.createdAt) - new Date(a.createdAt); // newest
     });
 
     if (filtered.length === 0) {
@@ -385,8 +442,17 @@ function renderQuotes() {
 
     emptyState.classList.add('hidden');
 
-    list.innerHTML = filtered.map(q => `
+    list.innerHTML = filtered.map(q => {
+        const collectionName = q.collectionId ? collections.find(c => c.id === q.collectionId)?.name : null;
+        return `
         <article class="quote-card">
+            <div class="quote-header">
+                <button class="favorite-btn ${q.favorite ? 'active' : ''}" onclick="toggleFavorite('${q.id}', ${!q.favorite})" title="${q.favorite ? 'Quitar de destacados' : 'Destacar'}">
+                    <svg viewBox="0 0 24 24" fill="${q.favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                </button>
+            </div>
             <p class="quote-text">${escapeHtml(q.text)}</p>
             <div class="quote-meta">
                 <div>
@@ -394,7 +460,7 @@ function renderQuotes() {
                     ${q.source ? `<div class="quote-source">${escapeHtml(q.source)}</div>` : ''}
                 </div>
                 <div class="quote-tags">
-                    <span class="tag">${getTypeLabel(q.type)}</span>
+                    ${collectionName ? `<span class="collection-tag">${escapeHtml(collectionName)}</span>` : ''}
                     <span class="stance stance-${q.stance}">${getStanceLabel(q.stance)}</span>
                     ${(q.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
                 </div>
@@ -405,25 +471,59 @@ function renderQuotes() {
                 <button class="action-btn delete" onclick="deleteQuote('${q.id}')">Eliminar</button>
             </div>
         </article>
-    `).join('');
+    `}).join('');
 }
+
+// Render compare view (favor vs contra)
+function renderCompareView() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const filterCollection = document.getElementById('filterCollection').value;
+
+    let filtered = quotes.filter(q => {
+        const matchesSearch = !searchTerm ||
+            q.text.toLowerCase().includes(searchTerm) ||
+            q.author.toLowerCase().includes(searchTerm);
+        const matchesCollection = !filterCollection || q.collectionId === filterCollection;
+        return matchesSearch && matchesCollection && (q.stance === 'favor' || q.stance === 'contra');
+    });
+
+    const favor = filtered.filter(q => q.stance === 'favor');
+    const against = filtered.filter(q => q.stance === 'contra');
+
+    document.getElementById('quotesFavor').innerHTML = favor.length > 0
+        ? favor.map(q => `
+            <div class="compare-quote">
+                <p class="quote-text">${escapeHtml(q.text)}</p>
+                <div class="quote-author">— ${escapeHtml(q.author)}</div>
+            </div>
+        `).join('')
+        : '<p class="empty-compare">No hay citas a favor</p>';
+
+    document.getElementById('quotesAgainst').innerHTML = against.length > 0
+        ? against.map(q => `
+            <div class="compare-quote">
+                <p class="quote-text">${escapeHtml(q.text)}</p>
+                <div class="quote-author">— ${escapeHtml(q.author)}</div>
+            </div>
+        `).join('')
+        : '<p class="empty-compare">No hay citas en contra</p>';
+}
+
+// Toggle favorite
+window.toggleFavorite = async (id, value) => {
+    try {
+        await updateDoc(doc(db, 'quotes', id), { favorite: value });
+        showToast(value ? 'Cita destacada' : 'Cita sin destacar', 'success');
+    } catch (error) {
+        console.error('Error updating favorite:', error);
+        showToast('Error al actualizar', 'error');
+    }
+};
 
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
-}
-
-function getTypeLabel(type) {
-    const labels = {
-        libro: 'Libro',
-        persona: 'Persona',
-        articulo: 'Artículo',
-        pelicula: 'Película',
-        podcast: 'Podcast',
-        otro: 'Otro'
-    };
-    return labels[type] || type;
 }
 
 function getStanceLabel(stance) {
@@ -441,15 +541,74 @@ function updateStats() {
 
 // Event listeners for filters
 document.getElementById('searchInput').addEventListener('input', renderQuotes);
-document.getElementById('filterType').addEventListener('change', renderQuotes);
+document.getElementById('filterCollection').addEventListener('change', renderQuotes);
 document.getElementById('filterStance').addEventListener('change', renderQuotes);
+document.getElementById('filterFavorite').addEventListener('change', renderQuotes);
+document.getElementById('sortBy').addEventListener('change', renderQuotes);
+
+// View toggle
+document.getElementById('viewList').addEventListener('click', () => {
+    currentView = 'list';
+    document.getElementById('viewList').classList.add('active');
+    document.getElementById('viewCompare').classList.remove('active');
+    document.getElementById('quotesList').classList.remove('hidden');
+    document.getElementById('quotesCompare').classList.add('hidden');
+    renderQuotes();
+});
+
+document.getElementById('viewCompare').addEventListener('click', () => {
+    currentView = 'compare';
+    document.getElementById('viewCompare').classList.add('active');
+    document.getElementById('viewList').classList.remove('active');
+    document.getElementById('quotesList').classList.add('hidden');
+    document.getElementById('quotesCompare').classList.remove('hidden');
+    renderQuotes();
+});
+
+// Collection modal functions
+window.openNewCollectionModal = () => {
+    document.getElementById('newCollectionName').value = '';
+    document.getElementById('collectionModal').classList.add('active');
+};
+
+window.closeCollectionModal = () => {
+    document.getElementById('collectionModal').classList.remove('active');
+};
+
+window.createCollection = async () => {
+    const name = document.getElementById('newCollectionName').value.trim();
+    if (!name) {
+        showToast('Ingresa un nombre para la colección', 'error');
+        return;
+    }
+
+    try {
+        await addDoc(collection(db, 'collections'), {
+            name,
+            userId: currentUser.uid,
+            createdAt: new Date().toISOString()
+        });
+        showToast('Colección creada', 'success');
+        closeCollectionModal();
+    } catch (error) {
+        console.error('Error creating collection:', error);
+        showToast('Error al crear colección', 'error');
+    }
+};
 
 // Close modal on overlay click
 document.getElementById('modal').addEventListener('click', function(e) {
     if (e.target === this) closeModal();
 });
 
-// Escape key closes modal
+document.getElementById('collectionModal').addEventListener('click', function(e) {
+    if (e.target === this) closeCollectionModal();
+});
+
+// Escape key closes modals
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Escape') {
+        closeModal();
+        closeCollectionModal();
+    }
 });

@@ -88,14 +88,8 @@
 
         <div class="filters">
             <input type="text" class="search-box" id="searchInput" placeholder="Buscar por texto, autor o fuente...">
-            <select id="filterType">
-                <option value="">Todos los tipos</option>
-                <option value="libro">Libro</option>
-                <option value="persona">Persona</option>
-                <option value="articulo">Artículo</option>
-                <option value="pelicula">Película</option>
-                <option value="podcast">Podcast</option>
-                <option value="otro">Otro</option>
+            <select id="filterCollection">
+                <option value="">Todas las colecciones</option>
             </select>
             <select id="filterStance">
                 <option value="">Todas las posturas</option>
@@ -103,10 +97,46 @@
                 <option value="contra">En contra</option>
                 <option value="neutral">Neutral</option>
             </select>
+            <select id="filterFavorite">
+                <option value="">Todas</option>
+                <option value="true">Destacadas</option>
+            </select>
+            <select id="sortBy">
+                <option value="newest">Más recientes</option>
+                <option value="oldest">Más antiguas</option>
+                <option value="author">Por autor</option>
+            </select>
             <button class="btn btn-primary" onclick="openModal()">+ Nueva cita</button>
         </div>
 
+        <div class="view-controls">
+            <button class="view-btn active" id="viewList" title="Vista lista">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
+            <button class="view-btn" id="viewCompare" title="Vista comparativa">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="18"></rect>
+                    <rect x="14" y="3" width="7" height="18"></rect>
+                </svg>
+            </button>
+        </div>
+
         <div class="quotes-list" id="quotesList"></div>
+
+        <div class="quotes-compare hidden" id="quotesCompare">
+            <div class="compare-column favor">
+                <h3>A favor</h3>
+                <div class="compare-quotes" id="quotesFavor"></div>
+            </div>
+            <div class="compare-column against">
+                <h3>En contra</h3>
+                <div class="compare-quotes" id="quotesAgainst"></div>
+            </div>
+        </div>
 
         <div class="empty-state hidden" id="emptyState">
             <h3>Tu colección está vacía</h3>
@@ -139,15 +169,13 @@
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="quoteType">Tipo</label>
-                        <select id="quoteType">
-                            <option value="libro">Libro</option>
-                            <option value="persona">Persona</option>
-                            <option value="articulo">Artículo</option>
-                            <option value="pelicula">Película</option>
-                            <option value="podcast">Podcast</option>
-                            <option value="otro">Otro</option>
-                        </select>
+                        <label for="quoteCollection">Colección</label>
+                        <div class="collection-input">
+                            <select id="quoteCollection">
+                                <option value="">Sin colección</option>
+                            </select>
+                            <button type="button" class="btn-icon" onclick="openNewCollectionModal()" title="Nueva colección">+</button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="quoteStance">Tu postura</label>
@@ -188,6 +216,19 @@
             <div class="confirm-actions">
                 <button class="btn btn-secondary" id="confirmCancel">Cancelar</button>
                 <button class="btn btn-danger" id="confirmAction">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Collection Modal -->
+    <div class="confirm-overlay" id="collectionModal">
+        <div class="confirm-box">
+            <h3>Nueva colección</h3>
+            <p>Crea una colección para organizar citas por tema de debate.</p>
+            <input type="text" id="newCollectionName" class="collection-name-input" placeholder="Ej: Cambio climático, IA, Ética...">
+            <div class="confirm-actions">
+                <button class="btn btn-secondary" onclick="closeCollectionModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="createCollection()">Crear</button>
             </div>
         </div>
     </div>
