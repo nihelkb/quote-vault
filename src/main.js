@@ -1,322 +1,417 @@
-import { auth, db, googleProvider } from './config/firebase.js';
-import {
-    onAuthStateChanged,
-    signInWithPopup,
-    signInWithEmailAndPassword,
-    createUserWithEmailAndPassword,
-    sendEmailVerification,
-    updateProfile,
-    signOut
-} from 'firebase/auth';
-import {
-    collection,
-    doc,
-    addDoc,
-    updateDoc,
-    deleteDoc,
-    query,
-    where,
-    orderBy,
-    onSnapshot
-} from 'firebase/firestore';
+/**
+ * Main Application Entry Point
+ * Single Responsibility Principle: Orchestrates components and services
+ * Dependency Inversion Principle: Depends on abstractions (services)
+ */
 
-let currentUser = null;
-let quotes = [];
-let collections = [];
-let unsubscribe = null;
-let unsubscribeCollections = null;
-let currentView = 'list';
+// Services
+import { authService } from './services/AuthService.js';
+import { quoteService } from './services/QuoteService.js';
+import { collectionService } from './services/CollectionService.js';
 
-// Toast notifications
-const toastContainer = document.getElementById('toastContainer');
+// Components
+import { renderQuoteList } from './components/QuoteCard.js';
+import { updateCompareView, filterForCompare } from './components/CompareView.js';
+import { updateAllCollectionSelects } from './components/CollectionSelect.js';
 
-function showToast(message, type = 'info') {
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.textContent = message;
-    toastContainer.appendChild(toast);
+// Utils
+import { toast } from './utils/toast.js';
+import { confirmModal } from './utils/confirmModal.js';
 
-    setTimeout(() => {
-        toast.classList.add('exiting');
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
-}
+// ============================================================================
+// Application State
+// ============================================================================
+const state = {
+    quotes: [],
+    collections: [],
+    currentView: 'list',
+    authMode: 'login'
+};
 
-// Confirm modal
-const confirmModal = document.getElementById('confirmModal');
-const confirmTitle = document.getElementById('confirmTitle');
-const confirmMessage = document.getElementById('confirmMessage');
-const confirmActionBtn = document.getElementById('confirmAction');
-const confirmCancel = document.getElementById('confirmCancel');
-
-let confirmCallback = null;
-
-function showConfirm(title, message, actionText, callback) {
-    confirmTitle.textContent = title;
-    confirmMessage.textContent = message;
-    confirmActionBtn.textContent = actionText;
-    confirmCallback = callback;
-    confirmModal.classList.add('active');
-}
-
-confirmCancel.addEventListener('click', () => {
-    confirmModal.classList.remove('active');
-    confirmCallback = null;
-});
-
-confirmActionBtn.addEventListener('click', async () => {
-    if (confirmCallback) {
-        await confirmCallback();
-    }
-    confirmModal.classList.remove('active');
-    confirmCallback = null;
-});
-
-confirmModal.addEventListener('click', (e) => {
-    if (e.target === confirmModal) {
-        confirmModal.classList.remove('active');
-        confirmCallback = null;
-    }
-});
-
+// ============================================================================
 // DOM Elements
-const loadingScreen = document.getElementById('loadingScreen');
-const authScreen = document.getElementById('authScreen');
-const mainApp = document.getElementById('mainApp');
-const verifyScreen = document.getElementById('verifyScreen');
+// ============================================================================
+const elements = {
+    // Screens
+    loadingScreen: document.getElementById('loadingScreen'),
+    authScreen: document.getElementById('authScreen'),
+    mainApp: document.getElementById('mainApp'),
+    verifyScreen: document.getElementById('verifyScreen'),
 
-// Auth elements
-const googleBtn = document.getElementById('googleSignIn');
-const authError = document.getElementById('authError');
-const authTabs = document.querySelectorAll('.auth-tab');
-const authForm = document.getElementById('authForm');
-const authSubmit = document.getElementById('authSubmit');
-const displayNameGroup = document.getElementById('displayNameGroup');
-const passwordHint = document.getElementById('passwordHint');
-const resendVerification = document.getElementById('resendVerification');
+    // Auth
+    googleBtn: document.getElementById('googleSignIn'),
+    authError: document.getElementById('authError'),
+    authTabs: document.querySelectorAll('.auth-tab'),
+    authForm: document.getElementById('authForm'),
+    authSubmit: document.getElementById('authSubmit'),
+    displayNameGroup: document.getElementById('displayNameGroup'),
+    passwordHint: document.getElementById('passwordHint'),
+    resendVerification: document.getElementById('resendVerification'),
+    verifyEmail: document.getElementById('verifyEmail'),
+    userEmail: document.getElementById('userEmail'),
 
-let authMode = 'login';
+    // Quotes
+    quotesList: document.getElementById('quotesList'),
+    emptyState: document.getElementById('emptyState'),
+    totalQuotes: document.getElementById('totalQuotes'),
 
-// Auth tabs (login/register)
-authTabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-        authTabs.forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        authMode = tab.dataset.tab;
-        const isRegister = authMode === 'register';
-        authSubmit.textContent = isRegister ? 'Crear cuenta' : 'Iniciar sesión';
-        displayNameGroup.classList.toggle('hidden', !isRegister);
-        passwordHint.classList.toggle('hidden', !isRegister);
-        authError.classList.remove('show');
-    });
-});
+    // Compare View
+    quotesCompare: document.getElementById('quotesCompare'),
+    quotesFavor: document.getElementById('quotesFavor'),
+    quotesAgainst: document.getElementById('quotesAgainst'),
 
-// Google Sign In
-googleBtn.addEventListener('click', async () => {
-    googleBtn.disabled = true;
-    authError.classList.remove('show');
+    // Filters
+    searchInput: document.getElementById('searchInput'),
+    filterCollection: document.getElementById('filterCollection'),
+    filterStance: document.getElementById('filterStance'),
+    filterFavorite: document.getElementById('filterFavorite'),
+    sortBy: document.getElementById('sortBy'),
 
-    try {
-        await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-        let message = 'Error de autenticación';
-        if (error.code === 'auth/popup-closed-by-user') message = 'Inicio de sesión cancelado';
-        if (error.code === 'auth/popup-blocked') message = 'El popup fue bloqueado. Permite popups para este sitio.';
+    // View controls
+    viewList: document.getElementById('viewList'),
+    viewCompare: document.getElementById('viewCompare'),
 
-        authError.textContent = message;
-        authError.classList.add('show');
-    }
+    // Modals
+    modal: document.getElementById('modal'),
+    modalTitle: document.getElementById('modalTitle'),
+    quoteForm: document.getElementById('quoteForm'),
+    quoteCollection: document.getElementById('quoteCollection'),
+    saveBtn: document.getElementById('saveBtn'),
+    collectionModal: document.getElementById('collectionModal'),
+    newCollectionName: document.getElementById('newCollectionName')
+};
 
-    googleBtn.disabled = false;
-});
+// ============================================================================
+// Initialization
+// ============================================================================
+function init() {
+    toast.init('toastContainer');
+    confirmModal.init();
+    setupAuthListeners();
+    setupQuoteListeners();
+    setupFilterListeners();
+    setupViewListeners();
+    setupModalListeners();
 
-// Email/Password Auth
-authForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const email = document.getElementById('authEmail').value;
-    const password = document.getElementById('authPassword').value;
-    const displayName = document.getElementById('authDisplayName')?.value;
-
-    authSubmit.disabled = true;
-    authError.classList.remove('show');
-
-    try {
-        if (authMode === 'login') {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            if (!userCredential.user.emailVerified) {
-                showVerifyScreen(userCredential.user);
-            }
-        } else {
-            // Validate password strength
-            if (!isPasswordStrong(password)) {
-                throw { code: 'auth/weak-password-custom' };
-            }
-
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-
-            // Set display name
-            await updateProfile(userCredential.user, { displayName });
-
-            // Send verification email
-            await sendEmailVerification(userCredential.user);
-
-            showVerifyScreen(userCredential.user);
-        }
-    } catch (error) {
-        let message = 'Error de autenticación';
-        if (error.code === 'auth/user-not-found') message = 'Usuario no encontrado';
-        if (error.code === 'auth/wrong-password') message = 'Contraseña incorrecta';
-        if (error.code === 'auth/invalid-credential') message = 'Credenciales inválidas';
-        if (error.code === 'auth/email-already-in-use') message = 'Este email ya está registrado';
-        if (error.code === 'auth/weak-password') message = 'La contraseña debe tener al menos 6 caracteres';
-        if (error.code === 'auth/weak-password-custom') message = 'La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número';
-        if (error.code === 'auth/invalid-email') message = 'Email inválido';
-
-        authError.textContent = message;
-        authError.classList.add('show');
-    }
-
-    authSubmit.disabled = false;
-});
-
-// Password strength validation
-function isPasswordStrong(password) {
-    const minLength = 8;
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasNumber = /[0-9]/.test(password);
-    return password.length >= minLength && hasUpperCase && hasLowerCase && hasNumber;
+    // Auth state observer
+    authService.onAuthStateChange(handleAuthStateChange);
 }
 
-// Show verification screen
-function showVerifyScreen(user) {
-    authScreen.classList.add('hidden');
-    mainApp.classList.add('hidden');
-    verifyScreen.classList.remove('hidden');
-    document.getElementById('verifyEmail').textContent = user.email;
-}
-
-// Resend verification email
-resendVerification.addEventListener('click', async () => {
-    resendVerification.disabled = true;
-    resendVerification.textContent = 'Enviando...';
-
-    try {
-        await sendEmailVerification(auth.currentUser);
-        resendVerification.textContent = 'Email enviado';
-        setTimeout(() => {
-            resendVerification.textContent = 'Reenviar email';
-            resendVerification.disabled = false;
-        }, 3000);
-    } catch (error) {
-        resendVerification.textContent = 'Error al enviar';
-        setTimeout(() => {
-            resendVerification.textContent = 'Reenviar email';
-            resendVerification.disabled = false;
-        }, 3000);
-    }
-});
-
-// Auth state observer
-onAuthStateChanged(auth, (user) => {
-    loadingScreen.classList.add('hidden');
+// ============================================================================
+// Auth Handlers
+// ============================================================================
+function handleAuthStateChange(user) {
+    elements.loadingScreen.classList.add('hidden');
 
     if (user) {
-        // Check if email needs verification (only for email/password users)
-        const isEmailProvider = user.providerData.some(p => p.providerId === 'password');
-        if (isEmailProvider && !user.emailVerified) {
+        if (authService.needsEmailVerification(user)) {
             showVerifyScreen(user);
             return;
         }
 
-        currentUser = user;
-        const displayName = user.displayName || user.email;
-        document.getElementById('userEmail').textContent = displayName;
-        authScreen.classList.add('hidden');
-        verifyScreen.classList.add('hidden');
-        mainApp.classList.remove('hidden');
-        subscribeToQuotes();
+        showMainApp(user);
+        subscribeToData(user.uid);
     } else {
-        currentUser = null;
-        if (unsubscribe) unsubscribe();
-        authScreen.classList.remove('hidden');
-        verifyScreen.classList.add('hidden');
-        mainApp.classList.add('hidden');
+        showAuthScreen();
+        unsubscribeFromData();
     }
-});
+}
 
-// Logout
-window.logout = async () => {
-    await signOut(auth);
-};
+function showAuthScreen() {
+    elements.authScreen.classList.remove('hidden');
+    elements.verifyScreen.classList.add('hidden');
+    elements.mainApp.classList.add('hidden');
+}
 
-// Subscribe to quotes
-function subscribeToQuotes() {
-    const q = query(
-        collection(db, 'quotes'),
-        where('userId', '==', currentUser.uid),
-        orderBy('createdAt', 'desc')
-    );
+function showVerifyScreen(user) {
+    elements.authScreen.classList.add('hidden');
+    elements.mainApp.classList.add('hidden');
+    elements.verifyScreen.classList.remove('hidden');
+    elements.verifyEmail.textContent = user.email;
+}
 
-    unsubscribe = onSnapshot(q, (snapshot) => {
-        quotes = snapshot.docs.map(d => ({
-            id: d.id,
-            ...d.data()
-        }));
+function showMainApp(user) {
+    elements.authScreen.classList.add('hidden');
+    elements.verifyScreen.classList.add('hidden');
+    elements.mainApp.classList.remove('hidden');
+    elements.userEmail.textContent = authService.getDisplayName(user);
+}
+
+function setupAuthListeners() {
+    // Auth tabs
+    elements.authTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            elements.authTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            state.authMode = tab.dataset.tab;
+
+            const isRegister = state.authMode === 'register';
+            elements.authSubmit.textContent = isRegister ? 'Crear cuenta' : 'Iniciar sesión';
+            elements.displayNameGroup.classList.toggle('hidden', !isRegister);
+            elements.passwordHint.classList.toggle('hidden', !isRegister);
+            elements.authError.classList.remove('show');
+        });
+    });
+
+    // Google Sign In
+    elements.googleBtn.addEventListener('click', async () => {
+        elements.googleBtn.disabled = true;
+        elements.authError.classList.remove('show');
+
+        try {
+            await authService.signInWithGoogle();
+        } catch (error) {
+            showAuthError(error.code);
+        }
+
+        elements.googleBtn.disabled = false;
+    });
+
+    // Email/Password Auth
+    elements.authForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const email = document.getElementById('authEmail').value;
+        const password = document.getElementById('authPassword').value;
+        const displayName = document.getElementById('authDisplayName')?.value;
+
+        elements.authSubmit.disabled = true;
+        elements.authError.classList.remove('show');
+
+        try {
+            if (state.authMode === 'login') {
+                const user = await authService.signInWithEmail(email, password);
+                if (authService.needsEmailVerification(user)) {
+                    showVerifyScreen(user);
+                }
+            } else {
+                await authService.registerWithEmail(email, password, displayName);
+            }
+        } catch (error) {
+            showAuthError(error.code);
+        }
+
+        elements.authSubmit.disabled = false;
+    });
+
+    // Resend verification
+    elements.resendVerification.addEventListener('click', async () => {
+        elements.resendVerification.disabled = true;
+        elements.resendVerification.textContent = 'Enviando...';
+
+        try {
+            await authService.resendVerificationEmail();
+            elements.resendVerification.textContent = 'Email enviado';
+        } catch (error) {
+            elements.resendVerification.textContent = 'Error al enviar';
+        }
+
+        setTimeout(() => {
+            elements.resendVerification.textContent = 'Reenviar email';
+            elements.resendVerification.disabled = false;
+        }, 3000);
+    });
+}
+
+function showAuthError(errorCode) {
+    elements.authError.textContent = authService.getErrorMessage(errorCode);
+    elements.authError.classList.add('show');
+}
+
+// ============================================================================
+// Data Subscriptions
+// ============================================================================
+function subscribeToData(userId) {
+    quoteService.subscribe(userId, (quotes) => {
+        state.quotes = quotes;
         renderQuotes();
         updateStats();
     });
 
-    // Subscribe to collections
-    const collectionsQuery = query(
-        collection(db, 'collections'),
-        where('userId', '==', currentUser.uid)
-    );
-
-    unsubscribeCollections = onSnapshot(collectionsQuery, (snapshot) => {
-        collections = snapshot.docs.map(d => ({
-            id: d.id,
-            ...d.data()
-        }));
-        // Sort by name in client
-        collections.sort((a, b) => a.name.localeCompare(b.name));
+    collectionService.subscribe(userId, (collections) => {
+        state.collections = collections;
         updateCollectionSelects();
     });
 }
 
-// Update collection dropdowns
-function updateCollectionSelects() {
-    const selects = [
-        document.getElementById('filterCollection'),
-        document.getElementById('quoteCollection')
-    ];
+function unsubscribeFromData() {
+    quoteService.unsubscribeAll();
+    collectionService.unsubscribeAll();
+}
 
-    selects.forEach((select, index) => {
-        const currentValue = select.value;
-        const defaultOption = index === 0 ? 'Todas las colecciones' : 'Sin colección';
+// ============================================================================
+// Quote Rendering
+// ============================================================================
+function renderQuotes() {
+    if (state.currentView === 'compare') {
+        renderCompareViewMode();
+        return;
+    }
 
-        select.innerHTML = `<option value="">${defaultOption}</option>` +
-            collections.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+    renderListView();
+}
 
-        select.value = currentValue;
+function renderListView() {
+    const filters = getFilters();
+    let filtered = quoteService.filterQuotes(state.quotes, filters);
+    filtered = quoteService.sortQuotes(filtered, filters.sortBy);
+
+    if (filtered.length === 0) {
+        elements.quotesList.innerHTML = '';
+        elements.emptyState.classList.remove('hidden');
+        return;
+    }
+
+    elements.emptyState.classList.add('hidden');
+    elements.quotesList.innerHTML = renderQuoteList(filtered, state.collections);
+}
+
+function renderCompareViewMode() {
+    const filters = getFilters();
+    let filtered = quoteService.filterQuotes(state.quotes, {
+        searchTerm: filters.searchTerm,
+        collectionId: filters.collectionId
+    });
+    filtered = filterForCompare(filtered);
+
+    updateCompareView(filtered, {
+        favorEl: elements.quotesFavor,
+        againstEl: elements.quotesAgainst
     });
 }
 
-// Modal functions
-window.openModal = (quoteId = null) => {
-    const modal = document.getElementById('modal');
-    const form = document.getElementById('quoteForm');
-    const title = document.getElementById('modalTitle');
+function getFilters() {
+    return {
+        searchTerm: elements.searchInput.value.toLowerCase(),
+        collectionId: elements.filterCollection.value,
+        stance: elements.filterStance.value,
+        favoriteOnly: elements.filterFavorite.value === 'true',
+        sortBy: elements.sortBy.value
+    };
+}
 
+function updateStats() {
+    elements.totalQuotes.textContent = state.quotes.length;
+}
+
+function updateCollectionSelects() {
+    updateAllCollectionSelects({
+        filter: elements.filterCollection,
+        form: elements.quoteCollection
+    }, state.collections);
+}
+
+// ============================================================================
+// Quote Event Handlers
+// ============================================================================
+function setupQuoteListeners() {
+    elements.quoteForm.addEventListener('submit', handleQuoteSubmit);
+}
+
+async function handleQuoteSubmit(e) {
+    e.preventDefault();
+
+    elements.saveBtn.disabled = true;
+    elements.saveBtn.textContent = 'Guardando...';
+
+    const id = document.getElementById('quoteId').value;
+    const formData = {
+        text: document.getElementById('quoteText').value,
+        author: document.getElementById('quoteAuthor').value,
+        source: document.getElementById('quoteSource').value,
+        collectionId: document.getElementById('quoteCollection').value,
+        stance: document.getElementById('quoteStance').value,
+        tags: document.getElementById('quoteTags').value,
+        notes: document.getElementById('quoteNotes').value
+    };
+
+    const quoteData = quoteService.prepareQuoteData(formData);
+
+    try {
+        const user = authService.getCurrentUser();
+        if (id) {
+            await quoteService.update(id, { ...quoteData, userId: user.uid });
+            toast.success('Cita actualizada');
+        } else {
+            await quoteService.create(quoteData, user.uid);
+            toast.success('Cita guardada');
+        }
+        closeModal();
+    } catch (error) {
+        console.error('Error saving quote:', error);
+        toast.error('Error al guardar la cita');
+    }
+
+    elements.saveBtn.disabled = false;
+    elements.saveBtn.textContent = 'Guardar';
+}
+
+// ============================================================================
+// Filter & View Listeners
+// ============================================================================
+function setupFilterListeners() {
+    elements.searchInput.addEventListener('input', renderQuotes);
+    elements.filterCollection.addEventListener('change', renderQuotes);
+    elements.filterStance.addEventListener('change', renderQuotes);
+    elements.filterFavorite.addEventListener('change', renderQuotes);
+    elements.sortBy.addEventListener('change', renderQuotes);
+}
+
+function setupViewListeners() {
+    elements.viewList.addEventListener('click', () => {
+        state.currentView = 'list';
+        elements.viewList.classList.add('active');
+        elements.viewCompare.classList.remove('active');
+        elements.quotesList.classList.remove('hidden');
+        elements.quotesCompare.classList.add('hidden');
+        renderQuotes();
+    });
+
+    elements.viewCompare.addEventListener('click', () => {
+        state.currentView = 'compare';
+        elements.viewCompare.classList.add('active');
+        elements.viewList.classList.remove('active');
+        elements.quotesList.classList.add('hidden');
+        elements.quotesCompare.classList.remove('hidden');
+        renderQuotes();
+    });
+}
+
+// ============================================================================
+// Modal Handlers
+// ============================================================================
+function setupModalListeners() {
+    // Close on overlay click
+    elements.modal.addEventListener('click', (e) => {
+        if (e.target === elements.modal) closeModal();
+    });
+
+    elements.collectionModal.addEventListener('click', (e) => {
+        if (e.target === elements.collectionModal) closeCollectionModal();
+    });
+
+    // Escape key closes modals
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeModal();
+            closeCollectionModal();
+        }
+    });
+}
+
+// ============================================================================
+// Global Functions (exposed to window for onclick handlers)
+// ============================================================================
+window.openModal = (quoteId = null) => {
+    const form = elements.quoteForm;
     form.reset();
     document.getElementById('quoteId').value = '';
     document.getElementById('quoteCollection').value = '';
 
     if (quoteId) {
-        const quote = quotes.find(q => q.id === quoteId);
+        const quote = state.quotes.find(q => q.id === quoteId);
         if (quote) {
-            title.textContent = 'Editar cita';
+            elements.modalTitle.textContent = 'Editar cita';
             document.getElementById('quoteId').value = quote.id;
             document.getElementById('quoteText').value = quote.text;
             document.getElementById('quoteAuthor').value = quote.author;
@@ -327,288 +422,75 @@ window.openModal = (quoteId = null) => {
             document.getElementById('quoteNotes').value = quote.notes || '';
         }
     } else {
-        title.textContent = 'Nueva cita';
+        elements.modalTitle.textContent = 'Nueva cita';
     }
 
-    modal.classList.add('active');
+    elements.modal.classList.add('active');
 };
 
 window.closeModal = () => {
-    document.getElementById('modal').classList.remove('active');
+    elements.modal.classList.remove('active');
 };
 
-// Form submission
-document.getElementById('quoteForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const saveBtn = document.getElementById('saveBtn');
-    saveBtn.disabled = true;
-    saveBtn.textContent = 'Guardando...';
-
-    const id = document.getElementById('quoteId').value;
-    const collectionId = document.getElementById('quoteCollection').value;
-
-    const quoteData = {
-        text: document.getElementById('quoteText').value.trim(),
-        author: document.getElementById('quoteAuthor').value.trim(),
-        source: document.getElementById('quoteSource').value.trim(),
-        collectionId: collectionId || null,
-        stance: document.getElementById('quoteStance').value,
-        tags: document.getElementById('quoteTags').value
-            .split(',')
-            .map(t => t.trim().toLowerCase())
-            .filter(Boolean),
-        notes: document.getElementById('quoteNotes').value.trim(),
-        userId: currentUser.uid,
-        updatedAt: new Date().toISOString()
-    };
-
-    try {
-        if (id) {
-            await updateDoc(doc(db, 'quotes', id), quoteData);
-        } else {
-            quoteData.createdAt = new Date().toISOString();
-            quoteData.favorite = false;
-            await addDoc(collection(db, 'quotes'), quoteData);
-        }
-        closeModal();
-        showToast(id ? 'Cita actualizada' : 'Cita guardada', 'success');
-    } catch (error) {
-        console.error('Error saving quote:', error);
-        showToast('Error al guardar la cita', 'error');
-    }
-
-    saveBtn.disabled = false;
-    saveBtn.textContent = 'Guardar';
-});
-
-// Delete quote
 window.deleteQuote = (id) => {
-    showConfirm(
-        '¿Eliminar esta cita?',
-        'Esta acción no se puede deshacer.',
-        'Eliminar',
-        async () => {
+    confirmModal.show({
+        title: '¿Eliminar esta cita?',
+        message: 'Esta acción no se puede deshacer.',
+        actionText: 'Eliminar',
+        onConfirm: async () => {
             try {
-                await deleteDoc(doc(db, 'quotes', id));
-                showToast('Cita eliminada', 'success');
+                await quoteService.delete(id);
+                toast.success('Cita eliminada');
             } catch (error) {
                 console.error('Error deleting quote:', error);
-                showToast('Error al eliminar la cita', 'error');
+                toast.error('Error al eliminar la cita');
             }
         }
-    );
+    });
 };
 
-// Render quotes
-function renderQuotes() {
-    if (currentView === 'compare') {
-        renderCompareView();
-        return;
-    }
-
-    const list = document.getElementById('quotesList');
-    const emptyState = document.getElementById('emptyState');
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const filterCollection = document.getElementById('filterCollection').value;
-    const filterStance = document.getElementById('filterStance').value;
-    const filterFavorite = document.getElementById('filterFavorite').value;
-    const sortBy = document.getElementById('sortBy').value;
-
-    let filtered = quotes.filter(q => {
-        const matchesSearch = !searchTerm ||
-            q.text.toLowerCase().includes(searchTerm) ||
-            q.author.toLowerCase().includes(searchTerm) ||
-            (q.source && q.source.toLowerCase().includes(searchTerm)) ||
-            (q.tags && q.tags.some(t => t.includes(searchTerm)));
-        const matchesCollection = !filterCollection || q.collectionId === filterCollection;
-        const matchesStance = !filterStance || q.stance === filterStance;
-        const matchesFavorite = !filterFavorite || q.favorite === true;
-        return matchesSearch && matchesCollection && matchesStance && matchesFavorite;
-    });
-
-    // Sort
-    filtered.sort((a, b) => {
-        if (sortBy === 'oldest') return new Date(a.createdAt) - new Date(b.createdAt);
-        if (sortBy === 'author') return a.author.localeCompare(b.author);
-        return new Date(b.createdAt) - new Date(a.createdAt); // newest
-    });
-
-    if (filtered.length === 0) {
-        list.innerHTML = '';
-        emptyState.classList.remove('hidden');
-        return;
-    }
-
-    emptyState.classList.add('hidden');
-
-    list.innerHTML = filtered.map(q => {
-        const collectionName = q.collectionId ? collections.find(c => c.id === q.collectionId)?.name : null;
-        return `
-        <article class="quote-card">
-            <div class="quote-header">
-                <button class="favorite-btn ${q.favorite ? 'active' : ''}" onclick="toggleFavorite('${q.id}', ${!q.favorite})" title="${q.favorite ? 'Quitar de destacados' : 'Destacar'}">
-                    <svg viewBox="0 0 24 24" fill="${q.favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                    </svg>
-                </button>
-            </div>
-            <p class="quote-text">${escapeHtml(q.text)}</p>
-            <div class="quote-meta">
-                <div>
-                    <div class="quote-author">— ${escapeHtml(q.author)}</div>
-                    ${q.source ? `<div class="quote-source">${escapeHtml(q.source)}</div>` : ''}
-                </div>
-                <div class="quote-tags">
-                    ${collectionName ? `<span class="collection-tag">${escapeHtml(collectionName)}</span>` : ''}
-                    <span class="stance stance-${q.stance}">${getStanceLabel(q.stance)}</span>
-                    ${(q.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
-                </div>
-            </div>
-            ${q.notes ? `<div class="quote-notes"><strong>Notas:</strong> ${escapeHtml(q.notes)}</div>` : ''}
-            <div class="quote-actions">
-                <button class="action-btn" onclick="openModal('${q.id}')">Editar</button>
-                <button class="action-btn delete" onclick="deleteQuote('${q.id}')">Eliminar</button>
-            </div>
-        </article>
-    `}).join('');
-}
-
-// Render compare view (favor vs contra)
-function renderCompareView() {
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const filterCollection = document.getElementById('filterCollection').value;
-
-    let filtered = quotes.filter(q => {
-        const matchesSearch = !searchTerm ||
-            q.text.toLowerCase().includes(searchTerm) ||
-            q.author.toLowerCase().includes(searchTerm);
-        const matchesCollection = !filterCollection || q.collectionId === filterCollection;
-        return matchesSearch && matchesCollection && (q.stance === 'favor' || q.stance === 'contra');
-    });
-
-    const favor = filtered.filter(q => q.stance === 'favor');
-    const against = filtered.filter(q => q.stance === 'contra');
-
-    document.getElementById('quotesFavor').innerHTML = favor.length > 0
-        ? favor.map(q => `
-            <div class="compare-quote">
-                <p class="quote-text">${escapeHtml(q.text)}</p>
-                <div class="quote-author">— ${escapeHtml(q.author)}</div>
-            </div>
-        `).join('')
-        : '<p class="empty-compare">No hay citas a favor</p>';
-
-    document.getElementById('quotesAgainst').innerHTML = against.length > 0
-        ? against.map(q => `
-            <div class="compare-quote">
-                <p class="quote-text">${escapeHtml(q.text)}</p>
-                <div class="quote-author">— ${escapeHtml(q.author)}</div>
-            </div>
-        `).join('')
-        : '<p class="empty-compare">No hay citas en contra</p>';
-}
-
-// Toggle favorite
 window.toggleFavorite = async (id, value) => {
     try {
-        await updateDoc(doc(db, 'quotes', id), { favorite: value });
-        showToast(value ? 'Cita destacada' : 'Cita sin destacar', 'success');
+        await quoteService.toggleFavorite(id, value);
+        toast.success(value ? 'Cita destacada' : 'Cita sin destacar');
     } catch (error) {
         console.error('Error updating favorite:', error);
-        showToast('Error al actualizar', 'error');
+        toast.error('Error al actualizar');
     }
 };
 
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function getStanceLabel(stance) {
-    const labels = {
-        favor: 'A favor',
-        contra: 'En contra',
-        neutral: 'Neutral'
-    };
-    return labels[stance] || stance;
-}
-
-function updateStats() {
-    document.getElementById('totalQuotes').textContent = quotes.length;
-}
-
-// Event listeners for filters
-document.getElementById('searchInput').addEventListener('input', renderQuotes);
-document.getElementById('filterCollection').addEventListener('change', renderQuotes);
-document.getElementById('filterStance').addEventListener('change', renderQuotes);
-document.getElementById('filterFavorite').addEventListener('change', renderQuotes);
-document.getElementById('sortBy').addEventListener('change', renderQuotes);
-
-// View toggle
-document.getElementById('viewList').addEventListener('click', () => {
-    currentView = 'list';
-    document.getElementById('viewList').classList.add('active');
-    document.getElementById('viewCompare').classList.remove('active');
-    document.getElementById('quotesList').classList.remove('hidden');
-    document.getElementById('quotesCompare').classList.add('hidden');
-    renderQuotes();
-});
-
-document.getElementById('viewCompare').addEventListener('click', () => {
-    currentView = 'compare';
-    document.getElementById('viewCompare').classList.add('active');
-    document.getElementById('viewList').classList.remove('active');
-    document.getElementById('quotesList').classList.add('hidden');
-    document.getElementById('quotesCompare').classList.remove('hidden');
-    renderQuotes();
-});
-
-// Collection modal functions
 window.openNewCollectionModal = () => {
-    document.getElementById('newCollectionName').value = '';
-    document.getElementById('collectionModal').classList.add('active');
+    elements.newCollectionName.value = '';
+    elements.collectionModal.classList.add('active');
 };
 
 window.closeCollectionModal = () => {
-    document.getElementById('collectionModal').classList.remove('active');
+    elements.collectionModal.classList.remove('active');
 };
 
 window.createCollection = async () => {
-    const name = document.getElementById('newCollectionName').value.trim();
+    const name = elements.newCollectionName.value.trim();
     if (!name) {
-        showToast('Ingresa un nombre para la colección', 'error');
+        toast.error('Ingresa un nombre para la colección');
         return;
     }
 
     try {
-        await addDoc(collection(db, 'collections'), {
-            name,
-            userId: currentUser.uid,
-            createdAt: new Date().toISOString()
-        });
-        showToast('Colección creada', 'success');
+        const user = authService.getCurrentUser();
+        await collectionService.create(name, user.uid);
+        toast.success('Colección creada');
         closeCollectionModal();
     } catch (error) {
         console.error('Error creating collection:', error);
-        showToast('Error al crear colección', 'error');
+        toast.error('Error al crear colección');
     }
 };
 
-// Close modal on overlay click
-document.getElementById('modal').addEventListener('click', function(e) {
-    if (e.target === this) closeModal();
-});
+window.logout = async () => {
+    await authService.logout();
+};
 
-document.getElementById('collectionModal').addEventListener('click', function(e) {
-    if (e.target === this) closeCollectionModal();
-});
-
-// Escape key closes modals
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeModal();
-        closeCollectionModal();
-    }
-});
+// ============================================================================
+// Start Application
+// ============================================================================
+init();
