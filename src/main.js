@@ -29,6 +29,9 @@ const state = {
     authMode: 'login'
 };
 
+// State for reply modal
+let replyParentId = null;
+
 // ============================================================================
 // DOM Elements
 // ============================================================================
@@ -374,7 +377,9 @@ function renderQuotes() {
 
 function renderListView() {
     const filters = getFilters();
-    let filtered = quoteService.filterQuotes(state.quotes, filters);
+    // Filter root quotes only (replies are nested)
+    const rootQuotes = quoteService.getRootQuotes(state.quotes);
+    let filtered = quoteService.filterQuotes(rootQuotes, filters);
     filtered = quoteService.sortQuotes(filtered, filters.sortBy);
 
     if (filtered.length === 0) {
@@ -383,8 +388,13 @@ function renderListView() {
         return;
     }
 
+    // Build tree structure with replies
+    const quotesWithReplies = filtered.map(quote =>
+        quoteService.buildQuoteNode(quote, state.quotes)
+    );
+
     elements.emptyState.classList.add('hidden');
-    elements.quotesList.innerHTML = renderQuoteList(filtered, state.collections);
+    elements.quotesList.innerHTML = renderQuoteList(quotesWithReplies, state.collections);
 }
 
 function renderCompareViewMode() {
@@ -444,7 +454,8 @@ async function handleQuoteSubmit(e) {
         collectionId: document.getElementById('quoteCollection').value,
         stance: document.getElementById('quoteStance').value,
         tags: document.getElementById('quoteTags').value,
-        notes: document.getElementById('quoteNotes').value
+        notes: document.getElementById('quoteNotes').value,
+        parentId: replyParentId
     };
 
     const quoteData = quoteService.prepareQuoteData(formData);
@@ -593,6 +604,7 @@ function setupModalListeners() {
 // Global Functions (exposed to window for onclick handlers in rendered HTML)
 // ============================================================================
 function openModal(quoteId = null) {
+    replyParentId = null; // Reset reply state
     const form = elements.quoteForm;
     form.reset();
     document.getElementById('quoteId').value = '';
@@ -620,6 +632,7 @@ function openModal(quoteId = null) {
 
 function closeModal() {
     elements.modal.classList.remove('active');
+    replyParentId = null; // Reset reply state
 }
 
 function deleteQuote(id) {
@@ -680,6 +693,49 @@ async function logout() {
     await authService.logout();
 }
 
+function openReplyModal(parentId, suggestedStance, collectionId) {
+    const parentQuote = state.quotes.find(q => q.id === parentId);
+    if (!parentQuote) return;
+
+    replyParentId = parentId;
+
+    const form = elements.quoteForm;
+    form.reset();
+    document.getElementById('quoteId').value = '';
+    document.getElementById('quoteCollection').value = collectionId || '';
+    document.getElementById('quoteStance').value = suggestedStance;
+
+    // Update modal title to show it's a reply
+    elements.modalTitle.innerHTML = `
+        ${t('replies.newReply')}
+        <div class="reply-context">
+            <small>${t('replies.replyingTo')}</small>
+            <blockquote>"${parentQuote.text.substring(0, 100)}${parentQuote.text.length > 100 ? '...' : ''}"</blockquote>
+        </div>
+    `;
+
+    elements.modal.classList.add('active');
+}
+
+function toggleReplies(toggleId) {
+    const repliesContainer = document.getElementById(toggleId);
+    const toggleBtn = repliesContainer?.previousElementSibling;
+
+    if (!repliesContainer || !toggleBtn) return;
+
+    const isExpanded = toggleBtn.dataset.expanded === 'true';
+
+    if (isExpanded) {
+        repliesContainer.classList.add('collapsed');
+        toggleBtn.dataset.expanded = 'false';
+        toggleBtn.querySelector('.toggle-icon').style.transform = 'rotate(-90deg)';
+    } else {
+        repliesContainer.classList.remove('collapsed');
+        toggleBtn.dataset.expanded = 'true';
+        toggleBtn.querySelector('.toggle-icon').style.transform = 'rotate(0deg)';
+    }
+}
+
 // Expose functions to window for onclick handlers in rendered HTML
 window.openModal = openModal;
 window.closeModal = closeModal;
@@ -689,6 +745,8 @@ window.openNewCollectionModal = openNewCollectionModal;
 window.closeCollectionModal = closeCollectionModal;
 window.createCollection = createCollection;
 window.logout = logout;
+window.openReplyModal = openReplyModal;
+window.toggleReplies = toggleReplies;
 
 // ============================================================================
 // Mobile Handlers

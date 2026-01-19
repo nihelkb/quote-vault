@@ -122,5 +122,16 @@
     "stance": "Stance",
     "favorites": "Favorites",
     "sort": "Sort"
+  },
+  "replies": {
+    "reply": "reply",
+    "replies": "replies",
+    "addReply": "Counter",
+    "addCounter": "Reply",
+    "replyTo": "Reply to",
+    "newReply": "New counterargument",
+    "replyingTo": "Replying to:",
+    "hideReplies": "Hide replies",
+    "showReplies": "Show replies"
   }
 }

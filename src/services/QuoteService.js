@@ -116,7 +116,8 @@ class QuoteService {
             collectionId: formData.collectionId || null,
             stance: formData.stance,
             tags: this.parseTags(formData.tags),
-            notes: formData.notes?.trim() || ''
+            notes: formData.notes?.trim() || '',
+            parentId: formData.parentId || null
         };
     }
 
@@ -174,6 +175,62 @@ class QuoteService {
      */
     getQuotesByStance(quotes, stance) {
         return quotes.filter(q => q.stance === stance);
+    }
+
+    /**
+     * Get root quotes (quotes without parent)
+     */
+    getRootQuotes(quotes) {
+        return quotes.filter(q => !q.parentId);
+    }
+
+    /**
+     * Get replies/counterarguments for a specific quote
+     */
+    getReplies(quotes, parentId) {
+        return quotes.filter(q => q.parentId === parentId);
+    }
+
+    /**
+     * Build a tree structure of quotes with their replies
+     */
+    buildQuoteTree(quotes) {
+        const rootQuotes = this.getRootQuotes(quotes);
+        return rootQuotes.map(quote => this.buildQuoteNode(quote, quotes));
+    }
+
+    /**
+     * Recursively build a quote node with nested replies
+     */
+    buildQuoteNode(quote, allQuotes) {
+        const replies = this.getReplies(allQuotes, quote.id);
+        return {
+            ...quote,
+            replies: replies.map(reply => this.buildQuoteNode(reply, allQuotes))
+        };
+    }
+
+    /**
+     * Get the reply count for a quote (including nested)
+     */
+    getReplyCount(quotes, quoteId) {
+        const directReplies = this.getReplies(quotes, quoteId);
+        let count = directReplies.length;
+        directReplies.forEach(reply => {
+            count += this.getReplyCount(quotes, reply.id);
+        });
+        return count;
+    }
+
+    /**
+     * Delete a quote and all its replies recursively
+     */
+    async deleteWithReplies(quoteId, allQuotes) {
+        const replies = this.getReplies(allQuotes, quoteId);
+        for (const reply of replies) {
+            await this.deleteWithReplies(reply.id, allQuotes);
+        }
+        await this.delete(quoteId);
     }
 }
 

@@ -122,5 +122,16 @@
     "stance": "Postura",
     "favorites": "Favoritos",
     "sort": "Ordenar"
+  },
+  "replies": {
+    "reply": "respuesta",
+    "replies": "respuestas",
+    "addReply": "Contraargumento",
+    "addCounter": "Responder",
+    "replyTo": "Respuesta a",
+    "newReply": "Nuevo contraargumento",
+    "replyingTo": "Respondiendo a:",
+    "hideReplies": "Ocultar respuestas",
+    "showReplies": "Mostrar respuestas"
   }
 }

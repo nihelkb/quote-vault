@@ -602,6 +602,113 @@ header {
     color: var(--against);
 }
 
+.action-btn.reply-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.action-btn.reply-btn svg {
+    color: var(--accent);
+}
+
+/* Reply/Nested Quote Styles */
+.quote-reply {
+    margin-left: 24px;
+    border-left: 3px solid var(--accent);
+    background: linear-gradient(to right, rgba(107, 100, 89, 0.03), transparent);
+}
+
+.quote-reply .quote-text {
+    font-size: 1.2rem;
+}
+
+.quote-reply[data-depth="2"] {
+    margin-left: 48px;
+}
+
+.quote-reply[data-depth="3"] {
+    margin-left: 72px;
+}
+
+.reply-indicator {
+    display: flex;
+    align-items: center;
+    margin-right: auto;
+    color: var(--accent);
+}
+
+.quote-replies-section {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px dashed var(--border);
+}
+
+.replies-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--tag-bg);
+    border: none;
+    border-radius: 20px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.replies-toggle:hover {
+    background: var(--border);
+    color: var(--text);
+}
+
+.replies-toggle .toggle-icon {
+    transition: transform 0.2s;
+}
+
+.replies-count {
+    font-weight: 500;
+}
+
+.quote-replies {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 16px;
+    transition: all 0.3s ease;
+}
+
+.quote-replies.collapsed {
+    display: none;
+}
+
+/* Reply Context in Modal */
+.reply-context {
+    margin-top: 12px;
+    font-weight: 400;
+}
+
+.reply-context small {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.reply-context blockquote {
+    margin: 0;
+    padding: 12px 16px;
+    background: var(--tag-bg);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 1rem;
+    color: var(--text-muted);
+}
+
 /* Modal */
 .modal-overlay {
     display: none;
@@ -893,6 +1000,15 @@ header {
     border-radius: 6px;
 }
 
+.compare-quote.has-counters {
+    background: white;
+    border: 1px solid var(--border);
+}
+
+.compare-quote-main {
+    padding-bottom: 12px;
+}
+
 .compare-quote .quote-text {
     font-size: 1.1rem;
     margin-bottom: 8px;
@@ -900,6 +1016,105 @@ header {
 
 .compare-quote .quote-author {
     font-size: 0.85rem;
+}
+
+.compare-quote .quote-source {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-top: 4px;
+}
+
+/* Counterarguments in Compare View */
+.compare-counters {
+    border-top: 1px dashed var(--border);
+    padding-top: 12px;
+    margin-top: 4px;
+}
+
+.counters-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+}
+
+.counters-header svg {
+    color: var(--accent);
+}
+
+.counters-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.counter-quote {
+    padding: 12px;
+    background: var(--tag-bg);
+    border-left: 2px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+}
+
+.counter-text {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: 6px;
+}
+
+.counter-author {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.nested-counters {
+    margin-top: 10px;
+    padding-left: 12px;
+    border-left: 1px solid var(--border);
+}
+
+.nested-counter {
+    padding: 8px;
+    background: rgba(255,255,255,0.5);
+    border-radius: 4px;
+    margin-top: 8px;
+}
+
+.nested-counter .counter-text {
+    font-size: 0.9rem;
+}
+
+/* Add counter hint button */
+.add-counter-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 10px;
+    margin-top: 12px;
+    background: transparent;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.add-counter-hint:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(107, 100, 89, 0.05);
+}
+
+.add-counter-hint svg {
+    color: inherit;
 }
 
 .empty-compare {
@@ -1427,6 +1642,28 @@ header {
         flex: 1;
         text-align: center;
         padding: 10px;
+    }
+
+    /* Reply styles for mobile */
+    .quote-reply {
+        margin-left: 12px;
+    }
+
+    .quote-reply[data-depth="2"] {
+        margin-left: 24px;
+    }
+
+    .quote-reply[data-depth="3"] {
+        margin-left: 36px;
+    }
+
+    .quote-reply .quote-text {
+        font-size: 1.05rem;
+    }
+
+    .reply-context blockquote {
+        font-size: 0.9rem;
+        padding: 10px 12px;
     }
 
     .empty-state {
