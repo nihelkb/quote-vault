@@ -3,6 +3,7 @@
  * Single Responsibility: Renders the compare view for quotes (favor vs against)
  */
 import { escapeHtml } from '../utils/helpers.js';
+import { t } from '../utils/i18n.js';
 
 /**
  * Generate HTML for a quote in compare view (simplified)
@@ -21,10 +22,10 @@ function renderCompareQuote(quote) {
  */
 function renderEmptyColumn(stance) {
     const messages = {
-        favor: 'No hay citas a favor',
-        contra: 'No hay citas en contra'
+        favor: t('quotes.noQuotesFavor'),
+        contra: t('quotes.noQuotesAgainst')
     };
-    return `<p class="empty-compare">${messages[stance] || 'No hay citas'}</p>`;
+    return `<p class="empty-compare">${messages[stance] || t('quotes.noQuotes')}</p>`;
 }
 
 /**

@@ -17,6 +17,7 @@ import { updateAllCollectionSelects } from './components/CollectionSelect.js';
 // Utils
 import { toast } from './utils/toast.js';
 import { confirmModal } from './utils/confirmModal.js';
+import { i18n, t } from './utils/i18n.js';
 
 // ============================================================================
 // Application State
@@ -49,6 +50,8 @@ const elements = {
     resendVerification: document.getElementById('resendVerification'),
     verifyEmail: document.getElementById('verifyEmail'),
     userEmail: document.getElementById('userEmail'),
+    useAnotherAccount: document.getElementById('useAnotherAccount'),
+    logoutBtn: document.getElementById('logoutBtn'),
 
     // Quotes
     quotesList: document.getElementById('quotesList'),
@@ -78,13 +81,28 @@ const elements = {
     quoteCollection: document.getElementById('quoteCollection'),
     saveBtn: document.getElementById('saveBtn'),
     collectionModal: document.getElementById('collectionModal'),
-    newCollectionName: document.getElementById('newCollectionName')
+    newCollectionName: document.getElementById('newCollectionName'),
+    newQuoteBtn: document.getElementById('newQuoteBtn'),
+    cancelModalBtn: document.getElementById('cancelModalBtn'),
+    newCollectionBtn: document.getElementById('newCollectionBtn'),
+    cancelCollectionBtn: document.getElementById('cancelCollectionBtn'),
+    createCollectionBtn: document.getElementById('createCollectionBtn'),
+
+    // Language
+    languageSelector: document.getElementById('languageSelector'),
+    languageBtn: document.getElementById('languageBtn'),
+    languageDropdown: document.getElementById('languageDropdown'),
+    currentLang: document.getElementById('currentLang')
 };
 
 // ============================================================================
 // Initialization
 // ============================================================================
 function init() {
+    // Initialize i18n first
+    i18n.init();
+    updateLanguageSelector(i18n.getLocale());
+
     toast.init('toastContainer');
     confirmModal.init();
     setupAuthListeners();
@@ -92,9 +110,65 @@ function init() {
     setupFilterListeners();
     setupViewListeners();
     setupModalListeners();
+    setupLanguageListener();
 
     // Auth state observer
     authService.onAuthStateChange(handleAuthStateChange);
+
+    // Listen for locale changes to re-render dynamic content
+    i18n.onLocaleChange(() => {
+        renderQuotes();
+        updateCollectionSelects();
+    });
+}
+
+// ============================================================================
+// Language Handler
+// ============================================================================
+const languageConfig = {
+    es: {
+        label: 'ES',
+        flagSvg: '<path fill="#c60b1e" d="M0 0h640v480H0z"/><path fill="#ffc400" d="M0 120h640v240H0z"/>'
+    },
+    en: {
+        label: 'EN',
+        flagSvg: '<path fill="#012169" d="M0 0h640v480H0z"/><path fill="#FFF" d="m75 0 244 181L562 0h78v62L400 241l240 178v61h-80L320 301 81 480H0v-60l239-178L0 64V0h75z"/><path fill="#C8102E" d="m424 281 216 159v40L369 281h55zm-184 20 6 35L54 480H0l240-179zM640 0v3L391 191l2-44L590 0h50zM0 0l239 176h-60L0 42V0z"/><path fill="#FFF" d="M241 0v480h160V0H241zM0 160v160h640V160H0z"/><path fill="#C8102E" d="M0 193v96h640v-96H0zM273 0v480h96V0h-96z"/>'
+    }
+};
+
+function setupLanguageListener() {
+    // Toggle dropdown
+    elements.languageBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        elements.languageSelector.classList.toggle('open');
+    });
+
+    // Language options
+    elements.languageDropdown.querySelectorAll('.language-option').forEach(option => {
+        option.addEventListener('click', () => {
+            const lang = option.dataset.lang;
+            i18n.setLocale(lang);
+            updateLanguageSelector(lang);
+            elements.languageSelector.classList.remove('open');
+        });
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!elements.languageSelector.contains(e.target)) {
+            elements.languageSelector.classList.remove('open');
+        }
+    });
+}
+
+function updateLanguageSelector(locale) {
+    const config = languageConfig[locale] || languageConfig.es;
+    elements.currentLang.textContent = config.label;
+
+    // Update active state in dropdown
+    elements.languageDropdown.querySelectorAll('.language-option').forEach(option => {
+        option.classList.toggle('active', option.dataset.lang === locale);
+    });
 }
 
 // ============================================================================
@@ -146,7 +220,7 @@ function setupAuthListeners() {
             state.authMode = tab.dataset.tab;
 
             const isRegister = state.authMode === 'register';
-            elements.authSubmit.textContent = isRegister ? 'Crear cuenta' : 'Iniciar sesión';
+            elements.authSubmit.textContent = isRegister ? t('auth.createAccount') : t('auth.login');
             elements.displayNameGroup.classList.toggle('hidden', !isRegister);
             elements.passwordHint.classList.toggle('hidden', !isRegister);
             elements.authError.classList.remove('show');
@@ -197,20 +271,26 @@ function setupAuthListeners() {
     // Resend verification
     elements.resendVerification.addEventListener('click', async () => {
         elements.resendVerification.disabled = true;
-        elements.resendVerification.textContent = 'Enviando...';
+        elements.resendVerification.textContent = t('auth.sending');
 
         try {
             await authService.resendVerificationEmail();
-            elements.resendVerification.textContent = 'Email enviado';
+            elements.resendVerification.textContent = t('auth.emailSent');
         } catch (error) {
-            elements.resendVerification.textContent = 'Error al enviar';
+            elements.resendVerification.textContent = t('auth.sendError');
         }
 
         setTimeout(() => {
-            elements.resendVerification.textContent = 'Reenviar email';
+            elements.resendVerification.textContent = t('auth.resendEmail');
             elements.resendVerification.disabled = false;
         }, 3000);
     });
+
+    // Use another account
+    elements.useAnotherAccount.addEventListener('click', logout);
+
+    // Logout button
+    elements.logoutBtn.addEventListener('click', logout);
 }
 
 function showAuthError(errorCode) {
@@ -312,7 +392,7 @@ async function handleQuoteSubmit(e) {
     e.preventDefault();
 
     elements.saveBtn.disabled = true;
-    elements.saveBtn.textContent = 'Guardando...';
+    elements.saveBtn.textContent = t('form.saving');
 
     const id = document.getElementById('quoteId').value;
     const formData = {
@@ -331,19 +411,19 @@ async function handleQuoteSubmit(e) {
         const user = authService.getCurrentUser();
         if (id) {
             await quoteService.update(id, { ...quoteData, userId: user.uid });
-            toast.success('Cita actualizada');
+            toast.success(t('toast.quoteUpdated'));
         } else {
             await quoteService.create(quoteData, user.uid);
-            toast.success('Cita guardada');
+            toast.success(t('toast.quoteSaved'));
         }
         closeModal();
     } catch (error) {
         console.error('Error saving quote:', error);
-        toast.error('Error al guardar la cita');
+        toast.error(t('toast.errorSavingQuote'));
     }
 
     elements.saveBtn.disabled = false;
-    elements.saveBtn.textContent = 'Guardar';
+    elements.saveBtn.textContent = t('form.save');
 }
 
 // ============================================================================
@@ -397,12 +477,27 @@ function setupModalListeners() {
             closeCollectionModal();
         }
     });
+
+    // New quote button
+    elements.newQuoteBtn.addEventListener('click', () => openModal());
+
+    // Cancel modal button
+    elements.cancelModalBtn.addEventListener('click', closeModal);
+
+    // New collection button
+    elements.newCollectionBtn.addEventListener('click', openNewCollectionModal);
+
+    // Cancel collection modal button
+    elements.cancelCollectionBtn.addEventListener('click', closeCollectionModal);
+
+    // Create collection button
+    elements.createCollectionBtn.addEventListener('click', createCollection);
 }
 
 // ============================================================================
-// Global Functions (exposed to window for onclick handlers)
+// Global Functions (exposed to window for onclick handlers in rendered HTML)
 // ============================================================================
-window.openModal = (quoteId = null) => {
+function openModal(quoteId = null) {
     const form = elements.quoteForm;
     form.reset();
     document.getElementById('quoteId').value = '';
@@ -411,7 +506,7 @@ window.openModal = (quoteId = null) => {
     if (quoteId) {
         const quote = state.quotes.find(q => q.id === quoteId);
         if (quote) {
-            elements.modalTitle.textContent = 'Editar cita';
+            elements.modalTitle.textContent = t('quotes.editQuote');
             document.getElementById('quoteId').value = quote.id;
             document.getElementById('quoteText').value = quote.text;
             document.getElementById('quoteAuthor').value = quote.author;
@@ -422,73 +517,83 @@ window.openModal = (quoteId = null) => {
             document.getElementById('quoteNotes').value = quote.notes || '';
         }
     } else {
-        elements.modalTitle.textContent = 'Nueva cita';
+        elements.modalTitle.textContent = t('quotes.newQuote');
     }
 
     elements.modal.classList.add('active');
-};
+}
 
-window.closeModal = () => {
+function closeModal() {
     elements.modal.classList.remove('active');
-};
+}
 
-window.deleteQuote = (id) => {
+function deleteQuote(id) {
     confirmModal.show({
-        title: '¿Eliminar esta cita?',
-        message: 'Esta acción no se puede deshacer.',
-        actionText: 'Eliminar',
+        title: t('confirm.deleteQuote'),
+        message: t('confirm.cannotUndo'),
+        actionText: t('quotes.delete'),
         onConfirm: async () => {
             try {
                 await quoteService.delete(id);
-                toast.success('Cita eliminada');
+                toast.success(t('toast.quoteDeleted'));
             } catch (error) {
                 console.error('Error deleting quote:', error);
-                toast.error('Error al eliminar la cita');
+                toast.error(t('toast.errorDeletingQuote'));
             }
         }
     });
-};
+}
 
-window.toggleFavorite = async (id, value) => {
+async function toggleFavorite(id, value) {
     try {
         await quoteService.toggleFavorite(id, value);
-        toast.success(value ? 'Cita destacada' : 'Cita sin destacar');
+        toast.success(value ? t('toast.quoteFavorited') : t('toast.quoteUnfavorited'));
     } catch (error) {
         console.error('Error updating favorite:', error);
-        toast.error('Error al actualizar');
+        toast.error(t('toast.errorUpdating'));
     }
-};
+}
 
-window.openNewCollectionModal = () => {
+function openNewCollectionModal() {
     elements.newCollectionName.value = '';
     elements.collectionModal.classList.add('active');
-};
+}
 
-window.closeCollectionModal = () => {
+function closeCollectionModal() {
     elements.collectionModal.classList.remove('active');
-};
+}
 
-window.createCollection = async () => {
+async function createCollection() {
     const name = elements.newCollectionName.value.trim();
     if (!name) {
-        toast.error('Ingresa un nombre para la colección');
+        toast.error(t('toast.enterCollectionName'));
         return;
     }
 
     try {
         const user = authService.getCurrentUser();
         await collectionService.create(name, user.uid);
-        toast.success('Colección creada');
+        toast.success(t('toast.collectionCreated'));
         closeCollectionModal();
     } catch (error) {
         console.error('Error creating collection:', error);
-        toast.error('Error al crear colección');
+        toast.error(t('toast.errorCreatingCollection'));
     }
-};
+}
 
-window.logout = async () => {
+async function logout() {
     await authService.logout();
-};
+}
+
+// Expose functions to window for onclick handlers in rendered HTML
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.deleteQuote = deleteQuote;
+window.toggleFavorite = toggleFavorite;
+window.openNewCollectionModal = openNewCollectionModal;
+window.closeCollectionModal = closeCollectionModal;
+window.createCollection = createCollection;
+window.logout = logout;
 
 // ============================================================================
 // Start Application

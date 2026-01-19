@@ -12,6 +12,7 @@ import {
     updateProfile,
     signOut
 } from 'firebase/auth';
+import { t } from '../utils/i18n.js';
 
 class AuthService {
     constructor() {
@@ -125,21 +126,22 @@ class AuthService {
     }
 
     /**
-     * Translate Firebase error codes to Spanish messages
+     * Translate Firebase error codes to localized messages
      */
     getErrorMessage(errorCode) {
-        const messages = {
-            'auth/user-not-found': 'Usuario no encontrado',
-            'auth/wrong-password': 'Contraseña incorrecta',
-            'auth/invalid-credential': 'Credenciales inválidas',
-            'auth/email-already-in-use': 'Este email ya está registrado',
-            'auth/weak-password': 'La contraseña debe tener al menos 6 caracteres',
-            'auth/weak-password-custom': 'La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número',
-            'auth/invalid-email': 'Email inválido',
-            'auth/popup-closed-by-user': 'Inicio de sesión cancelado',
-            'auth/popup-blocked': 'El popup fue bloqueado. Permite popups para este sitio.'
+        const errorKeys = {
+            'auth/user-not-found': 'auth.errors.userNotFound',
+            'auth/wrong-password': 'auth.errors.wrongPassword',
+            'auth/invalid-credential': 'auth.errors.invalidCredential',
+            'auth/email-already-in-use': 'auth.errors.emailInUse',
+            'auth/weak-password': 'auth.errors.weakPassword',
+            'auth/weak-password-custom': 'auth.errors.weakPasswordCustom',
+            'auth/invalid-email': 'auth.errors.invalidEmail',
+            'auth/popup-closed-by-user': 'auth.errors.popupClosed',
+            'auth/popup-blocked': 'auth.errors.popupBlocked'
         };
-        return messages[errorCode] || 'Error de autenticación';
+        const key = errorKeys[errorCode] || 'auth.errors.default';
+        return t(key);
     }
 }
 

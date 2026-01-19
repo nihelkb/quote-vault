@@ -1,0 +1,117 @@
+{
+  "app": {
+    "title": "Quote Vault",
+    "subtitle": "Tu repositorio personal de citas",
+    "loading": "Cargando...",
+    "logout": "Salir"
+  },
+  "auth": {
+    "continueWithGoogle": "Continuar con Google",
+    "or": "o",
+    "login": "Iniciar sesión",
+    "register": "Registrarse",
+    "createAccount": "Crear cuenta",
+    "displayNamePlaceholder": "Tu nombre o apodo",
+    "emailPlaceholder": "Email",
+    "passwordPlaceholder": "Contraseña",
+    "passwordHint": "Mínimo 8 caracteres, una mayúscula, una minúscula y un número",
+    "verifyEmail": "Verifica tu email",
+    "verificationSent": "Hemos enviado un enlace de verificación a:",
+    "verificationInstructions": "Revisa tu bandeja de entrada (y spam) y haz clic en el enlace para activar tu cuenta.",
+    "resendEmail": "Reenviar email",
+    "useAnotherAccount": "Usar otra cuenta",
+    "sending": "Enviando...",
+    "emailSent": "Email enviado",
+    "sendError": "Error al enviar",
+    "errors": {
+      "userNotFound": "Usuario no encontrado",
+      "wrongPassword": "Contraseña incorrecta",
+      "invalidCredential": "Credenciales inválidas",
+      "emailInUse": "Este email ya está registrado",
+      "weakPassword": "La contraseña debe tener al menos 6 caracteres",
+      "weakPasswordCustom": "La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número",
+      "invalidEmail": "Email inválido",
+      "popupClosed": "Inicio de sesión cancelado",
+      "popupBlocked": "El popup fue bloqueado. Permite popups para este sitio.",
+      "default": "Error de autenticación"
+    }
+  },
+  "quotes": {
+    "savedQuotes": "citas guardadas",
+    "searchPlaceholder": "Buscar por texto, autor o fuente...",
+    "allCollections": "Todas las colecciones",
+    "noCollection": "Sin colección",
+    "allStances": "Todas las posturas",
+    "all": "Todas",
+    "favorites": "Destacadas",
+    "newest": "Más recientes",
+    "oldest": "Más antiguas",
+    "byAuthor": "Por autor",
+    "newQuote": "+ Nueva cita",
+    "editQuote": "Editar cita",
+    "listView": "Vista lista",
+    "compareView": "Vista comparativa",
+    "emptyTitle": "Tu colección está vacía",
+    "emptyMessage": "Comienza añadiendo tu primera cita memorable",
+    "removeFromFavorites": "Quitar de destacados",
+    "addToFavorites": "Destacar",
+    "notes": "Notas:",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "noQuotesFavor": "No hay citas a favor",
+    "noQuotesAgainst": "No hay citas en contra",
+    "noQuotes": "No hay citas"
+  },
+  "stances": {
+    "favor": "A favor",
+    "contra": "En contra",
+    "neutral": "Neutral"
+  },
+  "form": {
+    "quoteLabel": "Cita *",
+    "quotePlaceholder": "Escribe la cita aquí...",
+    "authorLabel": "Autor *",
+    "authorPlaceholder": "Nombre del autor",
+    "sourceLabel": "Fuente",
+    "sourcePlaceholder": "Libro, artículo, discurso...",
+    "collectionLabel": "Colección",
+    "stanceLabel": "Tu postura",
+    "tagsLabel": "Etiquetas",
+    "tagsPlaceholder": "Separadas por coma: filosofía, ética, vida",
+    "notesLabel": "Notas personales",
+    "notesPlaceholder": "Tu reflexión o comentario sobre esta cita...",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "saving": "Guardando..."
+  },
+  "collections": {
+    "newCollection": "Nueva colección",
+    "createDescription": "Crea una colección para organizar citas por tema de debate.",
+    "namePlaceholder": "Ej: Cambio climático, IA, Ética...",
+    "create": "Crear"
+  },
+  "confirm": {
+    "areYouSure": "¿Estás seguro?",
+    "cannotUndo": "Esta acción no se puede deshacer.",
+    "deleteQuote": "¿Eliminar esta cita?",
+    "deleteItem": "¿Eliminar {item}?"
+  },
+  "toast": {
+    "quoteUpdated": "Cita actualizada",
+    "quoteSaved": "Cita guardada",
+    "quoteDeleted": "Cita eliminada",
+    "quoteFavorited": "Cita destacada",
+    "quoteUnfavorited": "Cita sin destacar",
+    "collectionCreated": "Colección creada",
+    "errorSavingQuote": "Error al guardar la cita",
+    "errorDeletingQuote": "Error al eliminar la cita",
+    "errorUpdating": "Error al actualizar",
+    "errorCreatingCollection": "Error al crear colección",
+    "enterCollectionName": "Ingresa un nombre para la colección"
+  },
+  "language": {
+    "select": "Idioma",
+    "es": "Español",
+    "en": "Inglés"
+  }
+}

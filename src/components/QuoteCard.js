@@ -4,6 +4,7 @@
  * Liskov Substitution Principle: Can be replaced by any component that generates HTML
  */
 import { escapeHtml, getStanceLabel } from '../utils/helpers.js';
+import { t } from '../utils/i18n.js';
 
 /**
  * Generate HTML for a quote card
@@ -14,7 +15,7 @@ import { escapeHtml, getStanceLabel } from '../utils/helpers.js';
 export function renderQuoteCard(quote, collectionName = null) {
     const favoriteClass = quote.favorite ? 'active' : '';
     const favoriteFill = quote.favorite ? 'currentColor' : 'none';
-    const favoriteTitle = quote.favorite ? 'Quitar de destacados' : 'Destacar';
+    const favoriteTitle = quote.favorite ? t('quotes.removeFromFavorites') : t('quotes.addToFavorites');
 
     return `
         <article class="quote-card">
@@ -41,10 +42,10 @@ export function renderQuoteCard(quote, collectionName = null) {
                     ${renderTags(quote.tags)}
                 </div>
             </div>
-            ${quote.notes ? `<div class="quote-notes"><strong>Notas:</strong> ${escapeHtml(quote.notes)}</div>` : ''}
+            ${quote.notes ? `<div class="quote-notes"><strong>${t('quotes.notes')}</strong> ${escapeHtml(quote.notes)}</div>` : ''}
             <div class="quote-actions">
-                <button class="action-btn" onclick="openModal('${quote.id}')">Editar</button>
-                <button class="action-btn delete" onclick="deleteQuote('${quote.id}')">Eliminar</button>
+                <button class="action-btn" onclick="openModal('${quote.id}')">${t('quotes.edit')}</button>
+                <button class="action-btn delete" onclick="deleteQuote('${quote.id}')">${t('quotes.delete')}</button>
             </div>
         </article>
     `;

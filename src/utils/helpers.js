@@ -3,6 +3,8 @@
  * Single Responsibility Principle: each function has a single task
  */
 
+import { t, i18n } from './i18n.js';
+
 /**
  * Escape HTML to prevent XSS
  */
@@ -13,15 +15,11 @@ export function escapeHtml(text) {
 }
 
 /**
- * Get stance label in Spanish
+ * Get stance label (translated)
  */
 export function getStanceLabel(stance) {
-    const labels = {
-        favor: 'A favor',
-        contra: 'En contra',
-        neutral: 'Neutral'
-    };
-    return labels[stance] || stance;
+    const key = `stances.${stance}`;
+    return t(key);
 }
 
 /**
@@ -29,7 +27,8 @@ export function getStanceLabel(stance) {
  */
 export function formatDate(isoString) {
     const date = new Date(isoString);
-    return date.toLocaleDateString('es-ES', {
+    const locale = i18n.getLocale() === 'es' ? 'es-ES' : 'en-US';
+    return date.toLocaleDateString(locale, {
         day: 'numeric',
         month: 'short',
         year: 'numeric'

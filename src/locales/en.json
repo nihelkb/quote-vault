@@ -1,0 +1,117 @@
+{
+  "app": {
+    "title": "Quote Vault",
+    "subtitle": "Your personal quote repository",
+    "loading": "Loading...",
+    "logout": "Logout"
+  },
+  "auth": {
+    "continueWithGoogle": "Continue with Google",
+    "or": "or",
+    "login": "Log in",
+    "register": "Sign up",
+    "createAccount": "Create account",
+    "displayNamePlaceholder": "Your name or nickname",
+    "emailPlaceholder": "Email",
+    "passwordPlaceholder": "Password",
+    "passwordHint": "Minimum 8 characters, one uppercase, one lowercase and one number",
+    "verifyEmail": "Verify your email",
+    "verificationSent": "We've sent a verification link to:",
+    "verificationInstructions": "Check your inbox (and spam folder) and click the link to activate your account.",
+    "resendEmail": "Resend email",
+    "useAnotherAccount": "Use another account",
+    "sending": "Sending...",
+    "emailSent": "Email sent",
+    "sendError": "Error sending",
+    "errors": {
+      "userNotFound": "User not found",
+      "wrongPassword": "Incorrect password",
+      "invalidCredential": "Invalid credentials",
+      "emailInUse": "This email is already registered",
+      "weakPassword": "Password must be at least 6 characters",
+      "weakPasswordCustom": "Password must be at least 8 characters, one uppercase, one lowercase and one number",
+      "invalidEmail": "Invalid email",
+      "popupClosed": "Sign in cancelled",
+      "popupBlocked": "Popup was blocked. Please allow popups for this site.",
+      "default": "Authentication error"
+    }
+  },
+  "quotes": {
+    "savedQuotes": "saved quotes",
+    "searchPlaceholder": "Search by text, author or source...",
+    "allCollections": "All collections",
+    "noCollection": "No collection",
+    "allStances": "All stances",
+    "all": "All",
+    "favorites": "Favorites",
+    "newest": "Newest",
+    "oldest": "Oldest",
+    "byAuthor": "By author",
+    "newQuote": "+ New quote",
+    "editQuote": "Edit quote",
+    "listView": "List view",
+    "compareView": "Compare view",
+    "emptyTitle": "Your collection is empty",
+    "emptyMessage": "Start by adding your first memorable quote",
+    "removeFromFavorites": "Remove from favorites",
+    "addToFavorites": "Add to favorites",
+    "notes": "Notes:",
+    "edit": "Edit",
+    "delete": "Delete",
+    "noQuotesFavor": "No quotes in favor",
+    "noQuotesAgainst": "No quotes against",
+    "noQuotes": "No quotes"
+  },
+  "stances": {
+    "favor": "In favor",
+    "contra": "Against",
+    "neutral": "Neutral"
+  },
+  "form": {
+    "quoteLabel": "Quote *",
+    "quotePlaceholder": "Write the quote here...",
+    "authorLabel": "Author *",
+    "authorPlaceholder": "Author name",
+    "sourceLabel": "Source",
+    "sourcePlaceholder": "Book, article, speech...",
+    "collectionLabel": "Collection",
+    "stanceLabel": "Your stance",
+    "tagsLabel": "Tags",
+    "tagsPlaceholder": "Comma separated: philosophy, ethics, life",
+    "notesLabel": "Personal notes",
+    "notesPlaceholder": "Your reflection or comment about this quote...",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving..."
+  },
+  "collections": {
+    "newCollection": "New collection",
+    "createDescription": "Create a collection to organize quotes by debate topic.",
+    "namePlaceholder": "E.g.: Climate change, AI, Ethics...",
+    "create": "Create"
+  },
+  "confirm": {
+    "areYouSure": "Are you sure?",
+    "cannotUndo": "This action cannot be undone.",
+    "deleteQuote": "Delete this quote?",
+    "deleteItem": "Delete {item}?"
+  },
+  "toast": {
+    "quoteUpdated": "Quote updated",
+    "quoteSaved": "Quote saved",
+    "quoteDeleted": "Quote deleted",
+    "quoteFavorited": "Quote favorited",
+    "quoteUnfavorited": "Quote unfavorited",
+    "collectionCreated": "Collection created",
+    "errorSavingQuote": "Error saving quote",
+    "errorDeletingQuote": "Error deleting quote",
+    "errorUpdating": "Error updating",
+    "errorCreatingCollection": "Error creating collection",
+    "enterCollectionName": "Enter a collection name"
+  },
+  "language": {
+    "select": "Language",
+    "es": "Spanish",
+    "en": "English"
+  }
+}
