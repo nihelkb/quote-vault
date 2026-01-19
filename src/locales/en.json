@@ -113,5 +113,14 @@
     "select": "Language",
     "es": "Spanish",
     "en": "English"
+  },
+  "filters": {
+    "title": "Filters",
+    "clear": "Clear",
+    "apply": "Apply",
+    "collection": "Collection",
+    "stance": "Stance",
+    "favorites": "Favorites",
+    "sort": "Sort"
   }
 }

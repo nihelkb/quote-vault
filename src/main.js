@@ -98,7 +98,27 @@ const elements = {
     languageSelector: document.getElementById('languageSelector'),
     languageBtn: document.getElementById('languageBtn'),
     languageDropdown: document.getElementById('languageDropdown'),
-    currentLang: document.getElementById('currentLang')
+    currentLang: document.getElementById('currentLang'),
+
+    // Mobile elements
+    mobileSearchInput: document.getElementById('mobileSearchInput'),
+    mobileMenuBtn: document.getElementById('mobileMenuBtn'),
+    mobileMenu: document.getElementById('mobileMenu'),
+    userEmailMobile: document.getElementById('userEmailMobile'),
+    totalQuotesMobile: document.getElementById('totalQuotesMobile'),
+    logoutBtnMobile: document.getElementById('logoutBtnMobile'),
+    filterToggleBtn: document.getElementById('filterToggleBtn'),
+    filtersPanel: document.getElementById('filtersPanel'),
+    filtersOverlay: document.getElementById('filtersOverlay'),
+    closeFiltersBtn: document.getElementById('closeFiltersBtn'),
+    clearFiltersBtn: document.getElementById('clearFiltersBtn'),
+    applyFiltersBtn: document.getElementById('applyFiltersBtn'),
+    filterBadge: document.getElementById('filterBadge'),
+    mobileFab: document.getElementById('mobileFab'),
+    languageSelectorMobile: document.getElementById('languageSelectorMobile'),
+    languageBtnMobile: document.getElementById('languageBtnMobile'),
+    languageDropdownMobile: document.getElementById('languageDropdownMobile'),
+    currentLangMobile: document.getElementById('currentLangMobile')
 };
 
 // ============================================================================
@@ -117,6 +137,8 @@ function init() {
     setupViewListeners();
     setupModalListeners();
     setupLanguageListener();
+    setupMobileListeners();
+    initMobileFiltersPanel();
 
     // Auth state observer
     authService.onAuthStateChange(handleAuthStateChange);
@@ -125,6 +147,7 @@ function init() {
     i18n.onLocaleChange(() => {
         renderQuotes();
         updateCollectionSelects();
+        updateMobileFiltersPanel();
     });
 }
 
@@ -170,11 +193,21 @@ function setupLanguageListener() {
 function updateLanguageSelector(locale) {
     const config = languageConfig[locale] || languageConfig.es;
     elements.currentLang.textContent = config.label;
+    if (elements.currentLangMobile) {
+        elements.currentLangMobile.textContent = config.label;
+    }
 
-    // Update active state in dropdown
+    // Update active state in dropdown (desktop)
     elements.languageDropdown.querySelectorAll('.language-option').forEach(option => {
         option.classList.toggle('active', option.dataset.lang === locale);
     });
+
+    // Update active state in dropdown (mobile)
+    if (elements.languageDropdownMobile) {
+        elements.languageDropdownMobile.querySelectorAll('.language-option').forEach(option => {
+            option.classList.toggle('active', option.dataset.lang === locale);
+        });
+    }
 }
 
 // ============================================================================
@@ -214,7 +247,9 @@ function showMainApp(user) {
     elements.authScreen.classList.add('hidden');
     elements.verifyScreen.classList.add('hidden');
     elements.mainApp.classList.remove('hidden');
-    elements.userEmail.textContent = authService.getDisplayName(user);
+    const displayName = authService.getDisplayName(user);
+    elements.userEmail.textContent = displayName;
+    elements.userEmailMobile.textContent = displayName;
 }
 
 function setupAuthListeners() {
@@ -378,6 +413,7 @@ function getFilters() {
 
 function updateStats() {
     elements.totalQuotes.textContent = state.quotes.length;
+    elements.totalQuotesMobile.textContent = state.quotes.length;
 }
 
 function updateCollectionSelects() {
@@ -653,6 +689,276 @@ window.openNewCollectionModal = openNewCollectionModal;
 window.closeCollectionModal = closeCollectionModal;
 window.createCollection = createCollection;
 window.logout = logout;
+
+// ============================================================================
+// Mobile Handlers
+// ============================================================================
+const mobileFiltersState = {
+    collection: '',
+    stance: '',
+    favorite: '',
+    sort: 'newest'
+};
+
+function setupMobileListeners() {
+    // Mobile search input - sync with desktop
+    elements.mobileSearchInput.addEventListener('input', (e) => {
+        elements.searchInput.value = e.target.value;
+        renderQuotes();
+    });
+
+    // Sync desktop search to mobile
+    elements.searchInput.addEventListener('input', () => {
+        elements.mobileSearchInput.value = elements.searchInput.value;
+    });
+
+    // Mobile menu toggle
+    elements.mobileMenuBtn.addEventListener('click', () => {
+        elements.mobileMenu.classList.toggle('hidden');
+    });
+
+    // Mobile logout
+    elements.logoutBtnMobile.addEventListener('click', logout);
+
+    // Filter panel toggle
+    elements.filterToggleBtn.addEventListener('click', openFiltersPanel);
+    elements.closeFiltersBtn.addEventListener('click', closeFiltersPanel);
+    elements.filtersOverlay.addEventListener('click', closeFiltersPanel);
+
+    // Filter actions
+    elements.clearFiltersBtn.addEventListener('click', clearMobileFilters);
+    elements.applyFiltersBtn.addEventListener('click', applyMobileFilters);
+
+    // Mobile FAB
+    elements.mobileFab.addEventListener('click', () => openModal());
+
+    // Mobile language selector
+    elements.languageBtnMobile.addEventListener('click', (e) => {
+        e.stopPropagation();
+        elements.languageSelectorMobile.classList.toggle('open');
+    });
+
+    elements.languageDropdownMobile.querySelectorAll('.language-option').forEach(option => {
+        option.addEventListener('click', () => {
+            const lang = option.dataset.lang;
+            i18n.setLocale(lang);
+            updateLanguageSelector(lang);
+            elements.languageSelectorMobile.classList.remove('open');
+        });
+    });
+
+    // Close mobile language dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!elements.languageSelectorMobile.contains(e.target)) {
+            elements.languageSelectorMobile.classList.remove('open');
+        }
+    });
+}
+
+function initMobileFiltersPanel() {
+    const content = elements.filtersPanel.querySelector('.filters-panel-content');
+
+    content.innerHTML = `
+        <div class="filter-group" data-filter="collection">
+            <span class="filter-group-label">${t('filters.collection')}</span>
+            <div class="filter-chips" id="mobileCollectionChips">
+                <button type="button" class="filter-chip active" data-value="">${t('quotes.allCollections')}</button>
+            </div>
+        </div>
+        <div class="filter-group" data-filter="stance">
+            <span class="filter-group-label">${t('filters.stance')}</span>
+            <div class="filter-chips" id="mobileStanceChips">
+                <button type="button" class="filter-chip active" data-value="">${t('quotes.allStances')}</button>
+                <button type="button" class="filter-chip" data-value="favor">${t('stances.favor')}</button>
+                <button type="button" class="filter-chip" data-value="contra">${t('stances.contra')}</button>
+                <button type="button" class="filter-chip" data-value="neutral">${t('stances.neutral')}</button>
+            </div>
+        </div>
+        <div class="filter-group" data-filter="favorite">
+            <span class="filter-group-label">${t('filters.favorites')}</span>
+            <div class="filter-chips" id="mobileFavoriteChips">
+                <button type="button" class="filter-chip active" data-value="">${t('quotes.all')}</button>
+                <button type="button" class="filter-chip" data-value="true">${t('quotes.favorites')}</button>
+            </div>
+        </div>
+        <div class="filter-group" data-filter="sort">
+            <span class="filter-group-label">${t('filters.sort')}</span>
+            <div class="filter-chips" id="mobileSortChips">
+                <button type="button" class="filter-chip active" data-value="newest">${t('quotes.newest')}</button>
+                <button type="button" class="filter-chip" data-value="oldest">${t('quotes.oldest')}</button>
+                <button type="button" class="filter-chip" data-value="author">${t('quotes.byAuthor')}</button>
+            </div>
+        </div>
+    `;
+
+    // Setup chip click handlers
+    content.querySelectorAll('.filter-chips').forEach(chipsContainer => {
+        chipsContainer.querySelectorAll('.filter-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                // Remove active from siblings
+                chipsContainer.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+
+                // Update mobile filters state
+                const filterType = chip.closest('.filter-group').dataset.filter;
+                mobileFiltersState[filterType] = chip.dataset.value;
+            });
+        });
+    });
+}
+
+function updateMobileFiltersPanel() {
+    // Update collection chips
+    const collectionChips = document.getElementById('mobileCollectionChips');
+    if (collectionChips) {
+        collectionChips.innerHTML = `
+            <button type="button" class="filter-chip ${!mobileFiltersState.collection ? 'active' : ''}" data-value="">${t('quotes.allCollections')}</button>
+            ${state.collections.map(c => `
+                <button type="button" class="filter-chip ${mobileFiltersState.collection === c.id ? 'active' : ''}" data-value="${c.id}">${c.name}</button>
+            `).join('')}
+        `;
+
+        // Re-attach handlers
+        collectionChips.querySelectorAll('.filter-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                collectionChips.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                mobileFiltersState.collection = chip.dataset.value;
+            });
+        });
+    }
+
+    // Update labels for other filters (on language change)
+    const stanceChips = document.getElementById('mobileStanceChips');
+    if (stanceChips) {
+        const stanceOptions = [
+            { value: '', label: t('quotes.allStances') },
+            { value: 'favor', label: t('stances.favor') },
+            { value: 'contra', label: t('stances.contra') },
+            { value: 'neutral', label: t('stances.neutral') }
+        ];
+        stanceChips.innerHTML = stanceOptions.map(opt =>
+            `<button type="button" class="filter-chip ${mobileFiltersState.stance === opt.value ? 'active' : ''}" data-value="${opt.value}">${opt.label}</button>`
+        ).join('');
+        attachChipHandlers(stanceChips, 'stance');
+    }
+
+    const favoriteChips = document.getElementById('mobileFavoriteChips');
+    if (favoriteChips) {
+        favoriteChips.innerHTML = `
+            <button type="button" class="filter-chip ${!mobileFiltersState.favorite ? 'active' : ''}" data-value="">${t('quotes.all')}</button>
+            <button type="button" class="filter-chip ${mobileFiltersState.favorite === 'true' ? 'active' : ''}" data-value="true">${t('quotes.favorites')}</button>
+        `;
+        attachChipHandlers(favoriteChips, 'favorite');
+    }
+
+    const sortChips = document.getElementById('mobileSortChips');
+    if (sortChips) {
+        const sortOptions = [
+            { value: 'newest', label: t('quotes.newest') },
+            { value: 'oldest', label: t('quotes.oldest') },
+            { value: 'author', label: t('quotes.byAuthor') }
+        ];
+        sortChips.innerHTML = sortOptions.map(opt =>
+            `<button type="button" class="filter-chip ${mobileFiltersState.sort === opt.value ? 'active' : ''}" data-value="${opt.value}">${opt.label}</button>`
+        ).join('');
+        attachChipHandlers(sortChips, 'sort');
+    }
+}
+
+function attachChipHandlers(container, filterType) {
+    container.querySelectorAll('.filter-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            container.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+            mobileFiltersState[filterType] = chip.dataset.value;
+        });
+    });
+}
+
+function openFiltersPanel() {
+    // Sync current filter state
+    mobileFiltersState.collection = elements.filterCollection.value;
+    mobileFiltersState.stance = elements.filterStance.value;
+    mobileFiltersState.favorite = elements.filterFavorite.value;
+    mobileFiltersState.sort = elements.sortBy.value;
+
+    updateMobileFiltersPanel();
+    elements.filtersPanel.classList.remove('hidden');
+    elements.filtersOverlay.classList.remove('hidden');
+    setTimeout(() => {
+        elements.filtersPanel.classList.add('active');
+        elements.filtersOverlay.classList.add('active');
+    }, 10);
+    document.body.style.overflow = 'hidden';
+}
+
+function closeFiltersPanel() {
+    elements.filtersPanel.classList.remove('active');
+    elements.filtersOverlay.classList.remove('active');
+    setTimeout(() => {
+        elements.filtersPanel.classList.add('hidden');
+        elements.filtersOverlay.classList.add('hidden');
+    }, 300);
+    document.body.style.overflow = '';
+}
+
+function clearMobileFilters() {
+    mobileFiltersState.collection = '';
+    mobileFiltersState.stance = '';
+    mobileFiltersState.favorite = '';
+    mobileFiltersState.sort = 'newest';
+    updateMobileFiltersPanel();
+}
+
+function applyMobileFilters() {
+    // Apply to hidden selects
+    elements.filterCollection.value = mobileFiltersState.collection;
+    elements.filterStance.value = mobileFiltersState.stance;
+    elements.filterFavorite.value = mobileFiltersState.favorite;
+    elements.sortBy.value = mobileFiltersState.sort;
+
+    // Update custom selects UI
+    syncCustomSelectUI(elements.collectionSelect, mobileFiltersState.collection);
+    syncCustomSelectUI(elements.stanceSelect, mobileFiltersState.stance);
+    syncCustomSelectUI(elements.favoriteSelect, mobileFiltersState.favorite);
+    syncCustomSelectUI(elements.sortSelect, mobileFiltersState.sort);
+
+    // Update filter badge
+    updateFilterBadge();
+
+    // Render and close
+    renderQuotes();
+    closeFiltersPanel();
+}
+
+function syncCustomSelectUI(customSelect, value) {
+    const options = customSelect.querySelectorAll('.custom-select-option');
+    const selectedText = customSelect.querySelector('.selected-text');
+
+    options.forEach(opt => {
+        const isActive = opt.dataset.value === value;
+        opt.classList.toggle('active', isActive);
+        if (isActive) {
+            selectedText.textContent = opt.querySelector('span').textContent;
+        }
+    });
+}
+
+function updateFilterBadge() {
+    let count = 0;
+    if (elements.filterCollection.value) count++;
+    if (elements.filterStance.value) count++;
+    if (elements.filterFavorite.value) count++;
+    if (elements.sortBy.value !== 'newest') count++;
+
+    if (count > 0) {
+        elements.filterBadge.textContent = count;
+        elements.filterBadge.classList.remove('hidden');
+    } else {
+        elements.filterBadge.classList.add('hidden');
+    }
+}
 
 // ============================================================================
 // Start Application
