@@ -3,7 +3,10 @@
     "allow": [
       "Bash(del \"c:\\\\Users\\\\nihel\\\\repos\\\\quote-vault\\\\firebase-config.js\")",
       "Bash(npm run build:*)",
-      "Bash(npx vite build:*)"
+      "Bash(npx vite build:*)",
+      "Bash(timeout 5 npm run dev:*)",
+      "Bash(node -e:*)",
+      "Bash(echo:*)"
     ]
   }
 }

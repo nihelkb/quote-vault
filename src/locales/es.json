@@ -133,5 +133,16 @@
     "replyingTo": "Respondiendo a:",
     "hideReplies": "Ocultar respuestas",
     "showReplies": "Mostrar respuestas"
+  },
+  "sidebar": {
+    "summary": "Resumen",
+    "quotes": "citas",
+    "allQuotes": "Todas las citas",
+    "collections": "Colecciones",
+    "favorites": "favoritas",
+    "tags": "Tags",
+    "noCollections": "Sin colecciones",
+    "noTags": "Sin tags",
+    "newCollection": "Nueva colección"
   }
 }

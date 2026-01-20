@@ -18,6 +18,7 @@ import { updateAllCollectionSelects } from './components/CollectionSelect.js';
 import { toast } from './utils/toast.js';
 import { confirmModal } from './utils/confirmModal.js';
 import { i18n, t } from './utils/i18n.js';
+import { escapeHtml } from './utils/helpers.js';
 
 // ============================================================================
 // Application State
@@ -61,6 +62,15 @@ const elements = {
     emptyState: document.getElementById('emptyState'),
     totalQuotes: document.getElementById('totalQuotes'),
 
+    // Navigation Sidebar
+    navSidebar: document.getElementById('navSidebar'),
+    sidebarToggle: document.getElementById('sidebarToggle'),
+    sidebarCollections: document.getElementById('sidebarCollections'),
+    sidebarTags: document.getElementById('sidebarTags'),
+    collectionsHeader: document.getElementById('collectionsHeader'),
+    tagsHeader: document.getElementById('tagsHeader'),
+    navNewCollectionBtn: document.getElementById('navNewCollectionBtn'),
+
     // Compare View
     quotesCompare: document.getElementById('quotesCompare'),
     quotesFavor: document.getElementById('quotesFavor'),
@@ -74,7 +84,6 @@ const elements = {
     sortBy: document.getElementById('sortBy'),
 
     // Custom selects
-    collectionSelect: document.getElementById('collectionSelect'),
     stanceSelect: document.getElementById('stanceSelect'),
     favoriteSelect: document.getElementById('favoriteSelect'),
     sortSelect: document.getElementById('sortSelect'),
@@ -355,6 +364,7 @@ function subscribeToData(userId) {
     collectionService.subscribe(userId, (collections) => {
         state.collections = collections;
         updateCollectionSelects();
+        renderSidebarCollections();
     });
 }
 
@@ -423,14 +433,162 @@ function getFilters() {
 
 function updateStats() {
     elements.totalQuotes.textContent = state.quotes.length;
-    elements.totalQuotesMobile.textContent = state.quotes.length;
+    if (elements.totalQuotesMobile) {
+        elements.totalQuotesMobile.textContent = state.quotes.length;
+    }
+
+    // Update navigation sidebar
+    renderNavSidebar();
+}
+
+function renderNavSidebar() {
+    renderSidebarCollections();
+    renderSidebarTags();
+    setupNavSidebarListeners();
+}
+
+function renderSidebarCollections() {
+    if (!elements.sidebarCollections) return;
+
+    if (state.collections.length === 0) {
+        elements.sidebarCollections.innerHTML = `<span class="nav-empty">${t('sidebar.noCollections')}</span>`;
+        return;
+    }
+
+    // Count quotes per collection
+    const collectionCounts = {};
+    state.quotes.forEach(quote => {
+        if (quote.collectionId) {
+            collectionCounts[quote.collectionId] = (collectionCounts[quote.collectionId] || 0) + 1;
+        }
+    });
+
+    const currentFilter = elements.filterCollection.value;
+
+    const html = state.collections.map(collection => {
+        const count = collectionCounts[collection.id] || 0;
+        const isActive = currentFilter === collection.id;
+        return `
+            <button class="nav-item${isActive ? ' active' : ''}" data-collection-id="${collection.id}">
+                <span>${escapeHtml(collection.name)}</span>
+                <span class="item-count">${count}</span>
+            </button>
+        `;
+    }).join('');
+
+    elements.sidebarCollections.innerHTML = html;
+
+    // Add click handlers
+    elements.sidebarCollections.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const collectionId = item.dataset.collectionId;
+            const currentValue = elements.filterCollection.value;
+
+            // Toggle filter
+            if (currentValue === collectionId) {
+                elements.filterCollection.value = '';
+            } else {
+                elements.filterCollection.value = collectionId;
+            }
+
+            renderQuotes();
+            renderSidebarCollections();
+        });
+    });
+}
+
+function renderSidebarTags() {
+    if (!elements.sidebarTags) return;
+
+    // Collect all tags and count occurrences
+    const tagCounts = {};
+    state.quotes.forEach(quote => {
+        if (quote.tags && Array.isArray(quote.tags)) {
+            quote.tags.forEach(tag => {
+                const normalizedTag = tag.toLowerCase().trim();
+                if (normalizedTag) {
+                    tagCounts[normalizedTag] = (tagCounts[normalizedTag] || 0) + 1;
+                }
+            });
+        }
+    });
+
+    // Sort by count and take top 10
+    const sortedTags = Object.entries(tagCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+
+    if (sortedTags.length === 0) {
+        elements.sidebarTags.innerHTML = `<span class="nav-empty">${t('sidebar.noTags')}</span>`;
+        return;
+    }
+
+    const html = sortedTags.map(([tag, count]) => `
+        <button class="nav-tag" data-tag="${escapeHtml(tag)}" title="${count} ${t('sidebar.quotes')}">
+            ${escapeHtml(tag)}
+        </button>
+    `).join('');
+
+    elements.sidebarTags.innerHTML = html;
+
+    // Add click handlers to filter by tag
+    elements.sidebarTags.querySelectorAll('.nav-tag').forEach(tagEl => {
+        tagEl.addEventListener('click', () => {
+            const tag = tagEl.dataset.tag;
+            const currentSearch = elements.searchInput.value;
+
+            if (currentSearch === tag) {
+                elements.searchInput.value = '';
+                tagEl.classList.remove('active');
+            } else {
+                // Remove active from all tags
+                elements.sidebarTags.querySelectorAll('.nav-tag').forEach(t => t.classList.remove('active'));
+                elements.searchInput.value = tag;
+                tagEl.classList.add('active');
+            }
+            renderQuotes();
+        });
+    });
+}
+
+function setupNavSidebarListeners() {
+    // Sidebar toggle button
+    if (elements.sidebarToggle) {
+        elements.sidebarToggle.onclick = () => {
+            elements.navSidebar.classList.toggle('collapsed');
+            document.querySelector('.app-layout').classList.toggle('sidebar-collapsed');
+        };
+    }
+
+    // Collapsible sections
+    if (elements.collectionsHeader) {
+        elements.collectionsHeader.onclick = () => {
+            elements.collectionsHeader.classList.toggle('collapsed');
+            elements.sidebarCollections.classList.toggle('collapsed');
+        };
+    }
+
+    if (elements.tagsHeader) {
+        elements.tagsHeader.onclick = () => {
+            elements.tagsHeader.classList.toggle('collapsed');
+            elements.sidebarTags.classList.toggle('collapsed');
+        };
+    }
+
+    // New collection button in sidebar
+    if (elements.navNewCollectionBtn) {
+        elements.navNewCollectionBtn.onclick = () => {
+            elements.collectionModal.classList.add('active');
+            elements.newCollectionName.focus();
+        };
+    }
 }
 
 function updateCollectionSelects() {
     updateAllCollectionSelects({
         filter: elements.filterCollection,
         form: elements.quoteCollection
-    }, state.collections, elements.collectionSelect);
+    }, state.collections);
 }
 
 // ============================================================================
@@ -489,7 +647,7 @@ function setupFilterListeners() {
     setupCustomSelect(elements.stanceSelect, elements.filterStance);
     setupCustomSelect(elements.favoriteSelect, elements.filterFavorite);
     setupCustomSelect(elements.sortSelect, elements.sortBy);
-    setupCustomSelect(elements.collectionSelect, elements.filterCollection);
+    // Collection filter is now controlled by sidebar navigation
 
     // Close all dropdowns when clicking outside
     document.addEventListener('click', (e) => {
@@ -502,6 +660,8 @@ function setupFilterListeners() {
 }
 
 function setupCustomSelect(customSelect, hiddenSelect) {
+    if (!customSelect || !hiddenSelect) return;
+
     const btn = customSelect.querySelector('.custom-select-btn');
     const dropdown = customSelect.querySelector('.custom-select-dropdown');
     const selectedText = btn.querySelector('.selected-text');
@@ -977,10 +1137,11 @@ function applyMobileFilters() {
     elements.sortBy.value = mobileFiltersState.sort;
 
     // Update custom selects UI
-    syncCustomSelectUI(elements.collectionSelect, mobileFiltersState.collection);
     syncCustomSelectUI(elements.stanceSelect, mobileFiltersState.stance);
     syncCustomSelectUI(elements.favoriteSelect, mobileFiltersState.favorite);
     syncCustomSelectUI(elements.sortSelect, mobileFiltersState.sort);
+    // Update sidebar collections selection
+    renderSidebarCollections();
 
     // Update filter badge
     updateFilterBadge();
@@ -991,6 +1152,8 @@ function applyMobileFilters() {
 }
 
 function syncCustomSelectUI(customSelect, value) {
+    if (!customSelect) return;
+
     const options = customSelect.querySelectorAll('.custom-select-option');
     const selectedText = customSelect.querySelector('.selected-text');
 
