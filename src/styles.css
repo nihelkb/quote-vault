@@ -969,7 +969,6 @@ header {
     padding: 16px;
     background: var(--bg-light);
     border-radius: 8px;
-    margin-bottom: 20px;
 }
 
 .source-thumbnail {
@@ -1816,8 +1815,8 @@ header {
 .insight-detail-header {
     display: flex;
     align-items: flex-start;
-    gap: 16px;
-    margin-bottom: 24px;
+    gap: 30px;
+    margin-bottom: 50px;
     flex-wrap: wrap;
 }
 
@@ -2629,8 +2628,7 @@ header {
 
 .language-dropdown {
     position: absolute;
-    top: calc(100% + 4px);
-    right: 0;
+    top: calc(100% - 116px);
     background: white;
     border: 1px solid var(--border);
     border-radius: 8px;

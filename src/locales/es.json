@@ -168,7 +168,8 @@
     "linkToTopic": "Vincular a tema",
     "promoteToWiki": "Promover a Wiki",
     "markAsReviewed": "Marcar como revisado",
-    "discard": "Descartar"
+    "discard": "Descartar",
+    "editInsight": "Editar información"
   },
   "topics": {
     "newTopic": "Nuevo tema",

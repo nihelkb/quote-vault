@@ -168,7 +168,8 @@
     "linkToTopic": "Link to topic",
     "promoteToWiki": "Promote to Wiki",
     "markAsReviewed": "Mark as reviewed",
-    "discard": "Discard"
+    "discard": "Discard",
+    "editInsight": "Edit insight"
   },
   "topics": {
     "newTopic": "New topic",
