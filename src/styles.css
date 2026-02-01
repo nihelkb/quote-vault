@@ -1802,9 +1802,15 @@ header {
    Insight Detail View
    ============================================================================ */
 .insight-detail-view {
-    max-width: 1200px;
+    max-width: 1600px;
     margin: 0 auto;
     padding: 24px;
+}
+
+.insight-detail-content {
+    display: flex;
+    gap: 24px;
+    align-items: stretch;
 }
 
 .insight-detail-header {
@@ -1846,9 +1852,54 @@ header {
     gap: 6px;
 }
 
-/* Video Section */
+/* Video Section - Left side */
 .insight-video-section {
-    margin-bottom: 24px;
+    flex: 0 0 70%;
+    min-width: 300px;
+    max-width: 80%;
+    position: sticky;
+    top: 24px;
+    align-self: flex-start;
+}
+
+/* Resize Handle */
+.resize-handle {
+    flex: 0 0 12px;
+    cursor: col-resize;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    position: relative;
+    z-index: 10;
+    align-self: stretch;
+}
+
+.resize-handle:hover .resize-handle-line,
+.resize-handle.dragging .resize-handle-line {
+    background: var(--accent);
+    width: 4px;
+}
+
+.resize-handle-line {
+    width: 2px;
+    height: 100%;
+    min-height: 200px;
+    background: var(--border);
+    border-radius: 2px;
+    transition: all 0.15s ease;
+}
+
+.resize-handle:hover {
+    background: linear-gradient(to right, transparent, rgba(0,0,0,0.03), transparent);
+}
+
+/* When resizing, prevent iframe from capturing mouse events */
+.insight-detail-content.resizing iframe {
+    pointer-events: none;
+}
+
+.insight-detail-content.resizing {
+    user-select: none;
 }
 
 .video-container {
@@ -1868,12 +1919,41 @@ header {
     height: 100%;
 }
 
-/* Insight Workspace */
+/* Insight Workspace - Right side */
 .insight-workspace {
+    flex: 1;
+    min-width: 0;
     background: white;
     border: 1px solid var(--border);
     border-radius: 12px;
     overflow: hidden;
+    max-height: calc(100vh - 200px);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Responsive: stack on smaller screens */
+@media (max-width: 1024px) {
+    .insight-detail-content {
+        flex-direction: column;
+    }
+
+    .insight-video-section {
+        flex: none;
+        max-width: 100%;
+        width: 100%;
+        position: relative;
+        top: 0;
+        margin-bottom: 24px;
+    }
+
+    .resize-handle {
+        display: none;
+    }
+
+    .insight-workspace {
+        max-height: none;
+    }
 }
 
 .insight-tabs {
@@ -1913,12 +1993,15 @@ header {
 }
 
 .insight-tab-content {
-    min-height: 400px;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
 }
 
 .tab-pane {
     display: none;
     padding: 24px;
+    height: 100%;
 }
 
 .tab-pane.active {
@@ -1930,11 +2013,13 @@ header {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    height: 100%;
 }
 
 .notes-textarea {
     width: 100%;
-    min-height: 350px;
+    flex: 1;
+    min-height: 300px;
     padding: 16px;
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -1957,7 +2042,9 @@ header {
 
 /* Transcript Section */
 .transcript-container {
-    min-height: 350px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
 .transcript-hint {
@@ -1988,7 +2075,7 @@ header {
 
 /* Transcript Article Format */
 .transcript-article {
-    max-height: 600px;
+    flex: 1;
     overflow-y: auto;
     padding-right: 8px;
 }
@@ -2155,7 +2242,8 @@ header {
 
 /* Highlights List */
 .highlights-container {
-    min-height: 300px;
+    height: 100%;
+    overflow-y: auto;
 }
 
 .highlights-empty {

@@ -778,9 +778,9 @@ function openInsightView(insightId) {
                 </div>
             </div>
 
-            <div class="insight-detail-content">
+            <div class="insight-detail-content" id="insightDetailContent">
                 ${isYouTube ? `
-                    <div class="insight-video-section">
+                    <div class="insight-video-section" id="insightVideoSection">
                         <div class="video-container">
                             <iframe
                                 src="https://www.youtube.com/embed/${videoId}"
@@ -790,9 +790,12 @@ function openInsightView(insightId) {
                             </iframe>
                         </div>
                     </div>
+                    <div class="resize-handle" id="resizeHandle">
+                        <div class="resize-handle-line"></div>
+                    </div>
                 ` : ''}
 
-                <div class="insight-workspace">
+                <div class="insight-workspace" id="insightWorkspace">
                     <div class="insight-tabs">
                         <button class="insight-tab active" data-tab="notes">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -965,6 +968,9 @@ function openInsightView(insightId) {
 
     // Setup transcript text selection for highlighting
     setupTranscriptHighlighting(insight.id);
+
+    // Setup resize handle for video/workspace split
+    setupResizeHandle();
 }
 
 function setupInsightDetailTabs() {
@@ -984,6 +990,90 @@ function setupInsightDetailTabs() {
                 p.classList.toggle('active', p.dataset.pane === targetPane);
             });
         });
+    });
+}
+
+function setupResizeHandle() {
+    const container = document.getElementById('insightDetailContent');
+    const handle = document.getElementById('resizeHandle');
+    const videoSection = document.getElementById('insightVideoSection');
+
+    if (!container || !handle || !videoSection) return;
+
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = 0;
+
+    handle.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        startX = e.clientX;
+        startWidth = videoSection.offsetWidth;
+        container.classList.add('resizing');
+        handle.classList.add('dragging');
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+
+        const containerRect = container.getBoundingClientRect();
+        const deltaX = e.clientX - startX;
+        const newWidth = startWidth + deltaX;
+
+        // Calculate percentage
+        const containerWidth = containerRect.width;
+        const minWidth = 300;
+        const maxWidth = containerWidth * 0.8;
+
+        if (newWidth >= minWidth && newWidth <= maxWidth) {
+            const percentage = (newWidth / containerWidth) * 100;
+            videoSection.style.flex = `0 0 ${percentage}%`;
+            videoSection.style.maxWidth = `${percentage}%`;
+        }
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            container.classList.remove('resizing');
+            handle.classList.remove('dragging');
+        }
+    });
+
+    // Also support touch for tablets
+    handle.addEventListener('touchstart', (e) => {
+        isResizing = true;
+        startX = e.touches[0].clientX;
+        startWidth = videoSection.offsetWidth;
+        container.classList.add('resizing');
+        handle.classList.add('dragging');
+        e.preventDefault();
+    });
+
+    document.addEventListener('touchmove', (e) => {
+        if (!isResizing) return;
+
+        const containerRect = container.getBoundingClientRect();
+        const deltaX = e.touches[0].clientX - startX;
+        const newWidth = startWidth + deltaX;
+
+        const containerWidth = containerRect.width;
+        const minWidth = 300;
+        const maxWidth = containerWidth * 0.8;
+
+        if (newWidth >= minWidth && newWidth <= maxWidth) {
+            const percentage = (newWidth / containerWidth) * 100;
+            videoSection.style.flex = `0 0 ${percentage}%`;
+            videoSection.style.maxWidth = `${percentage}%`;
+        }
+    });
+
+    document.addEventListener('touchend', () => {
+        if (isResizing) {
+            isResizing = false;
+            container.classList.remove('resizing');
+            handle.classList.remove('dragging');
+        }
     });
 }
 
