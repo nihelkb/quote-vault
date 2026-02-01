@@ -1291,6 +1291,7 @@ header {
     font-family: inherit;
     font-size: 0.85rem;
     color: var(--text-muted);
+    gap: 10px;
 }
 
 .nav-item:hover {
@@ -1485,7 +1486,6 @@ header {
 .topic-name {
     font-family: 'Cormorant Garamond', serif;
     font-size: 1.25rem;
-    margin: 0 0 4px;
 }
 
 .topic-description {
