@@ -1963,6 +1963,322 @@ header {
     color: var(--text-muted);
 }
 
+.notes-count {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+/* Quick Note Input */
+.quick-note-input {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+}
+
+.quick-note-type-selector {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.note-type-btn {
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    color: var(--text-muted);
+}
+
+.note-type-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.note-type-btn:hover {
+    border-color: var(--accent);
+    background: var(--tag-bg);
+    color: var(--text);
+}
+
+/* Individual type colors on hover */
+.note-type-btn[data-type="key"]:hover {
+    color: #f59e0b;
+    border-color: #f59e0b;
+}
+
+.note-type-btn[data-type="question"]:hover {
+    color: #8b5cf6;
+    border-color: #8b5cf6;
+}
+
+.note-type-btn[data-type="idea"]:hover {
+    color: #10b981;
+    border-color: #10b981;
+}
+
+.note-type-btn[data-type="todo"]:hover {
+    color: #3b82f6;
+    border-color: #3b82f6;
+}
+
+/* Active state with type colors */
+.note-type-btn[data-type="key"].active {
+    background: #fef3c7;
+    border-color: #f59e0b;
+    color: #f59e0b;
+}
+
+.note-type-btn[data-type="question"].active {
+    background: #ede9fe;
+    border-color: #8b5cf6;
+    color: #8b5cf6;
+}
+
+.note-type-btn[data-type="idea"].active {
+    background: #d1fae5;
+    border-color: #10b981;
+    color: #10b981;
+}
+
+.note-type-btn[data-type="todo"].active {
+    background: #dbeafe;
+    border-color: #3b82f6;
+    color: #3b82f6;
+}
+
+.quick-note-field {
+    display: flex;
+    gap: 8px;
+}
+
+.quick-note-field input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: white;
+}
+
+.quick-note-field input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.btn-timestamp {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    transition: all 0.15s;
+}
+
+.btn-timestamp:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--tag-bg);
+}
+
+/* Timestamped Notes List */
+.timestamped-notes-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.timestamped-notes-empty {
+    padding: 24px 16px;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.timestamped-notes-empty p {
+    margin: 0 0 4px;
+    font-weight: 500;
+}
+
+.timestamped-notes-empty span {
+    font-size: 0.85rem;
+}
+
+.timestamped-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+}
+
+.timestamped-note:hover {
+    background: var(--tag-bg);
+}
+
+.timestamped-note:last-child {
+    border-bottom: none;
+}
+
+.note-timestamp {
+    flex-shrink: 0;
+    padding: 2px 8px;
+    background: var(--tag-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-family: monospace;
+    color: var(--accent);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.note-timestamp:hover {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+}
+
+.note-type-icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+}
+
+.note-type-icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Note type icon colors */
+.note-type-key .note-type-icon {
+    color: #f59e0b;
+}
+
+.note-type-question .note-type-icon {
+    color: #8b5cf6;
+}
+
+.note-type-idea .note-type-icon {
+    color: #10b981;
+}
+
+.note-type-todo .note-type-icon {
+    color: #3b82f6;
+    cursor: pointer;
+}
+
+.note-type-todo .note-type-icon:hover {
+    color: #2563eb;
+}
+
+.note-text {
+    flex: 1;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: var(--text);
+}
+
+.timestamped-note.completed .note-text {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+.note-delete {
+    flex-shrink: 0;
+    padding: 4px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--text-muted);
+    opacity: 0;
+    transition: all 0.15s;
+}
+
+.timestamped-note:hover .note-delete {
+    opacity: 1;
+}
+
+.note-delete:hover {
+    color: #e74c3c;
+}
+
+/* Note type colors */
+.note-type-key {
+    border-left: 3px solid #f59e0b;
+}
+
+.note-type-question {
+    border-left: 3px solid #8b5cf6;
+}
+
+.note-type-idea {
+    border-left: 3px solid #10b981;
+}
+
+.note-type-todo {
+    border-left: 3px solid #3b82f6;
+}
+
+/* Free Notes Section (collapsible) */
+.free-notes-section {
+    border-top: 1px solid var(--border);
+}
+
+.free-notes-section summary {
+    padding: 12px 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    background: var(--tag-bg);
+    transition: all 0.15s;
+}
+
+.free-notes-section summary:hover {
+    color: var(--text);
+    background: var(--border);
+}
+
+.free-notes-section summary::-webkit-details-marker {
+    display: none;
+}
+
+.free-notes-section summary::before {
+    content: '▶';
+    font-size: 0.7rem;
+    transition: transform 0.15s;
+}
+
+.free-notes-section[open] summary::before {
+    transform: rotate(90deg);
+}
+
+.free-notes-content {
+    padding: 16px;
+    background: white;
+}
+
+.free-notes-content .video-notes-textarea {
+    min-height: 120px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
 .video-notes-textarea {
     width: 100%;
     min-height: 150px;
@@ -1978,6 +2294,7 @@ header {
 
 .video-notes-textarea:focus {
     outline: none;
+    border-color: var(--accent);
 }
 
 .video-notes-textarea::placeholder {

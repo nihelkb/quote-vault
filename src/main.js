@@ -801,20 +801,82 @@ function openInsightView(insightId) {
                                     </svg>
                                     Mis notas
                                 </h3>
-                                <button class="btn btn-primary btn-sm" onclick="saveInsightNotes('${insight.id}')">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                                        <polyline points="7 3 7 8 15 8"></polyline>
-                                    </svg>
-                                    Guardar
-                                </button>
+                                <span class="notes-count">${(insight.timestampedNotes || []).length} notas</span>
                             </div>
-                            <textarea
-                                id="insightNotesEditor"
-                                class="video-notes-textarea"
-                                placeholder="Escribe tus notas, resumen o apuntes del video aquí..."
-                            >${escapeHtml(insight.structuredNotes || insight.rawNotes || '')}</textarea>
+
+                            <!-- Quick note input -->
+                            <div class="quick-note-input">
+                                <div class="quick-note-type-selector">
+                                    <button class="note-type-btn active" data-type="key" title="Punto clave">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                                        </svg>
+                                    </button>
+                                    <button class="note-type-btn" data-type="question" title="Pregunta">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="12" cy="12" r="10"></circle>
+                                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                        </svg>
+                                    </button>
+                                    <button class="note-type-btn" data-type="idea" title="Idea">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <line x1="9" y1="18" x2="15" y2="18"></line>
+                                            <line x1="10" y1="22" x2="14" y2="22"></line>
+                                            <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"></path>
+                                        </svg>
+                                    </button>
+                                    <button class="note-type-btn" data-type="todo" title="Pendiente">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div class="quick-note-field">
+                                    <input
+                                        type="text"
+                                        id="quickNoteInput"
+                                        placeholder="Añade una nota... (Enter para guardar)"
+                                        data-insight-id="${insight.id}"
+                                        data-video-id="${videoId}"
+                                    />
+                                    <button class="btn-timestamp" onclick="insertTimestampNote('${insight.id}', '${videoId}')" title="Añadir con timestamp actual">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="12" cy="12" r="10"></circle>
+                                            <polyline points="12 6 12 12 16 14"></polyline>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Timestamped notes list -->
+                            <div class="timestamped-notes-list" id="timestampedNotesList">
+                                ${renderTimestampedNotes(insight.timestampedNotes || [], insight.id, videoId)}
+                            </div>
+
+                            <!-- Collapsible free notes -->
+                            <details class="free-notes-section">
+                                <summary>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="21" y1="10" x2="3" y2="10"></line>
+                                        <line x1="21" y1="6" x2="3" y2="6"></line>
+                                        <line x1="21" y1="14" x2="3" y2="14"></line>
+                                        <line x1="21" y1="18" x2="3" y2="18"></line>
+                                    </svg>
+                                    Notas libres
+                                </summary>
+                                <div class="free-notes-content">
+                                    <textarea
+                                        id="insightNotesEditor"
+                                        class="video-notes-textarea"
+                                        placeholder="Espacio para notas más extensas, resúmenes o reflexiones..."
+                                        data-insight-id="${insight.id}"
+                                    >${escapeHtml(insight.structuredNotes || insight.rawNotes || '')}</textarea>
+                                    <button class="btn btn-secondary btn-sm" onclick="saveInsightNotes('${insight.id}')">
+                                        Guardar notas libres
+                                    </button>
+                                </div>
+                            </details>
                         </div>
                     </div>
                     <div class="resize-handle" id="resizeHandle">
@@ -968,6 +1030,9 @@ function openInsightView(insightId) {
 
     // Setup resize handle for video/workspace split
     setupResizeHandle();
+
+    // Setup quick note input
+    setupQuickNoteInput();
 }
 
 function setupInsightDetailTabs() {
@@ -1277,6 +1342,248 @@ async function convertHighlightToQuote(insightId, highlightId) {
 
     elements.modalTitle.textContent = t('quotes.newQuote');
     elements.modal.classList.add('active');
+}
+
+// ============================================================================
+// Timestamped Notes Functions
+// ============================================================================
+
+function renderTimestampedNotes(notes, insightId, videoId) {
+    if (!notes || notes.length === 0) {
+        return `
+            <div class="timestamped-notes-empty">
+                <p>No hay notas todavía</p>
+                <span>Usa el campo de arriba para añadir notas mientras ves el video</span>
+            </div>
+        `;
+    }
+
+    // Sort by timestamp
+    const sortedNotes = [...notes].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+    return sortedNotes.map(note => {
+        const typeIcons = {
+            key: `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                  </svg>`,
+            question: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                      </svg>`,
+            idea: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="9" y1="18" x2="15" y2="18"></line>
+                    <line x1="10" y1="22" x2="14" y2="22"></line>
+                    <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"></path>
+                   </svg>`,
+            todo: note.completed
+                ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <polyline points="9 11 12 14 22 4"></polyline>
+                   </svg>`
+                : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                   </svg>`
+        };
+        const typeClasses = {
+            key: 'note-type-key',
+            question: 'note-type-question',
+            idea: 'note-type-idea',
+            todo: 'note-type-todo'
+        };
+
+        const icon = typeIcons[note.type] || `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>`;
+        const typeClass = typeClasses[note.type] || '';
+        const timestamp = note.timestamp !== null ? formatTimestamp(note.timestamp) : null;
+        const completedClass = note.type === 'todo' && note.completed ? 'completed' : '';
+
+        return `
+            <div class="timestamped-note ${typeClass} ${completedClass}" data-note-id="${note.id}">
+                ${timestamp !== null ? `
+                    <button class="note-timestamp" onclick="seekToTime(${note.timestamp})" title="Ir a ${timestamp}">
+                        ${timestamp}
+                    </button>
+                ` : ''}
+                <span class="note-type-icon" ${note.type === 'todo' ? `onclick="toggleTodoNote('${insightId}', '${note.id}')"` : ''}>${icon}</span>
+                <span class="note-text">${escapeHtml(note.text)}</span>
+                <button class="note-delete" onclick="deleteTimestampedNote('${insightId}', '${note.id}')" title="Eliminar">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+        `;
+    }).join('');
+}
+
+async function insertTimestampNote(insightId, videoId) {
+    const input = document.getElementById('quickNoteInput');
+    const text = input.value.trim();
+
+    if (!text) {
+        input.focus();
+        return;
+    }
+
+    // Get selected note type
+    const activeTypeBtn = document.querySelector('.note-type-btn.active');
+    const noteType = activeTypeBtn ? activeTypeBtn.dataset.type : 'key';
+
+    // Get current video time
+    let currentTime = 0;
+    try {
+        const iframe = document.querySelector('.video-container iframe');
+        if (iframe) {
+            // Try to get time from YouTube API (if available)
+            // For now, we'll use 0 as fallback since YouTube iframe API needs special setup
+            currentTime = await getYouTubeCurrentTime() || 0;
+        }
+    } catch (e) {
+        console.warn('Could not get video time:', e);
+    }
+
+    await addTimestampedNote(insightId, {
+        text,
+        type: noteType,
+        timestamp: currentTime
+    });
+
+    input.value = '';
+    input.focus();
+}
+
+async function addTimestampedNote(insightId, noteData) {
+    try {
+        const insight = state.insights.find(i => i.id === insightId);
+        if (!insight) return;
+
+        const notes = insight.timestampedNotes || [];
+        const newNote = {
+            id: Date.now().toString(),
+            text: noteData.text,
+            type: noteData.type || 'key',
+            timestamp: noteData.timestamp !== undefined ? noteData.timestamp : null,
+            completed: false,
+            createdAt: new Date().toISOString()
+        };
+
+        notes.push(newNote);
+
+        await insightService.update(insightId, { timestampedNotes: notes });
+
+        // Update local state
+        insight.timestampedNotes = notes;
+
+        // Re-render notes list
+        refreshTimestampedNotes(insightId);
+
+    } catch (error) {
+        console.error('Error adding note:', error);
+        showNotification('Error al añadir la nota', 'error');
+    }
+}
+
+async function deleteTimestampedNote(insightId, noteId) {
+    try {
+        const insight = state.insights.find(i => i.id === insightId);
+        if (!insight) return;
+
+        const notes = (insight.timestampedNotes || []).filter(n => n.id !== noteId);
+
+        await insightService.update(insightId, { timestampedNotes: notes });
+
+        // Update local state
+        insight.timestampedNotes = notes;
+
+        // Re-render notes list
+        refreshTimestampedNotes(insightId);
+
+    } catch (error) {
+        console.error('Error deleting note:', error);
+        showNotification('Error al eliminar la nota', 'error');
+    }
+}
+
+async function toggleTodoNote(insightId, noteId) {
+    try {
+        const insight = state.insights.find(i => i.id === insightId);
+        if (!insight) return;
+
+        const notes = (insight.timestampedNotes || []).map(n =>
+            n.id === noteId ? { ...n, completed: !n.completed } : n
+        );
+
+        await insightService.update(insightId, { timestampedNotes: notes });
+
+        // Update local state
+        insight.timestampedNotes = notes;
+
+        // Re-render notes list
+        refreshTimestampedNotes(insightId);
+
+    } catch (error) {
+        console.error('Error toggling todo:', error);
+    }
+}
+
+function refreshTimestampedNotes(insightId) {
+    const insight = state.insights.find(i => i.id === insightId);
+    if (!insight) return;
+
+    const videoId = insightService.extractYouTubeVideoId(insight.sourceUrl);
+    const container = document.getElementById('timestampedNotesList');
+    const countEl = document.querySelector('.notes-count');
+
+    if (container) {
+        container.innerHTML = renderTimestampedNotes(insight.timestampedNotes || [], insightId, videoId);
+    }
+
+    if (countEl) {
+        const count = (insight.timestampedNotes || []).length;
+        countEl.textContent = `${count} nota${count !== 1 ? 's' : ''}`;
+    }
+}
+
+function setupQuickNoteInput() {
+    const input = document.getElementById('quickNoteInput');
+    if (!input) return;
+
+    input.addEventListener('keypress', async (e) => {
+        if (e.key === 'Enter') {
+            const insightId = input.dataset.insightId;
+            const videoId = input.dataset.videoId;
+            await insertTimestampNote(insightId, videoId);
+        }
+    });
+
+    // Note type buttons
+    const typeButtons = document.querySelectorAll('.note-type-btn');
+    typeButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            typeButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            input.focus();
+        });
+    });
+}
+
+// YouTube time helper (simplified - for full support would need YouTube IFrame API)
+let ytPlayer = null;
+
+function getYouTubeCurrentTime() {
+    return new Promise((resolve) => {
+        // If we have access to the YouTube player, get current time
+        if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
+            resolve(ytPlayer.getCurrentTime());
+        } else {
+            // Fallback: prompt user or use 0
+            resolve(0);
+        }
+    });
 }
 
 function renderTranscriptArticle(insight) {
@@ -2613,6 +2920,9 @@ window.fetchYouTubeTranscript = fetchYouTubeTranscript;
 window.removeHighlight = removeHighlight;
 window.convertHighlightToQuote = convertHighlightToQuote;
 window.seekToTime = seekToTime;
+window.insertTimestampNote = insertTimestampNote;
+window.deleteTimestampedNote = deleteTimestampedNote;
+window.toggleTodoNote = toggleTodoNote;
 
 // ============================================================================
 // Mobile Handlers

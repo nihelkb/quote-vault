@@ -79,6 +79,7 @@ class InsightService {
             structuredNotes: data.structuredNotes || '', // Rich text / markdown notes
             transcript: data.transcript || '', // Full transcript
             highlights: data.highlights || [], // Array of {id, text, timestamp, color, note}
+            timestampedNotes: data.timestampedNotes || [], // Array of {id, text, type, timestamp, completed}
             aiSummary: data.aiSummary || null,
             keyPoints: data.keyPoints || [],
             toVerify: data.toVerify || [],
