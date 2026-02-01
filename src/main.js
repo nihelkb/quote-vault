@@ -790,6 +790,32 @@ function openInsightView(insightId) {
                                 allowfullscreen>
                             </iframe>
                         </div>
+                        <div class="video-notes-section">
+                            <div class="video-notes-header">
+                                <h3>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                                    </svg>
+                                    Mis notas
+                                </h3>
+                                <button class="btn btn-primary btn-sm" onclick="saveInsightNotes('${insight.id}')">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                        <polyline points="7 3 7 8 15 8"></polyline>
+                                    </svg>
+                                    Guardar
+                                </button>
+                            </div>
+                            <textarea
+                                id="insightNotesEditor"
+                                class="video-notes-textarea"
+                                placeholder="Escribe tus notas, resumen o apuntes del video aquí..."
+                            >${escapeHtml(insight.structuredNotes || insight.rawNotes || '')}</textarea>
+                        </div>
                     </div>
                     <div class="resize-handle" id="resizeHandle">
                         <div class="resize-handle-line"></div>
@@ -798,16 +824,7 @@ function openInsightView(insightId) {
 
                 <div class="insight-workspace" id="insightWorkspace">
                     <div class="insight-tabs">
-                        <button class="insight-tab active" data-tab="notes">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                <polyline points="14 2 14 8 20 8"></polyline>
-                                <line x1="16" y1="13" x2="8" y2="13"></line>
-                                <line x1="16" y1="17" x2="8" y2="17"></line>
-                            </svg>
-                            Mis notas
-                        </button>
-                        <button class="insight-tab" data-tab="transcript">
+                        <button class="insight-tab active" data-tab="transcript">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                                 <line x1="9" y1="9" x2="15" y2="9"></line>
@@ -827,29 +844,8 @@ function openInsightView(insightId) {
                     </div>
 
                     <div class="insight-tab-content" id="insightTabContent">
-                        <!-- Notes tab (default) -->
-                        <div class="tab-pane active" data-pane="notes">
-                            <div class="notes-editor">
-                                <textarea
-                                    id="insightNotesEditor"
-                                    class="notes-textarea"
-                                    placeholder="Escribe tus notas, resumen o apuntes del video aquí..."
-                                >${escapeHtml(insight.structuredNotes || insight.rawNotes || '')}</textarea>
-                                <div class="notes-actions">
-                                    <button class="btn btn-primary btn-sm" onclick="saveInsightNotes('${insight.id}')">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                                            <polyline points="7 3 7 8 15 8"></polyline>
-                                        </svg>
-                                        Guardar notas
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Transcript tab -->
-                        <div class="tab-pane" data-pane="transcript">
+                        <!-- Transcript tab (default) -->
+                        <div class="tab-pane active" data-pane="transcript">
                             <div class="transcript-container">
                                 ${insight.transcript ? `
                                     <div class="transcript-toolbar">
