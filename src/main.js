@@ -2222,19 +2222,57 @@ function renderInsightsList() {
 
     const html = filteredInsights.map(insight => {
         const linkedTopic = insight.linkedTopicId ? state.topics.find(t => t.id === insight.linkedTopicId) : null;
+        const notesCount = (insight.timestampedNotes || []).length;
+        const highlightsCount = (insight.highlights || []).length;
+
+        // Source type icons
+        const sourceIcons = {
+            youtube: `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                      </svg>`,
+            article: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                      </svg>`,
+            podcast: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                        <line x1="12" y1="19" x2="12" y2="23"></line>
+                      </svg>`,
+            book: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                     <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                   </svg>`,
+            other: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="16" x2="12" y2="12"></line>
+                      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>`
+        };
+
+        const sourceIcon = sourceIcons[insight.sourceType] || sourceIcons.other;
 
         return `
             <div class="insight-card" data-insight-id="${insight.id}">
-                <div class="insight-header">
-                    <div class="insight-status-badge ${insight.status}">${t('insights.' + insight.status)}</div>
-                    <div class="insight-actions">
-                        <button class="btn-icon" onclick="event.stopPropagation(); editInsight('${insight.id}')" title="${t('quotes.edit')}">
+                <div class="insight-card-thumbnail">
+                    ${insight.sourceThumbnail
+                        ? `<img src="${insight.sourceThumbnail}" alt="" loading="lazy">`
+                        : `<div class="insight-card-placeholder">
+                             ${sourceIcon}
+                           </div>`
+                    }
+                    <div class="insight-card-source-badge ${insight.sourceType}">
+                        ${sourceIcon}
+                        <span>${insight.sourceType || 'other'}</span>
+                    </div>
+                    <div class="insight-card-actions">
+                        <button class="insight-card-action" onclick="event.stopPropagation(); editInsight('${insight.id}')" title="${t('quotes.edit')}">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                             </svg>
                         </button>
-                        <button class="btn-icon btn-danger" onclick="event.stopPropagation(); deleteInsight('${insight.id}')" title="${t('quotes.delete')}">
+                        <button class="insight-card-action danger" onclick="event.stopPropagation(); deleteInsight('${insight.id}')" title="${t('quotes.delete')}">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="3 6 5 6 21 6"></polyline>
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -2242,21 +2280,64 @@ function renderInsightsList() {
                         </button>
                     </div>
                 </div>
-                ${insight.sourceThumbnail ? `<img class="insight-thumbnail" src="${insight.sourceThumbnail}" alt="">` : ''}
-                <h3 class="insight-title">${escapeHtml(insight.sourceTitle || 'Sin título')}</h3>
-                <p class="insight-preview">${escapeHtml((insight.rawNotes || '').substring(0, 150))}${insight.rawNotes?.length > 150 ? '...' : ''}</p>
-                <div class="insight-meta">
-                    <span class="insight-source-type ${insight.sourceType}">${insight.sourceType || 'article'}</span>
-                    ${linkedTopic ? `<span class="insight-linked-topic">${linkedTopic.icon} ${escapeHtml(linkedTopic.name)}</span>` : ''}
-                    <span class="insight-date">${new Date(insight.createdAt).toLocaleDateString()}</span>
+                <div class="insight-card-body">
+                    <div class="insight-card-status-line">
+                        <span class="insight-status-dot ${insight.status}"></span>
+                        <span class="insight-status-text">${t('insights.' + insight.status)}</span>
+                        <span class="insight-card-date">${new Date(insight.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <h3 class="insight-card-title">${escapeHtml(insight.sourceTitle || 'Sin título')}</h3>
+                    ${linkedTopic ? `
+                        <div class="insight-card-topic">
+                            <span>${linkedTopic.icon}</span>
+                            <span>${escapeHtml(linkedTopic.name)}</span>
+                        </div>
+                    ` : ''}
+                    <div class="insight-card-stats">
+                        ${notesCount > 0 ? `
+                            <span class="insight-stat" title="${notesCount} notas">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                </svg>
+                                ${notesCount}
+                            </span>
+                        ` : ''}
+                        ${highlightsCount > 0 ? `
+                            <span class="insight-stat" title="${highlightsCount} destacados">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                                    <path d="M2 17l10 5 10-5"></path>
+                                </svg>
+                                ${highlightsCount}
+                            </span>
+                        ` : ''}
+                        ${insight.transcript ? `
+                            <span class="insight-stat" title="Tiene transcripción">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                    <line x1="9" y1="9" x2="15" y2="9"></line>
+                                    <line x1="9" y1="13" x2="15" y2="13"></line>
+                                </svg>
+                            </span>
+                        ` : ''}
+                    </div>
                 </div>
             </div>
         `;
     }).join('');
 
     contentBody.innerHTML = `
-        <div class="insights-list">
-            ${html}
+        <div class="insights-grid">
+            ${filteredInsights.length > 0 ? html : `
+                <div class="insights-empty">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                    </svg>
+                    <p>No hay insights en esta categoría</p>
+                    <span>Captura un nuevo insight para empezar</span>
+                </div>
+            `}
         </div>
     `;
 

@@ -1542,113 +1542,274 @@ header {
     background: #10b981;
 }
 
-/* Insights List */
-.insights-list {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+/* Insights Grid */
+.insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
 }
 
+.insights-empty {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.insights-empty svg {
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.insights-empty p {
+    margin: 0 0 4px;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.insights-empty span {
+    font-size: 0.9rem;
+}
+
+/* Insight Card - Modern Design */
 .insight-card {
-    padding: 20px;
     background: white;
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 12px;
+    overflow: hidden;
     cursor: pointer;
-    transition: all 0.2s;
-    position: relative;
+    transition: all 0.2s ease;
+    border: 1px solid var(--border);
 }
 
 .insight-card:hover {
-    border-color: var(--accent);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    border-color: transparent;
 }
 
-.insight-status-badge {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    font-size: 0.7rem;
-    padding: 4px 8px;
-    border-radius: 4px;
-    text-transform: uppercase;
-    font-weight: 500;
+/* Card Thumbnail Section */
+.insight-card-thumbnail {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+    overflow: hidden;
 }
 
-.insight-status-badge.draft {
-    background: #fef3c7;
-    color: #92400e;
+.insight-card-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
 }
 
-.insight-status-badge.reviewed {
-    background: #dbeafe;
-    color: #1e40af;
+.insight-card:hover .insight-card-thumbnail img {
+    transform: scale(1.05);
 }
 
-.insight-status-badge.integrated {
-    background: #dcfce7;
-    color: #166534;
-}
-
-.insight-status-badge.discarded {
-    background: #f3f4f6;
-    color: #6b7280;
-}
-
-.insight-title {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.2rem;
-    margin: 0 0 8px;
-    padding-right: 80px;
-}
-
-.insight-preview {
-    font-size: 0.9rem;
-    color: var(--text-light);
-    margin: 0 0 12px;
-    line-height: 1.5;
-}
-
-.insight-meta {
+.insight-card-placeholder {
+    width: 100%;
+    height: 100%;
     display: flex;
-    gap: 16px;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+}
+
+.insight-card-placeholder svg {
+    width: 48px;
+    height: 48px;
+    opacity: 0.3;
+}
+
+/* Source Badge on Thumbnail */
+.insight-card-source-badge {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: capitalize;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(4px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.insight-card-source-badge.youtube {
+    color: #dc2626;
+}
+
+.insight-card-source-badge.article {
+    color: #2563eb;
+}
+
+.insight-card-source-badge.podcast {
+    color: #9333ea;
+}
+
+.insight-card-source-badge.book {
+    color: #059669;
+}
+
+.insight-card-source-badge.other {
+    color: var(--text-muted);
+}
+
+/* Card Actions (appear on hover) */
+.insight-card-actions {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    gap: 6px;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: all 0.2s ease;
+}
+
+.insight-card:hover .insight-card-actions {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.insight-card-action {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(4px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.15s ease;
+}
+
+.insight-card-action:hover {
+    background: white;
+    color: var(--accent);
+    transform: scale(1.1);
+}
+
+.insight-card-action.danger:hover {
+    color: #dc2626;
+}
+
+/* Card Body */
+.insight-card-body {
+    padding: 16px;
+}
+
+/* Status Line */
+.insight-card-status-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 0.75rem;
+}
+
+.insight-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.insight-status-dot.draft {
+    background: #f59e0b;
+}
+
+.insight-status-dot.reviewed {
+    background: #3b82f6;
+}
+
+.insight-status-dot.integrated {
+    background: #10b981;
+}
+
+.insight-status-dot.discarded {
+    background: #9ca3af;
+}
+
+.insight-status-text {
+    color: var(--text-muted);
+    text-transform: capitalize;
+}
+
+.insight-card-date {
+    margin-left: auto;
+    color: var(--text-muted);
+}
+
+/* Card Title */
+.insight-card-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    line-height: 1.4;
+    margin: 0 0 8px;
+    color: var(--text);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Linked Topic */
+.insight-card-topic {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background: var(--tag-bg);
+    border-radius: 4px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+}
+
+/* Stats */
+.insight-card-stats {
+    display: flex;
+    gap: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+
+.insight-stat {
+    display: flex;
+    align-items: center;
+    gap: 4px;
     font-size: 0.8rem;
     color: var(--text-muted);
 }
 
-.insight-source-type {
-    text-transform: capitalize;
-    padding: 2px 6px;
-    border-radius: 4px;
-    background: var(--tag-bg);
+.insight-stat svg {
+    opacity: 0.7;
 }
 
-.insight-source-type.youtube {
-    background: #fee2e2;
-    color: #dc2626;
-}
-
-.insight-source-type.article {
-    background: #dbeafe;
-    color: #2563eb;
-}
-
-.insight-source-type.podcast {
-    background: #f3e8ff;
-    color: #9333ea;
-}
-
-/* Topic and Insight card actions */
-.topic-actions,
-.insight-actions {
+/* Legacy support for topic actions */
+.topic-actions {
     display: flex;
     gap: 4px;
     opacity: 0;
     transition: opacity 0.2s;
 }
 
-.topic-card:hover .topic-actions,
-.insight-card:hover .insight-actions {
+.topic-card:hover .topic-actions {
     opacity: 1;
 }
 
