@@ -8,6 +8,12 @@
     --favor: #3d5a47;
     --against: #8b4049;
     --neutral: #5a5a5a;
+
+    /* Status colors */
+    --status-draft: #f7d44b;
+    --status-reviewed: #3b82f6;
+    --status-integrated: #10b981;
+    --status-discarded: #9ca3af;
 }
 
 * {
@@ -1237,15 +1243,19 @@ header {
 }
 
 .status-dot.draft {
-    background: #f7d44b;
+    background: var(--status-draft);
 }
 
 .status-dot.reviewed {
-    background: #3b82f6;
+    background: var(--status-reviewed);
 }
 
 .status-dot.integrated {
-    background: #10b981;
+    background: var(--status-integrated);
+}
+
+.status-dot.discarded {
+    background: var(--status-discarded);
 }
 
 .nav-section-header {
@@ -1779,19 +1789,19 @@ header {
 }
 
 .insight-status-dot.draft {
-    background: #f59e0b;
+    background: var(--status-draft);
 }
 
 .insight-status-dot.reviewed {
-    background: #3b82f6;
+    background: var(--status-reviewed);
 }
 
 .insight-status-dot.integrated {
-    background: #10b981;
+    background: var(--status-integrated);
 }
 
 .insight-status-dot.discarded {
-    background: #9ca3af;
+    background: var(--status-discarded);
 }
 
 .insight-status-text {
