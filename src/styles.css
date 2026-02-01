@@ -1157,7 +1157,14 @@ header {
 }
 
 .nav-tab-icon {
-    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-tab-icon svg {
+    width: 20px;
+    height: 20px;
 }
 
 .nav-tab-label {
