@@ -73,6 +73,7 @@ const elements = {
     // Navigation Sidebar
     navSidebar: document.getElementById('navSidebar'),
     sidebarToggle: document.getElementById('sidebarToggle'),
+    sidebarOpenBtn: document.getElementById('sidebarOpenBtn'),
 
     // Main navigation tabs
     navWikiTab: document.getElementById('navWikiTab'),
@@ -1956,11 +1957,19 @@ function updateInsightsCounts() {
 }
 
 function setupNavSidebarListeners() {
-    // Sidebar toggle button
+    // Sidebar toggle button (close)
     if (elements.sidebarToggle) {
         elements.sidebarToggle.onclick = () => {
             elements.navSidebar.classList.toggle('collapsed');
             document.querySelector('.app-layout').classList.toggle('sidebar-collapsed');
+        };
+    }
+
+    // Sidebar open button (reopen when collapsed)
+    if (elements.sidebarOpenBtn) {
+        elements.sidebarOpenBtn.onclick = () => {
+            elements.navSidebar.classList.remove('collapsed');
+            document.querySelector('.app-layout').classList.remove('sidebar-collapsed');
         };
     }
 

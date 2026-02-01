@@ -39,6 +39,35 @@ body {
     transform: translateX(-100%);
 }
 
+/* Sidebar open button - only visible when sidebar is collapsed */
+.sidebar-open-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: white;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-light);
+    transition: all 0.2s;
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-open-btn:hover {
+    background: var(--bg-light);
+    color: var(--text);
+}
+
+.app-layout.sidebar-collapsed .sidebar-open-btn {
+    display: flex;
+}
+
 .container {
     max-width: 1400px;
     margin: 0 auto;
@@ -46,7 +75,6 @@ body {
 }
 
 header {
-    margin-bottom: 60px;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
@@ -1421,6 +1449,7 @@ header {
 
 /* Main Content Area */
 .main-area {
+    position: relative;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
@@ -1491,8 +1520,9 @@ header {
 }
 
 .topic-name {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.25rem;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    color: var(--text-muted);
 }
 
 .topic-description {
@@ -1554,6 +1584,19 @@ header {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 24px;
+    margin-left: 0;
+}
+
+.app-layout.sidebar-collapsed .insights-grid {
+    margin-left: 3rem;
+}
+
+.app-layout.sidebar-collapsed .topics-grid {
+    margin-left: 3rem;
+}
+
+.app-layout.sidebar-collapsed .content-filters {
+    margin-left: 3rem;
 }
 
 .insights-empty {
