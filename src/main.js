@@ -2072,7 +2072,6 @@ function switchSection(section) {
 
     // Get main content elements
     const desktopHeader = document.querySelector('.content-header.desktop-header');
-    const viewControls = document.querySelector('.view-controls');
 
     // Show active section
     switch (section) {
@@ -2081,10 +2080,11 @@ function switchSection(section) {
             if (elements.navWikiContent) elements.navWikiContent.style.display = 'block';
             // Hide quote-specific elements
             if (desktopHeader) desktopHeader.style.display = 'none';
-            if (viewControls) viewControls.style.display = 'none';
-            elements.quotesList.classList.add('hidden');
-            elements.quotesCompare.classList.add('hidden');
-            elements.emptyState.classList.add('hidden');
+            const viewControlsWiki = document.querySelector('.view-controls');
+            if (viewControlsWiki) viewControlsWiki.style.display = 'none';
+            if (elements.quotesList) elements.quotesList.classList.add('hidden');
+            if (elements.quotesCompare) elements.quotesCompare.classList.add('hidden');
+            if (elements.emptyState) elements.emptyState.classList.add('hidden');
             renderWikiView();
             break;
         case 'insights':
@@ -2092,25 +2092,102 @@ function switchSection(section) {
             if (elements.navInsightsContent) elements.navInsightsContent.style.display = 'block';
             // Hide quote-specific elements
             if (desktopHeader) desktopHeader.style.display = 'none';
-            if (viewControls) viewControls.style.display = 'none';
-            elements.quotesList.classList.add('hidden');
-            elements.quotesCompare.classList.add('hidden');
-            elements.emptyState.classList.add('hidden');
+            const viewControlsInsights = document.querySelector('.view-controls');
+            if (viewControlsInsights) viewControlsInsights.style.display = 'none';
+            if (elements.quotesList) elements.quotesList.classList.add('hidden');
+            if (elements.quotesCompare) elements.quotesCompare.classList.add('hidden');
+            if (elements.emptyState) elements.emptyState.classList.add('hidden');
             renderInsightsView();
             break;
         case 'quotes':
         default:
             if (elements.navQuotesTab) elements.navQuotesTab.classList.add('active');
             if (elements.navQuotesContent) elements.navQuotesContent.style.display = 'block';
-            // Show quote-specific elements
+            // Restore quotes view content if it was replaced by wiki/insights
+            restoreQuotesView();
+            // Show quote-specific elements (get viewControls after restore)
             if (desktopHeader) desktopHeader.style.display = 'flex';
-            if (viewControls) viewControls.style.display = 'flex';
+            const viewControlsQuotes = document.querySelector('.view-controls');
+            if (viewControlsQuotes) viewControlsQuotes.style.display = 'flex';
             elements.quotesList.classList.remove('hidden');
             if (state.currentView === 'compare') {
                 elements.quotesCompare.classList.remove('hidden');
             }
             renderQuotes();
             break;
+    }
+}
+
+// Restore quotes view if content-body was replaced by wiki/insights
+function restoreQuotesView() {
+    const contentBody = document.querySelector('.content-body');
+    if (!contentBody) return;
+
+    // Check if quotes elements exist, if not, recreate them
+    if (!document.getElementById('quotesList')) {
+        contentBody.innerHTML = `
+            <div class="view-controls">
+                <button class="view-btn ${state.currentView === 'list' ? 'active' : ''}" id="viewList" data-i18n-title="quotes.listView" title="Vista lista">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
+                <button class="view-btn ${state.currentView === 'compare' ? 'active' : ''}" id="viewCompare" data-i18n-title="quotes.compareView" title="Vista comparativa">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="18"></rect>
+                        <rect x="14" y="3" width="7" height="18"></rect>
+                    </svg>
+                </button>
+            </div>
+            <div class="quotes-list" id="quotesList"></div>
+            <div class="quotes-compare hidden" id="quotesCompare">
+                <div class="compare-column favor">
+                    <h3 data-i18n="stances.favor">A favor</h3>
+                    <div class="compare-quotes" id="quotesFavor"></div>
+                </div>
+                <div class="compare-column against">
+                    <h3 data-i18n="stances.contra">En contra</h3>
+                    <div class="compare-quotes" id="quotesAgainst"></div>
+                </div>
+            </div>
+            <div class="empty-state hidden" id="emptyState">
+                <h3 data-i18n="quotes.emptyTitle">Tu colección está vacía</h3>
+                <p data-i18n="quotes.emptyMessage">Comienza añadiendo tu primera cita memorable</p>
+            </div>
+        `;
+
+        // Re-cache the DOM elements
+        elements.quotesList = document.getElementById('quotesList');
+        elements.quotesCompare = document.getElementById('quotesCompare');
+        elements.quotesFavor = document.getElementById('quotesFavor');
+        elements.quotesAgainst = document.getElementById('quotesAgainst');
+        elements.emptyState = document.getElementById('emptyState');
+
+        // Re-attach view toggle event listeners
+        const viewList = document.getElementById('viewList');
+        const viewCompare = document.getElementById('viewCompare');
+        if (viewList) {
+            viewList.onclick = () => {
+                state.currentView = 'list';
+                viewList.classList.add('active');
+                if (viewCompare) viewCompare.classList.remove('active');
+                elements.quotesCompare.classList.add('hidden');
+                elements.quotesList.classList.remove('hidden');
+                renderQuotes();
+            };
+        }
+        if (viewCompare) {
+            viewCompare.onclick = () => {
+                state.currentView = 'compare';
+                viewCompare.classList.add('active');
+                if (viewList) viewList.classList.remove('active');
+                elements.quotesList.classList.add('hidden');
+                elements.quotesCompare.classList.remove('hidden');
+                renderQuotes();
+            };
+        }
     }
 }
 
