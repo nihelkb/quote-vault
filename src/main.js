@@ -224,7 +224,26 @@ function init() {
 
     // Listen for locale changes to re-render dynamic content
     i18n.onLocaleChange(() => {
-        renderQuotes();
+        // Re-render current section
+        switch (state.currentSection) {
+            case 'wiki':
+                renderWikiView();
+                break;
+            case 'insights':
+                renderInsightsView();
+                break;
+            case 'quotes':
+            default:
+                renderQuotes();
+                break;
+        }
+        // Update sidebar elements
+        renderSidebarCollections();
+        renderSidebarTags();
+        renderSidebarTopics();
+        updateInsightsCounts();
+        updateStats();
+        // Update filters and selects
         updateCollectionSelects();
         updateMobileFiltersPanel();
     });
