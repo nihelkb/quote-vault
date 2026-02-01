@@ -74,7 +74,7 @@
         <!-- Left Sidebar Navigation -->
         <aside class="nav-sidebar" id="navSidebar">
             <div class="nav-sidebar-header">
-                <h1 class="nav-sidebar-title" data-i18n="app.title">Quote Vault</h1>
+                <h1 class="nav-sidebar-title" data-i18n="app.title">Knowledge Vault</h1>
                 <button class="nav-sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="15 18 9 12 15 6"></polyline>
@@ -83,47 +83,125 @@
             </div>
 
             <div class="nav-sidebar-content">
-                <!-- Citas Section -->
-                <div class="nav-section">
-                    <div class="nav-section-header">
-                        <span class="nav-section-icon">💬</span>
-                        <span class="nav-section-title" data-i18n="sidebar.allQuotes">Todas las citas</span>
-                        <span class="nav-section-count" id="totalQuotes">0</span>
+                <!-- Main Navigation Tabs -->
+                <div class="nav-main-tabs">
+                    <button class="nav-main-tab" data-view="wiki" id="navWikiTab">
+                        <span class="nav-tab-icon">📖</span>
+                        <span class="nav-tab-label" data-i18n="sidebar.wiki">Wiki</span>
+                    </button>
+                    <button class="nav-main-tab" data-view="insights" id="navInsightsTab">
+                        <span class="nav-tab-icon">💡</span>
+                        <span class="nav-tab-label" data-i18n="sidebar.insights">Insights</span>
+                        <span class="nav-tab-badge hidden" id="insightsDraftBadge">0</span>
+                    </button>
+                    <button class="nav-main-tab active" data-view="quotes" id="navQuotesTab">
+                        <span class="nav-tab-icon">💬</span>
+                        <span class="nav-tab-label" data-i18n="sidebar.quotes">Citas</span>
+                    </button>
+                </div>
+
+                <!-- Wiki Section (Topics) -->
+                <div class="nav-view-content" id="navWikiContent" style="display: none;">
+                    <div class="nav-section">
+                        <div class="nav-section-header">
+                            <span class="nav-section-title" data-i18n="sidebar.topics">Temas</span>
+                            <span class="nav-section-count" id="totalTopics">0</span>
+                        </div>
+                        <div class="nav-section-items" id="sidebarTopics">
+                            <!-- Topics will be rendered here -->
+                        </div>
+                        <button class="nav-add-btn" id="navNewTopicBtn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            <span data-i18n="sidebar.newTopic">Nuevo tema</span>
+                        </button>
                     </div>
                 </div>
 
-                <!-- Collections Section -->
-                <div class="nav-section">
-                    <div class="nav-section-header collapsible" id="collectionsHeader">
-                        <span class="nav-section-icon">📁</span>
-                        <span class="nav-section-title" data-i18n="sidebar.collections">Colecciones</span>
-                        <svg class="nav-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
+                <!-- Insights Section -->
+                <div class="nav-view-content" id="navInsightsContent" style="display: none;">
+                    <div class="nav-section">
+                        <div class="nav-section-header">
+                            <span class="nav-section-title" data-i18n="sidebar.allInsights">Todos los insights</span>
+                            <span class="nav-section-count" id="totalInsights">0</span>
+                        </div>
                     </div>
-                    <div class="nav-section-items" id="sidebarCollections">
-                        <!-- Collections will be rendered here -->
+                    <div class="nav-section">
+                        <div class="nav-section-header collapsible" id="insightStatusHeader">
+                            <span class="nav-section-title" data-i18n="sidebar.byStatus">Por estado</span>
+                            <svg class="nav-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </div>
+                        <div class="nav-section-items" id="sidebarInsightStatus">
+                            <button class="nav-item" data-status="draft">
+                                <span class="status-dot draft"></span>
+                                <span data-i18n="insights.draft">Borradores</span>
+                                <span class="item-count" id="insightsDraftCount">0</span>
+                            </button>
+                            <button class="nav-item" data-status="reviewed">
+                                <span class="status-dot reviewed"></span>
+                                <span data-i18n="insights.reviewed">Revisados</span>
+                                <span class="item-count" id="insightsReviewedCount">0</span>
+                            </button>
+                            <button class="nav-item" data-status="integrated">
+                                <span class="status-dot integrated"></span>
+                                <span data-i18n="insights.integrated">Integrados</span>
+                                <span class="item-count" id="insightsIntegratedCount">0</span>
+                            </button>
+                        </div>
                     </div>
-                    <button class="nav-add-btn" id="navNewCollectionBtn">
+                    <button class="nav-add-btn" id="navNewInsightBtn">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="12" y1="5" x2="12" y2="19"></line>
                             <line x1="5" y1="12" x2="19" y2="12"></line>
                         </svg>
-                        <span data-i18n="sidebar.newCollection">Nueva colección</span>
+                        <span data-i18n="sidebar.captureInsight">Capturar insight</span>
                     </button>
                 </div>
 
-                <!-- Tags Section -->
-                <div class="nav-section">
-                    <div class="nav-section-header collapsible" id="tagsHeader">
-                        <span class="nav-section-icon">🏷️</span>
-                        <span class="nav-section-title" data-i18n="sidebar.tags">Tags</span>
-                        <svg class="nav-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
+                <!-- Quotes Section -->
+                <div class="nav-view-content" id="navQuotesContent">
+                    <div class="nav-section">
+                        <div class="nav-section-header">
+                            <span class="nav-section-title" data-i18n="sidebar.allQuotes">Todas las citas</span>
+                            <span class="nav-section-count" id="totalQuotes">0</span>
+                        </div>
                     </div>
-                    <div class="nav-section-items nav-tags" id="sidebarTags">
-                        <!-- Tags will be rendered here -->
+
+                    <!-- Collections -->
+                    <div class="nav-section">
+                        <div class="nav-section-header collapsible" id="collectionsHeader">
+                            <span class="nav-section-title" data-i18n="sidebar.collections">Colecciones</span>
+                            <svg class="nav-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </div>
+                        <div class="nav-section-items" id="sidebarCollections">
+                            <!-- Collections will be rendered here -->
+                        </div>
+                        <button class="nav-add-btn" id="navNewCollectionBtn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            <span data-i18n="sidebar.newCollection">Nueva colección</span>
+                        </button>
+                    </div>
+
+                    <!-- Tags -->
+                    <div class="nav-section">
+                        <div class="nav-section-header collapsible" id="tagsHeader">
+                            <span class="nav-section-title" data-i18n="sidebar.tags">Tags</span>
+                            <svg class="nav-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </div>
+                        <div class="nav-section-items nav-tags" id="sidebarTags">
+                            <!-- Tags will be rendered here -->
+                        </div>
                     </div>
                 </div>
             </div>
@@ -515,6 +593,104 @@
                 <button class="btn btn-secondary" id="cancelCollectionBtn" data-i18n="form.cancel">Cancelar</button>
                 <button class="btn btn-primary" id="createCollectionBtn" data-i18n="collections.create">Crear</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Insight Capture Modal -->
+    <div class="modal-overlay" id="insightModal">
+        <div class="modal modal-large">
+            <h2 id="insightModalTitle" data-i18n="insights.capture">Capturar insight</h2>
+            <form id="insightForm">
+                <input type="hidden" id="insightId">
+
+                <div class="form-group">
+                    <label for="insightSourceUrl" data-i18n="insights.sourceUrl">URL de la fuente</label>
+                    <div class="url-input-wrapper">
+                        <input type="url" id="insightSourceUrl" data-i18n-placeholder="insights.sourceUrlPlaceholder" placeholder="Pega la URL del video, artículo...">
+                        <button type="button" class="btn btn-secondary btn-small" id="fetchMetadataBtn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                <path d="M9 12l2 2 4-4"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Source Preview (populated after URL fetch) -->
+                <div class="source-preview hidden" id="sourcePreview">
+                    <img class="source-thumbnail" id="sourceThumbnail" src="" alt="">
+                    <div class="source-info">
+                        <span class="source-type-badge" id="sourceTypeBadge">YouTube</span>
+                        <h4 class="source-title" id="sourceTitle"></h4>
+                        <p class="source-channel" id="sourceChannel"></p>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="insightNotes" data-i18n="insights.notes">Apuntes</label>
+                    <textarea id="insightNotes" rows="8" data-i18n-placeholder="insights.notesPlaceholder" placeholder="Escribe tus apuntes mientras consumes el contenido..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="insightTags" data-i18n="form.tagsLabel">Etiquetas</label>
+                    <input type="text" id="insightTags" data-i18n-placeholder="form.tagsPlaceholder" placeholder="Separadas por coma: política, historia, economía">
+                </div>
+
+                <div class="form-group">
+                    <label for="insightLinkedTopic" data-i18n="insights.linkToTopic">Vincular a tema (opcional)</label>
+                    <select id="insightLinkedTopic">
+                        <option value="">Sin vincular</option>
+                        <!-- Topics will be populated here -->
+                    </select>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelInsightBtn" data-i18n="form.cancel">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="saveInsightBtn" data-i18n="form.save">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- New Topic Modal -->
+    <div class="modal-overlay" id="topicModal">
+        <div class="modal">
+            <h2 id="topicModalTitle" data-i18n="topics.newTopic">Nuevo tema</h2>
+            <form id="topicForm">
+                <input type="hidden" id="topicId">
+
+                <div class="form-group">
+                    <label for="topicIcon" data-i18n="topics.icon">Icono</label>
+                    <div class="icon-picker" id="iconPicker">
+                        <button type="button" class="icon-option selected" data-icon="📁">📁</button>
+                        <button type="button" class="icon-option" data-icon="🌍">🌍</button>
+                        <button type="button" class="icon-option" data-icon="💰">💰</button>
+                        <button type="button" class="icon-option" data-icon="⚖️">⚖️</button>
+                        <button type="button" class="icon-option" data-icon="🏛️">🏛️</button>
+                        <button type="button" class="icon-option" data-icon="🔬">🔬</button>
+                        <button type="button" class="icon-option" data-icon="💻">💻</button>
+                        <button type="button" class="icon-option" data-icon="🧠">🧠</button>
+                        <button type="button" class="icon-option" data-icon="📚">📚</button>
+                        <button type="button" class="icon-option" data-icon="🎯">🎯</button>
+                    </div>
+                    <input type="hidden" id="topicIconValue" value="📁">
+                </div>
+
+                <div class="form-group">
+                    <label for="topicName" data-i18n="topics.name">Nombre del tema *</label>
+                    <input type="text" id="topicName" required data-i18n-placeholder="topics.namePlaceholder" placeholder="Ej: Conflicto palestino-israelí">
+                </div>
+
+                <div class="form-group">
+                    <label for="topicDescription" data-i18n="topics.description">Descripción</label>
+                    <textarea id="topicDescription" rows="3" data-i18n-placeholder="topics.descriptionPlaceholder" placeholder="Describe brevemente el tema..."></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelTopicBtn" data-i18n="form.cancel">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="saveTopicBtn" data-i18n="form.save">Guardar</button>
+                </div>
+            </form>
         </div>
     </div>
 

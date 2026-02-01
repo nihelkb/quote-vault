@@ -1,7 +1,7 @@
 {
   "app": {
-    "title": "Quote Vault",
-    "subtitle": "Your personal quote repository",
+    "title": "Knowledge Vault",
+    "subtitle": "Your personal knowledge repository",
     "loading": "Loading...",
     "logout": "Logout"
   },
@@ -136,13 +136,76 @@
   },
   "sidebar": {
     "summary": "Summary",
-    "quotes": "quotes",
+    "wiki": "Wiki",
+    "insights": "Insights",
+    "quotes": "Quotes",
     "allQuotes": "All quotes",
+    "topics": "Topics",
+    "newTopic": "New topic",
+    "noTopics": "No topics",
+    "allInsights": "All insights",
+    "byStatus": "By status",
+    "captureInsight": "Capture insight",
     "collections": "Collections",
     "favorites": "favorites",
     "tags": "Tags",
     "noCollections": "No collections",
     "noTags": "No tags",
     "newCollection": "New collection"
+  },
+  "insights": {
+    "draft": "Drafts",
+    "reviewed": "Reviewed",
+    "integrated": "Integrated",
+    "discarded": "Discarded",
+    "capture": "Capture insight",
+    "sourceUrl": "Source URL",
+    "sourceUrlPlaceholder": "Paste the video or article URL...",
+    "notes": "Notes",
+    "notesPlaceholder": "Write your notes while consuming the content...",
+    "keyPoints": "Key points",
+    "toVerify": "To verify",
+    "linkToTopic": "Link to topic",
+    "promoteToWiki": "Promote to Wiki",
+    "markAsReviewed": "Mark as reviewed",
+    "discard": "Discard"
+  },
+  "topics": {
+    "newTopic": "New topic",
+    "editTopic": "Edit topic",
+    "name": "Topic name",
+    "namePlaceholder": "E.g.: Israeli-Palestinian conflict",
+    "description": "Description",
+    "descriptionPlaceholder": "Briefly describe the topic...",
+    "icon": "Icon",
+    "status": "Status",
+    "inProgress": "In progress",
+    "consolidated": "Consolidated",
+    "sections": {
+      "timeline": "Historical context",
+      "arguments": "Arguments",
+      "data": "Data & statistics",
+      "sources": "Sources",
+      "quotes": "Related quotes",
+      "connections": "Connections"
+    }
+  },
+  "entries": {
+    "newEntry": "New entry",
+    "editEntry": "Edit entry",
+    "types": {
+      "timeline_event": "Historical event",
+      "argument": "Argument",
+      "counterargument": "Counterargument",
+      "fact": "Fact",
+      "source": "Source"
+    },
+    "verified": "Verified",
+    "unverified": "Unverified",
+    "confidence": {
+      "high": "High confidence",
+      "medium": "Medium confidence",
+      "low": "Low confidence"
+    }
   }
 }

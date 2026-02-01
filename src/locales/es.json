@@ -1,7 +1,7 @@
 {
   "app": {
-    "title": "Quote Vault",
-    "subtitle": "Tu repositorio personal de citas",
+    "title": "Knowledge Vault",
+    "subtitle": "Tu repositorio personal de conocimiento",
     "loading": "Cargando...",
     "logout": "Salir"
   },
@@ -136,13 +136,76 @@
   },
   "sidebar": {
     "summary": "Resumen",
-    "quotes": "citas",
+    "wiki": "Wiki",
+    "insights": "Insights",
+    "quotes": "Citas",
     "allQuotes": "Todas las citas",
+    "topics": "Temas",
+    "newTopic": "Nuevo tema",
+    "noTopics": "Sin temas",
+    "allInsights": "Todos los insights",
+    "byStatus": "Por estado",
+    "captureInsight": "Capturar insight",
     "collections": "Colecciones",
     "favorites": "favoritas",
     "tags": "Tags",
     "noCollections": "Sin colecciones",
     "noTags": "Sin tags",
     "newCollection": "Nueva colección"
+  },
+  "insights": {
+    "draft": "Borradores",
+    "reviewed": "Revisados",
+    "integrated": "Integrados",
+    "discarded": "Descartados",
+    "capture": "Capturar insight",
+    "sourceUrl": "URL de la fuente",
+    "sourceUrlPlaceholder": "Pega la URL del video, artículo...",
+    "notes": "Apuntes",
+    "notesPlaceholder": "Escribe tus apuntes mientras consumes el contenido...",
+    "keyPoints": "Puntos clave",
+    "toVerify": "Por verificar",
+    "linkToTopic": "Vincular a tema",
+    "promoteToWiki": "Promover a Wiki",
+    "markAsReviewed": "Marcar como revisado",
+    "discard": "Descartar"
+  },
+  "topics": {
+    "newTopic": "Nuevo tema",
+    "editTopic": "Editar tema",
+    "name": "Nombre del tema",
+    "namePlaceholder": "Ej: Conflicto palestino-israelí",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Describe brevemente el tema...",
+    "icon": "Icono",
+    "status": "Estado",
+    "inProgress": "En progreso",
+    "consolidated": "Consolidado",
+    "sections": {
+      "timeline": "Contexto histórico",
+      "arguments": "Argumentos",
+      "data": "Datos y estadísticas",
+      "sources": "Fuentes",
+      "quotes": "Citas relacionadas",
+      "connections": "Conexiones"
+    }
+  },
+  "entries": {
+    "newEntry": "Nueva entrada",
+    "editEntry": "Editar entrada",
+    "types": {
+      "timeline_event": "Evento histórico",
+      "argument": "Argumento",
+      "counterargument": "Contraargumento",
+      "fact": "Dato/Hecho",
+      "source": "Fuente"
+    },
+    "verified": "Verificado",
+    "unverified": "Sin verificar",
+    "confidence": {
+      "high": "Alta confianza",
+      "medium": "Confianza media",
+      "low": "Baja confianza"
+    }
   }
 }

@@ -114,11 +114,29 @@ class QuoteService {
             author: formData.author.trim(),
             source: formData.source?.trim() || '',
             collectionId: formData.collectionId || null,
+            topicId: formData.topicId || null, // New: link to wiki topic
             stance: formData.stance,
             tags: this.parseTags(formData.tags),
             notes: formData.notes?.trim() || '',
             parentId: formData.parentId || null
         };
+    }
+
+    /**
+     * Link a quote to a topic
+     */
+    async linkToTopic(quoteId, topicId) {
+        await updateDoc(doc(db, this.collectionName, quoteId), {
+            topicId: topicId,
+            updatedAt: new Date().toISOString()
+        });
+    }
+
+    /**
+     * Get quotes linked to a specific topic
+     */
+    getQuotesByTopic(quotes, topicId) {
+        return quotes.filter(q => q.topicId === topicId);
     }
 
     /**
@@ -136,7 +154,7 @@ class QuoteService {
      * Filter quotes by criteria
      */
     filterQuotes(quotes, filters) {
-        const { searchTerm, collectionId, stance, favoriteOnly } = filters;
+        const { searchTerm, collectionId, topicId, stance, favoriteOnly } = filters;
 
         return quotes.filter(quote => {
             const matchesSearch = !searchTerm ||
@@ -146,10 +164,11 @@ class QuoteService {
                 (quote.tags && quote.tags.some(t => t.includes(searchTerm)));
 
             const matchesCollection = !collectionId || quote.collectionId === collectionId;
+            const matchesTopic = !topicId || quote.topicId === topicId;
             const matchesStance = !stance || quote.stance === stance;
             const matchesFavorite = !favoriteOnly || quote.favorite === true;
 
-            return matchesSearch && matchesCollection && matchesStance && matchesFavorite;
+            return matchesSearch && matchesCollection && matchesTopic && matchesStance && matchesFavorite;
         });
     }
 

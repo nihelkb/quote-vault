@@ -8,6 +8,9 @@
 import { authService } from './services/AuthService.js';
 import { quoteService } from './services/QuoteService.js';
 import { collectionService } from './services/CollectionService.js';
+import { topicService } from './services/TopicService.js';
+import { insightService } from './services/InsightService.js';
+import { transcriptService } from './services/TranscriptService.js';
 
 // Components
 import { renderQuoteList } from './components/QuoteCard.js';
@@ -26,7 +29,11 @@ import { escapeHtml } from './utils/helpers.js';
 const state = {
     quotes: [],
     collections: [],
-    currentView: 'list',
+    topics: [],
+    insights: [],
+    currentView: 'list', // list, compare
+    currentSection: 'quotes', // wiki, insights, quotes
+    currentInsightId: null, // Currently viewing insight
     authMode: 'login'
 };
 
@@ -65,6 +72,33 @@ const elements = {
     // Navigation Sidebar
     navSidebar: document.getElementById('navSidebar'),
     sidebarToggle: document.getElementById('sidebarToggle'),
+
+    // Main navigation tabs
+    navWikiTab: document.getElementById('navWikiTab'),
+    navInsightsTab: document.getElementById('navInsightsTab'),
+    navQuotesTab: document.getElementById('navQuotesTab'),
+
+    // View content containers
+    navWikiContent: document.getElementById('navWikiContent'),
+    navInsightsContent: document.getElementById('navInsightsContent'),
+    navQuotesContent: document.getElementById('navQuotesContent'),
+
+    // Wiki/Topics elements
+    sidebarTopics: document.getElementById('sidebarTopics'),
+    totalTopics: document.getElementById('totalTopics'),
+    navNewTopicBtn: document.getElementById('navNewTopicBtn'),
+
+    // Insights elements
+    totalInsights: document.getElementById('totalInsights'),
+    insightsDraftBadge: document.getElementById('insightsDraftBadge'),
+    insightsDraftCount: document.getElementById('insightsDraftCount'),
+    insightsReviewedCount: document.getElementById('insightsReviewedCount'),
+    insightsIntegratedCount: document.getElementById('insightsIntegratedCount'),
+    insightStatusHeader: document.getElementById('insightStatusHeader'),
+    sidebarInsightStatus: document.getElementById('sidebarInsightStatus'),
+    navNewInsightBtn: document.getElementById('navNewInsightBtn'),
+
+    // Quotes sidebar elements
     sidebarCollections: document.getElementById('sidebarCollections'),
     sidebarTags: document.getElementById('sidebarTags'),
     collectionsHeader: document.getElementById('collectionsHeader'),
@@ -105,6 +139,34 @@ const elements = {
     newCollectionBtn: document.getElementById('newCollectionBtn'),
     cancelCollectionBtn: document.getElementById('cancelCollectionBtn'),
     createCollectionBtn: document.getElementById('createCollectionBtn'),
+
+    // Insight Modal
+    insightModal: document.getElementById('insightModal'),
+    insightModalTitle: document.getElementById('insightModalTitle'),
+    insightForm: document.getElementById('insightForm'),
+    insightId: document.getElementById('insightId'),
+    insightSourceUrl: document.getElementById('insightSourceUrl'),
+    insightNotes: document.getElementById('insightNotes'),
+    insightTags: document.getElementById('insightTags'),
+    insightLinkedTopic: document.getElementById('insightLinkedTopic'),
+    fetchMetadataBtn: document.getElementById('fetchMetadataBtn'),
+    sourcePreview: document.getElementById('sourcePreview'),
+    sourceThumbnail: document.getElementById('sourceThumbnail'),
+    sourceTypeBadge: document.getElementById('sourceTypeBadge'),
+    sourceTitle: document.getElementById('sourceTitle'),
+    sourceChannel: document.getElementById('sourceChannel'),
+    cancelInsightBtn: document.getElementById('cancelInsightBtn'),
+
+    // Topic Modal
+    topicModal: document.getElementById('topicModal'),
+    topicModalTitle: document.getElementById('topicModalTitle'),
+    topicForm: document.getElementById('topicForm'),
+    topicId: document.getElementById('topicId'),
+    topicName: document.getElementById('topicName'),
+    topicDescription: document.getElementById('topicDescription'),
+    topicIconValue: document.getElementById('topicIconValue'),
+    iconPicker: document.getElementById('iconPicker'),
+    cancelTopicBtn: document.getElementById('cancelTopicBtn'),
 
     // Language
     languageSelector: document.getElementById('languageSelector'),
@@ -151,6 +213,8 @@ function init() {
     setupLanguageListener();
     setupMobileListeners();
     initMobileFiltersPanel();
+    setupInsightModalListeners();
+    setupTopicModalListeners();
 
     // Auth state observer
     authService.onAuthStateChange(handleAuthStateChange);
@@ -366,11 +430,32 @@ function subscribeToData(userId) {
         updateCollectionSelects();
         renderSidebarCollections();
     });
+
+    topicService.subscribe(userId, (topics) => {
+        state.topics = topics;
+        renderSidebarTopics();
+        if (state.currentSection === 'wiki') {
+            renderWikiView();
+        }
+    });
+
+    insightService.subscribe(userId, (insights) => {
+        state.insights = insights;
+        updateInsightsCounts();
+
+        // Only render the list view if we're NOT viewing a specific insight detail
+        // This prevents the detail view from being replaced when highlights are updated
+        if (state.currentSection === 'insights' && !state.currentInsightId) {
+            renderInsightsView();
+        }
+    });
 }
 
 function unsubscribeFromData() {
     quoteService.unsubscribeAll();
     collectionService.unsubscribeAll();
+    topicService.unsubscribeAll();
+    insightService.unsubscribeAll();
 }
 
 // ============================================================================
@@ -551,6 +636,931 @@ function renderSidebarTags() {
     });
 }
 
+function renderSidebarTopics() {
+    if (!elements.sidebarTopics) return;
+
+    // Update total count
+    if (elements.totalTopics) {
+        elements.totalTopics.textContent = state.topics.length;
+    }
+
+    if (state.topics.length === 0) {
+        elements.sidebarTopics.innerHTML = `<span class="nav-empty">${t('sidebar.noTopics')}</span>`;
+        return;
+    }
+
+    const html = state.topics.map(topic => `
+        <button class="nav-item" data-topic-id="${topic.id}">
+            <span class="topic-icon-small">${topic.icon || '📁'}</span>
+            <span class="topic-name">${escapeHtml(topic.name)}</span>
+            <span class="topic-status-dot ${topic.status}"></span>
+        </button>
+    `).join('');
+
+    elements.sidebarTopics.innerHTML = html;
+
+    // Add click handlers
+    elements.sidebarTopics.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const topicId = item.dataset.topicId;
+            openTopicView(topicId);
+        });
+    });
+}
+
+function openTopicView(topicId) {
+    const topic = state.topics.find(t => t.id === topicId);
+    if (!topic) return;
+
+    // For now, show a detail view - full wiki view will be Phase 3
+    const contentBody = document.querySelector('.content-body');
+    if (!contentBody) return;
+
+    const linkedQuotes = state.quotes.filter(q => q.topicId === topicId);
+
+    contentBody.innerHTML = `
+        <div class="topic-detail-view">
+            <div class="topic-detail-header">
+                <button class="btn btn-secondary btn-back" onclick="switchSection('wiki')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                    ${t('sidebar.topics')}
+                </button>
+                <div class="topic-detail-title">
+                    <span class="topic-icon-large">${topic.icon || '📁'}</span>
+                    <div>
+                        <h1>${escapeHtml(topic.name)}</h1>
+                        <span class="topic-status ${topic.status}">${topic.status === 'consolidated' ? t('topics.consolidated') : t('topics.inProgress')}</span>
+                    </div>
+                </div>
+                <div class="topic-detail-actions">
+                    <button class="btn btn-secondary" onclick="editTopic('${topic.id}')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                        ${t('quotes.edit')}
+                    </button>
+                </div>
+            </div>
+            ${topic.description ? `<p class="topic-detail-description">${escapeHtml(topic.description)}</p>` : ''}
+
+            <div class="topic-sections">
+                <div class="topic-section">
+                    <h2>${t('topics.sections.quotes')} (${linkedQuotes.length})</h2>
+                    ${linkedQuotes.length > 0 ? `
+                        <div class="topic-quotes-list">
+                            ${linkedQuotes.map(q => `
+                                <div class="topic-quote-item">
+                                    <blockquote>"${escapeHtml(q.text)}"</blockquote>
+                                    <cite>— ${escapeHtml(q.author)}</cite>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : `<p class="empty-section">${t('quotes.noQuotes')}</p>`}
+                </div>
+            </div>
+
+            <p class="coming-soon-notice">Las secciones de contexto histórico, argumentos, datos y fuentes estarán disponibles próximamente.</p>
+        </div>
+    `;
+}
+
+function openInsightView(insightId) {
+    const insight = state.insights.find(i => i.id === insightId);
+    if (!insight) return;
+
+    // Store current insight ID for later reference
+    state.currentInsightId = insightId;
+
+    const contentBody = document.querySelector('.content-body');
+    if (!contentBody) return;
+
+    const linkedTopic = insight.linkedTopicId ? state.topics.find(t => t.id === insight.linkedTopicId) : null;
+    const videoId = insightService.extractYouTubeVideoId(insight.sourceUrl);
+    const isYouTube = insight.sourceType === 'youtube' && videoId;
+
+    contentBody.innerHTML = `
+        <div class="insight-detail-view">
+            <div class="insight-detail-header">
+                <button class="btn btn-secondary btn-back" onclick="switchSection('insights')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                    Insights
+                </button>
+                <div class="insight-detail-title">
+                    <h1>${escapeHtml(insight.sourceTitle || 'Sin título')}</h1>
+                    <div class="insight-detail-meta">
+                        <span class="insight-status-badge ${insight.status}">${t('insights.' + insight.status)}</span>
+                        ${linkedTopic ? `<span class="insight-linked-topic">${linkedTopic.icon} ${escapeHtml(linkedTopic.name)}</span>` : ''}
+                    </div>
+                </div>
+                <div class="insight-detail-actions">
+                    ${insight.sourceUrl ? `
+                        <a href="${escapeHtml(insight.sourceUrl)}" target="_blank" rel="noopener" class="btn btn-secondary">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                <polyline points="15 3 21 3 21 9"></polyline>
+                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                            </svg>
+                            ${isYouTube ? 'Abrir en YouTube' : 'Abrir fuente'}
+                        </a>
+                    ` : ''}
+                    <button class="btn btn-secondary" onclick="editInsight('${insight.id}')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                        Editar info
+                    </button>
+                </div>
+            </div>
+
+            <div class="insight-detail-content">
+                ${isYouTube ? `
+                    <div class="insight-video-section">
+                        <div class="video-container">
+                            <iframe
+                                src="https://www.youtube.com/embed/${videoId}"
+                                frameborder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowfullscreen>
+                            </iframe>
+                        </div>
+                    </div>
+                ` : ''}
+
+                <div class="insight-workspace">
+                    <div class="insight-tabs">
+                        <button class="insight-tab active" data-tab="notes">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                            </svg>
+                            Mis notas
+                        </button>
+                        <button class="insight-tab" data-tab="transcript">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="9" y1="9" x2="15" y2="9"></line>
+                                <line x1="9" y1="13" x2="15" y2="13"></line>
+                                <line x1="9" y1="17" x2="12" y2="17"></line>
+                            </svg>
+                            Transcripción
+                        </button>
+                        <button class="insight-tab" data-tab="highlights">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                                <path d="M2 17l10 5 10-5"></path>
+                                <path d="M2 12l10 5 10-5"></path>
+                            </svg>
+                            Destacados (${(insight.highlights || []).length})
+                        </button>
+                    </div>
+
+                    <div class="insight-tab-content" id="insightTabContent">
+                        <!-- Notes tab (default) -->
+                        <div class="tab-pane active" data-pane="notes">
+                            <div class="notes-editor">
+                                <textarea
+                                    id="insightNotesEditor"
+                                    class="notes-textarea"
+                                    placeholder="Escribe tus notas, resumen o apuntes del video aquí..."
+                                >${escapeHtml(insight.structuredNotes || insight.rawNotes || '')}</textarea>
+                                <div class="notes-actions">
+                                    <button class="btn btn-primary btn-sm" onclick="saveInsightNotes('${insight.id}')">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                            <polyline points="7 3 7 8 15 8"></polyline>
+                                        </svg>
+                                        Guardar notas
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Transcript tab -->
+                        <div class="tab-pane" data-pane="transcript">
+                            <div class="transcript-container">
+                                ${insight.transcript ? `
+                                    <div class="transcript-toolbar">
+                                        <div class="transcript-toolbar-left">
+                                            <span class="transcript-hint">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                                                    <path d="M2 17l10 5 10-5"></path>
+                                                </svg>
+                                                Selecciona texto para destacarlo
+                                            </span>
+                                        </div>
+                                        <div class="transcript-toolbar-right">
+                                            ${isYouTube ? `
+                                                <button class="btn btn-secondary btn-sm" onclick="fetchYouTubeTranscript('${insight.id}', '${videoId}')" title="Recargar transcripción">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <polyline points="23 4 23 10 17 10"></polyline>
+                                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                                                    </svg>
+                                                </button>
+                                            ` : ''}
+                                            <button class="btn btn-secondary btn-sm" onclick="clearTranscript('${insight.id}')">
+                                                Borrar
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="transcript-article" id="transcriptText">
+                                        ${renderTranscriptArticle(insight)}
+                                    </div>
+                                ` : `
+                                    <div class="transcript-empty">
+                                        <div class="transcript-empty-icon">
+                                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                                <line x1="9" y1="9" x2="15" y2="9"></line>
+                                                <line x1="9" y1="13" x2="15" y2="13"></line>
+                                                <line x1="9" y1="17" x2="12" y2="17"></line>
+                                            </svg>
+                                        </div>
+                                        <h3>No hay transcripción disponible</h3>
+                                        <p class="transcript-hint">Obtén la transcripción automáticamente o pégala manualmente.</p>
+                                        <div class="transcript-actions">
+                                            ${isYouTube ? `
+                                                <button class="btn btn-primary" onclick="fetchYouTubeTranscript('${insight.id}', '${videoId}')">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <polyline points="23 4 23 10 17 10"></polyline>
+                                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                                                    </svg>
+                                                    Obtener de YouTube
+                                                </button>
+                                            ` : ''}
+                                            <button class="btn btn-secondary" onclick="showTranscriptInput()">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                                                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                                                </svg>
+                                                Pegar manualmente
+                                            </button>
+                                        </div>
+                                        <div class="transcript-input-container hidden" id="transcriptInputContainer">
+                                            <textarea id="transcriptInput" class="transcript-input" placeholder="Pega aquí la transcripción del video..."></textarea>
+                                            <div class="transcript-input-actions">
+                                                <button class="btn btn-secondary btn-sm" onclick="hideTranscriptInput()">Cancelar</button>
+                                                <button class="btn btn-primary btn-sm" onclick="saveTranscript('${insight.id}')">Guardar transcripción</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `}
+                            </div>
+                        </div>
+
+                        <!-- Highlights tab -->
+                        <div class="tab-pane" data-pane="highlights">
+                            <div class="highlights-container">
+                                ${(insight.highlights || []).length > 0 ? `
+                                    <div class="highlights-list">
+                                        ${(insight.highlights || []).map(h => `
+                                            <div class="highlight-item" data-highlight-id="${h.id}">
+                                                <div class="highlight-color" style="background: ${getHighlightColor(h.color)}"></div>
+                                                <div class="highlight-content">
+                                                    <p class="highlight-text">"${escapeHtml(h.text)}"</p>
+                                                    ${h.note ? `<p class="highlight-note">${escapeHtml(h.note)}</p>` : ''}
+                                                    ${h.timestamp ? `<span class="highlight-timestamp">${h.timestamp}</span>` : ''}
+                                                </div>
+                                                <div class="highlight-actions">
+                                                    <button class="btn-icon" onclick="convertHighlightToQuote('${insight.id}', '${h.id}')" title="Convertir a cita">
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                                        </svg>
+                                                    </button>
+                                                    <button class="btn-icon btn-danger" onclick="removeHighlight('${insight.id}', '${h.id}')" title="Eliminar">
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                ` : `
+                                    <div class="highlights-empty">
+                                        <p>No hay texto destacado aún.</p>
+                                        <p class="highlight-hint">Ve a la pestaña de Transcripción y selecciona texto para destacarlo.</p>
+                                    </div>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Setup tab switching
+    setupInsightDetailTabs();
+
+    // Setup transcript text selection for highlighting
+    setupTranscriptHighlighting(insight.id);
+}
+
+function setupInsightDetailTabs() {
+    const tabs = document.querySelectorAll('.insight-tab');
+    const panes = document.querySelectorAll('.tab-pane');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const targetPane = tab.dataset.tab;
+
+            // Update tabs
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+
+            // Update panes
+            panes.forEach(p => {
+                p.classList.toggle('active', p.dataset.pane === targetPane);
+            });
+        });
+    });
+}
+
+function setupTranscriptHighlighting(insightId) {
+    const transcriptText = document.getElementById('transcriptText');
+    if (!transcriptText) return;
+
+    transcriptText.addEventListener('mouseup', () => {
+        const selection = window.getSelection();
+        const selectedText = selection.toString().trim();
+
+        if (selectedText.length > 5) {
+            showHighlightPopup(insightId, selectedText, selection);
+        }
+    });
+}
+
+function showHighlightPopup(insightId, text, selection) {
+    // Remove existing popup
+    const existingPopup = document.querySelector('.highlight-popup');
+    if (existingPopup) existingPopup.remove();
+
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+
+    const popup = document.createElement('div');
+    popup.className = 'highlight-popup';
+    popup.innerHTML = `
+        <button class="highlight-btn" data-color="yellow" style="background: #fef08a" title="Amarillo"></button>
+        <button class="highlight-btn" data-color="green" style="background: #bbf7d0" title="Verde"></button>
+        <button class="highlight-btn" data-color="blue" style="background: #bfdbfe" title="Azul"></button>
+        <button class="highlight-btn" data-color="pink" style="background: #fbcfe8" title="Rosa"></button>
+    `;
+
+    popup.style.position = 'fixed';
+    popup.style.left = `${rect.left + rect.width / 2}px`;
+    popup.style.top = `${rect.top - 40}px`;
+    popup.style.transform = 'translateX(-50%)';
+
+    document.body.appendChild(popup);
+
+    // Handle color selection
+    popup.querySelectorAll('.highlight-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const color = btn.dataset.color;
+            await addHighlightToInsight(insightId, text, color);
+            popup.remove();
+            selection.removeAllRanges();
+        });
+    });
+
+    // Close popup on click outside
+    setTimeout(() => {
+        document.addEventListener('click', function closePopup(e) {
+            if (!popup.contains(e.target)) {
+                popup.remove();
+                document.removeEventListener('click', closePopup);
+            }
+        });
+    }, 100);
+}
+
+async function addHighlightToInsight(insightId, text, color) {
+    try {
+        await insightService.addHighlight(insightId, { text, color });
+        toast.success('Texto destacado');
+
+        // Update local state WITHOUT reloading the entire view (keeps video playing)
+        const insight = state.insights.find(i => i.id === insightId);
+        if (insight) {
+            // Re-fetch to get updated highlights
+            const updated = await insightService.getById(insightId);
+            Object.assign(insight, updated);
+
+            // Only refresh the transcript and highlights sections (not the video!)
+            refreshTranscriptContent(insight);
+            refreshHighlightsTab(insight);
+            updateHighlightsTabCount(insight.highlights?.length || 0);
+        }
+    } catch (error) {
+        console.error('Error adding highlight:', error);
+        toast.error('Error al destacar texto');
+    }
+}
+
+/**
+ * Refresh only the transcript content without reloading the video
+ */
+function refreshTranscriptContent(insight) {
+    const transcriptContainer = document.getElementById('transcriptText');
+    if (transcriptContainer) {
+        transcriptContainer.innerHTML = renderTranscriptArticle(insight);
+        // Re-setup highlighting
+        setupTranscriptHighlighting(insight.id);
+    }
+}
+
+/**
+ * Refresh only the highlights tab content
+ */
+function refreshHighlightsTab(insight) {
+    const highlightsPane = document.querySelector('.tab-pane[data-pane="highlights"]');
+    if (!highlightsPane) return;
+
+    const highlights = insight.highlights || [];
+
+    if (highlights.length > 0) {
+        highlightsPane.innerHTML = `
+            <div class="highlights-container">
+                <div class="highlights-list">
+                    ${highlights.map(h => `
+                        <div class="highlight-item" data-highlight-id="${h.id}">
+                            <div class="highlight-color" style="background: ${getHighlightColor(h.color)}"></div>
+                            <div class="highlight-content">
+                                <p class="highlight-text">"${escapeHtml(h.text)}"</p>
+                                ${h.note ? `<p class="highlight-note">${escapeHtml(h.note)}</p>` : ''}
+                                ${h.timestamp ? `<span class="highlight-timestamp">${h.timestamp}</span>` : ''}
+                            </div>
+                            <div class="highlight-actions">
+                                <button class="btn-icon" onclick="convertHighlightToQuote('${insight.id}', '${h.id}')" title="Convertir a cita">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                    </svg>
+                                </button>
+                                <button class="btn-icon btn-danger" onclick="removeHighlight('${insight.id}', '${h.id}')" title="Eliminar">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    } else {
+        highlightsPane.innerHTML = `
+            <div class="highlights-container">
+                <div class="highlights-empty">
+                    <p>No hay texto destacado aún.</p>
+                    <p class="highlight-hint">Ve a la pestaña de Transcripción y selecciona texto para destacarlo.</p>
+                </div>
+            </div>
+        `;
+    }
+}
+
+/**
+ * Update highlights count in tab
+ */
+function updateHighlightsTabCount(count) {
+    const highlightsTab = document.querySelector('.insight-tab[data-tab="highlights"]');
+    if (highlightsTab) {
+        highlightsTab.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                <path d="M2 17l10 5 10-5"></path>
+                <path d="M2 12l10 5 10-5"></path>
+            </svg>
+            Destacados (${count})
+        `;
+    }
+}
+
+async function removeHighlight(insightId, highlightId) {
+    try {
+        await insightService.removeHighlight(insightId, highlightId);
+        toast.success('Destacado eliminado');
+
+        // Update local state WITHOUT reloading the view
+        const insight = state.insights.find(i => i.id === insightId);
+        if (insight) {
+            insight.highlights = (insight.highlights || []).filter(h => h.id !== highlightId);
+            refreshTranscriptContent(insight);
+            refreshHighlightsTab(insight);
+            updateHighlightsTabCount(insight.highlights?.length || 0);
+        }
+    } catch (error) {
+        console.error('Error removing highlight:', error);
+        toast.error('Error al eliminar destacado');
+    }
+}
+
+async function convertHighlightToQuote(insightId, highlightId) {
+    const insight = state.insights.find(i => i.id === insightId);
+    if (!insight) return;
+
+    const highlight = (insight.highlights || []).find(h => h.id === highlightId);
+    if (!highlight) return;
+
+    // Open quote modal pre-filled with highlight data
+    replyParentId = null;
+    const form = elements.quoteForm;
+    form.reset();
+    document.getElementById('quoteId').value = '';
+    document.getElementById('quoteText').value = highlight.text;
+    document.getElementById('quoteAuthor').value = insight.sourceChannel || insight.sourceTitle || '';
+    document.getElementById('quoteSource').value = insight.sourceUrl || '';
+    document.getElementById('quoteNotes').value = highlight.note || `Extraído de: ${insight.sourceTitle}`;
+
+    // If insight is linked to a topic, try to find a matching collection
+    // (for now, leave collection empty)
+
+    elements.modalTitle.textContent = t('quotes.newQuote');
+    elements.modal.classList.add('active');
+}
+
+function renderTranscriptArticle(insight) {
+    const transcript = insight.transcript;
+    const highlights = insight.highlights || [];
+    const paragraphs = insight.transcriptParagraphs;
+
+    if (!transcript) return '';
+
+    // If we have pre-formatted paragraphs, use them
+    if (paragraphs && paragraphs.length > 0) {
+        return paragraphs.map(p => {
+            const timestamp = formatTimestamp(p.startTime);
+            const highlightedText = applyHighlightsToText(p.text, highlights);
+
+            return `
+                <div class="transcript-paragraph" data-time="${p.startTime}">
+                    <button class="transcript-timestamp" onclick="seekToTime(${p.startTime})" title="Ir a ${timestamp}">
+                        ${timestamp}
+                    </button>
+                    <p>${highlightedText}</p>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Fallback: format raw transcript into paragraphs
+    const rawParagraphs = transcript.split(/\n\n+/).filter(p => p.trim());
+
+    if (rawParagraphs.length > 1) {
+        return rawParagraphs.map(p => {
+            const highlightedText = applyHighlightsToText(p.trim(), highlights);
+            return `
+                <div class="transcript-paragraph">
+                    <p>${highlightedText}</p>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Single block of text - split by sentences for readability
+    const sentences = transcript.match(/[^.!?]+[.!?]+/g) || [transcript];
+    const chunks = [];
+    let currentChunk = '';
+
+    sentences.forEach(sentence => {
+        if (currentChunk.length + sentence.length > 400) {
+            if (currentChunk) chunks.push(currentChunk.trim());
+            currentChunk = sentence;
+        } else {
+            currentChunk += ' ' + sentence;
+        }
+    });
+    if (currentChunk) chunks.push(currentChunk.trim());
+
+    return chunks.map(chunk => {
+        const highlightedText = applyHighlightsToText(chunk, highlights);
+        return `
+            <div class="transcript-paragraph">
+                <p>${highlightedText}</p>
+            </div>
+        `;
+    }).join('');
+}
+
+function applyHighlightsToText(text, highlights) {
+    if (!highlights || highlights.length === 0) {
+        return escapeHtml(text);
+    }
+
+    let result = escapeHtml(text);
+
+    // Sort highlights by text length (longest first) to avoid partial replacements
+    const sortedHighlights = [...highlights].sort((a, b) => b.text.length - a.text.length);
+
+    sortedHighlights.forEach(h => {
+        const escapedText = escapeHtml(h.text);
+        const color = getHighlightColor(h.color);
+        // Use word boundaries to avoid partial matches
+        const regex = new RegExp(escapedText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        result = result.replace(regex, `<mark style="background: ${color}" data-highlight-id="${h.id}">${escapedText}</mark>`);
+    });
+
+    return result;
+}
+
+function formatTimestamp(seconds) {
+    if (!seconds && seconds !== 0) return '';
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+
+    if (hrs > 0) {
+        return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function seekToTime(seconds) {
+    // Find the YouTube iframe
+    const iframe = document.querySelector('.video-container iframe');
+    if (iframe && iframe.src.includes('youtube.com')) {
+        // Update iframe src to seek to time
+        const currentSrc = iframe.src;
+        const baseUrl = currentSrc.split('?')[0];
+        const videoId = baseUrl.split('/').pop();
+
+        // Use YouTube's embed URL with start parameter
+        iframe.src = `https://www.youtube.com/embed/${videoId}?start=${Math.floor(seconds)}&autoplay=1`;
+
+        toast.info(`Saltando a ${formatTimestamp(seconds)}`);
+    }
+}
+
+function getHighlightColor(color) {
+    const colors = {
+        yellow: '#fef08a',
+        green: '#bbf7d0',
+        blue: '#bfdbfe',
+        pink: '#fbcfe8'
+    };
+    return colors[color] || colors.yellow;
+}
+
+function showTranscriptInput() {
+    const container = document.getElementById('transcriptInputContainer');
+    if (container) {
+        container.classList.remove('hidden');
+    }
+}
+
+function hideTranscriptInput() {
+    const container = document.getElementById('transcriptInputContainer');
+    if (container) {
+        container.classList.add('hidden');
+    }
+}
+
+async function saveTranscript(insightId) {
+    const textarea = document.getElementById('transcriptInput');
+    if (!textarea) return;
+
+    const transcript = textarea.value.trim();
+    if (!transcript) {
+        toast.warning('Pega la transcripción primero');
+        return;
+    }
+
+    try {
+        await insightService.saveTranscript(insightId, transcript);
+        toast.success('Transcripción guardada');
+        // Update local state and refresh
+        const insight = state.insights.find(i => i.id === insightId);
+        if (insight) {
+            insight.transcript = transcript;
+            openInsightView(insightId);
+            const transcriptTab = document.querySelector('.insight-tab[data-tab="transcript"]');
+            if (transcriptTab) transcriptTab.click();
+        }
+    } catch (error) {
+        console.error('Error saving transcript:', error);
+        toast.error('Error al guardar la transcripción');
+    }
+}
+
+async function clearTranscript(insightId) {
+    confirmModal.show({
+        title: '¿Borrar transcripción?',
+        message: 'Se eliminarán también todos los destacados asociados.',
+        actionText: 'Borrar',
+        onConfirm: async () => {
+            try {
+                await insightService.update(insightId, { transcript: '', highlights: [] });
+                const insight = state.insights.find(i => i.id === insightId);
+                if (insight) {
+                    insight.transcript = '';
+                    insight.highlights = [];
+                    openInsightView(insightId);
+                    const transcriptTab = document.querySelector('.insight-tab[data-tab="transcript"]');
+                    if (transcriptTab) transcriptTab.click();
+                }
+                toast.success('Transcripción eliminada');
+            } catch (error) {
+                console.error('Error clearing transcript:', error);
+                toast.error('Error al eliminar la transcripción');
+            }
+        }
+    });
+}
+
+async function saveInsightNotes(insightId) {
+    const textarea = document.getElementById('insightNotesEditor');
+    if (!textarea) return;
+
+    try {
+        await insightService.saveNotes(insightId, textarea.value);
+        toast.success('Notas guardadas');
+        // Update local state
+        const insight = state.insights.find(i => i.id === insightId);
+        if (insight) {
+            insight.structuredNotes = textarea.value;
+        }
+    } catch (error) {
+        console.error('Error saving notes:', error);
+        toast.error('Error al guardar las notas');
+    }
+}
+
+async function fetchYouTubeTranscript(insightId, videoId) {
+    const fetchBtn = document.querySelector('[onclick*="fetchYouTubeTranscript"]');
+    if (fetchBtn) {
+        fetchBtn.disabled = true;
+        fetchBtn.innerHTML = `
+            <svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+                <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path>
+            </svg>
+            Obteniendo...
+        `;
+    }
+
+    try {
+        toast.info('Obteniendo transcripción... Esto puede demorar unos segundos.');
+
+        const result = await transcriptService.fetchTranscript(videoId);
+
+        if (result && result.raw) {
+            // Save the formatted transcript
+            await insightService.update(insightId, {
+                transcript: result.raw,
+                transcriptFormatted: result.formatted,
+                transcriptParagraphs: result.paragraphs
+            });
+
+            // Update local state
+            const insight = state.insights.find(i => i.id === insightId);
+            if (insight) {
+                insight.transcript = result.raw;
+                insight.transcriptFormatted = result.formatted;
+                insight.transcriptParagraphs = result.paragraphs;
+            }
+
+            toast.success('Transcripción obtenida correctamente');
+
+            // Refresh the view
+            openInsightView(insightId);
+            // Switch to transcript tab
+            setTimeout(() => {
+                const transcriptTab = document.querySelector('.insight-tab[data-tab="transcript"]');
+                if (transcriptTab) transcriptTab.click();
+            }, 100);
+        } else {
+            throw new Error('No se encontró transcripción para este video');
+        }
+    } catch (error) {
+        console.error('Error fetching transcript:', error);
+        toast.error(error.message || 'No se pudo obtener la transcripción');
+
+        // Show manual input as fallback
+        const container = document.getElementById('transcriptInputContainer');
+        if (container) {
+            container.classList.remove('hidden');
+            const textarea = document.getElementById('transcriptInput');
+            if (textarea) {
+                textarea.placeholder = 'No se pudo obtener automáticamente. Para copiar manualmente:\n1. Abre el video en YouTube\n2. Haz clic en los 3 puntos (...) bajo el video\n3. Selecciona "Mostrar transcripción"\n4. Copia todo el texto y pégalo aquí';
+            }
+        }
+    } finally {
+        if (fetchBtn) {
+            fetchBtn.disabled = false;
+            fetchBtn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                </svg>
+                Obtener de YouTube
+            `;
+        }
+    }
+}
+
+function editTopic(topicId) {
+    const topic = state.topics.find(t => t.id === topicId);
+    if (topic) {
+        openTopicModal(topic);
+    }
+}
+
+function editInsight(insightId) {
+    const insight = state.insights.find(i => i.id === insightId);
+    if (insight) {
+        openInsightModal(insight);
+    }
+}
+
+function deleteTopic(topicId) {
+    const topic = state.topics.find(t => t.id === topicId);
+    if (!topic) return;
+
+    confirmModal.show({
+        title: t('confirm.deleteItem', { item: topic.name }),
+        message: t('confirm.cannotUndo'),
+        actionText: t('quotes.delete'),
+        onConfirm: async () => {
+            try {
+                await topicService.delete(topicId);
+                toast.success('Tema eliminado');
+                if (state.currentSection === 'wiki') {
+                    renderWikiView();
+                }
+            } catch (error) {
+                console.error('Error deleting topic:', error);
+                toast.error('Error al eliminar el tema');
+            }
+        }
+    });
+}
+
+function deleteInsight(insightId) {
+    const insight = state.insights.find(i => i.id === insightId);
+    if (!insight) return;
+
+    confirmModal.show({
+        title: t('confirm.areYouSure'),
+        message: t('confirm.cannotUndo'),
+        actionText: t('quotes.delete'),
+        onConfirm: async () => {
+            try {
+                await insightService.delete(insightId);
+                toast.success('Insight eliminado');
+                if (state.currentSection === 'insights') {
+                    renderInsightsView();
+                }
+            } catch (error) {
+                console.error('Error deleting insight:', error);
+                toast.error('Error al eliminar el insight');
+            }
+        }
+    });
+}
+
+function updateInsightsCounts() {
+    const counts = insightService.getStatusCounts(state.insights);
+
+    // Update total
+    if (elements.totalInsights) {
+        elements.totalInsights.textContent = counts.total;
+    }
+
+    // Update draft badge (shown on tab)
+    if (elements.insightsDraftBadge) {
+        if (counts.draft > 0) {
+            elements.insightsDraftBadge.textContent = counts.draft;
+            elements.insightsDraftBadge.classList.remove('hidden');
+        } else {
+            elements.insightsDraftBadge.classList.add('hidden');
+        }
+    }
+
+    // Update individual counts
+    if (elements.insightsDraftCount) {
+        elements.insightsDraftCount.textContent = counts.draft;
+    }
+    if (elements.insightsReviewedCount) {
+        elements.insightsReviewedCount.textContent = counts.reviewed;
+    }
+    if (elements.insightsIntegratedCount) {
+        elements.insightsIntegratedCount.textContent = counts.integrated;
+    }
+}
+
 function setupNavSidebarListeners() {
     // Sidebar toggle button
     if (elements.sidebarToggle) {
@@ -559,6 +1569,9 @@ function setupNavSidebarListeners() {
             document.querySelector('.app-layout').classList.toggle('sidebar-collapsed');
         };
     }
+
+    // Main navigation tabs
+    setupMainNavTabs();
 
     // Collapsible sections
     if (elements.collectionsHeader) {
@@ -575,6 +1588,13 @@ function setupNavSidebarListeners() {
         };
     }
 
+    if (elements.insightStatusHeader) {
+        elements.insightStatusHeader.onclick = () => {
+            elements.insightStatusHeader.classList.toggle('collapsed');
+            elements.sidebarInsightStatus.classList.toggle('collapsed');
+        };
+    }
+
     // New collection button in sidebar
     if (elements.navNewCollectionBtn) {
         elements.navNewCollectionBtn.onclick = () => {
@@ -582,7 +1602,558 @@ function setupNavSidebarListeners() {
             elements.newCollectionName.focus();
         };
     }
+
+    // New topic button
+    if (elements.navNewTopicBtn) {
+        elements.navNewTopicBtn.onclick = () => {
+            openTopicModal();
+        };
+    }
+
+    // New insight button
+    if (elements.navNewInsightBtn) {
+        elements.navNewInsightBtn.onclick = () => {
+            openInsightModal();
+        };
+    }
 }
+
+function setupMainNavTabs() {
+    const tabs = [
+        { el: elements.navWikiTab, view: 'wiki' },
+        { el: elements.navInsightsTab, view: 'insights' },
+        { el: elements.navQuotesTab, view: 'quotes' }
+    ];
+
+    tabs.forEach(({ el, view }) => {
+        if (el) {
+            el.onclick = () => switchSection(view);
+        }
+    });
+}
+
+function switchSection(section) {
+    state.currentSection = section;
+
+    // Clear detail view state when switching sections
+    state.currentInsightId = null;
+
+    // Update tab active states
+    [elements.navWikiTab, elements.navInsightsTab, elements.navQuotesTab].forEach(tab => {
+        if (tab) tab.classList.remove('active');
+    });
+
+    // Hide all sidebar content sections
+    [elements.navWikiContent, elements.navInsightsContent, elements.navQuotesContent].forEach(content => {
+        if (content) content.style.display = 'none';
+    });
+
+    // Get main content elements
+    const desktopHeader = document.querySelector('.content-header.desktop-header');
+    const viewControls = document.querySelector('.view-controls');
+
+    // Show active section
+    switch (section) {
+        case 'wiki':
+            if (elements.navWikiTab) elements.navWikiTab.classList.add('active');
+            if (elements.navWikiContent) elements.navWikiContent.style.display = 'block';
+            // Hide quote-specific elements
+            if (desktopHeader) desktopHeader.style.display = 'none';
+            if (viewControls) viewControls.style.display = 'none';
+            elements.quotesList.classList.add('hidden');
+            elements.quotesCompare.classList.add('hidden');
+            elements.emptyState.classList.add('hidden');
+            renderWikiView();
+            break;
+        case 'insights':
+            if (elements.navInsightsTab) elements.navInsightsTab.classList.add('active');
+            if (elements.navInsightsContent) elements.navInsightsContent.style.display = 'block';
+            // Hide quote-specific elements
+            if (desktopHeader) desktopHeader.style.display = 'none';
+            if (viewControls) viewControls.style.display = 'none';
+            elements.quotesList.classList.add('hidden');
+            elements.quotesCompare.classList.add('hidden');
+            elements.emptyState.classList.add('hidden');
+            renderInsightsView();
+            break;
+        case 'quotes':
+        default:
+            if (elements.navQuotesTab) elements.navQuotesTab.classList.add('active');
+            if (elements.navQuotesContent) elements.navQuotesContent.style.display = 'block';
+            // Show quote-specific elements
+            if (desktopHeader) desktopHeader.style.display = 'flex';
+            if (viewControls) viewControls.style.display = 'flex';
+            elements.quotesList.classList.remove('hidden');
+            if (state.currentView === 'compare') {
+                elements.quotesCompare.classList.remove('hidden');
+            }
+            renderQuotes();
+            break;
+    }
+}
+
+// Wiki and Insights views
+function renderWikiView() {
+    // TODO: Implement wiki view rendering
+    const contentBody = document.querySelector('.content-body');
+    if (contentBody && state.currentSection === 'wiki') {
+        if (state.topics.length === 0) {
+            contentBody.innerHTML = `
+                <div class="empty-state">
+                    <h3>${t('sidebar.noTopics')}</h3>
+                    <p>Crea tu primer tema para comenzar a organizar tu conocimiento</p>
+                    <button class="btn btn-primary" onclick="openTopicModal()">
+                        ${t('sidebar.newTopic')}
+                    </button>
+                </div>
+            `;
+        } else {
+            renderTopicsList();
+        }
+    }
+}
+
+function renderTopicsList() {
+    const contentBody = document.querySelector('.content-body');
+    if (!contentBody) return;
+
+    // Count quotes per topic
+    const quoteCounts = {};
+    state.quotes.forEach(quote => {
+        if (quote.topicId) {
+            quoteCounts[quote.topicId] = (quoteCounts[quote.topicId] || 0) + 1;
+        }
+    });
+
+    const html = state.topics.map(topic => `
+        <div class="topic-card" data-topic-id="${topic.id}">
+            <div class="topic-icon">${topic.icon || '📁'}</div>
+            <div class="topic-info">
+                <h3 class="topic-name">${escapeHtml(topic.name)}</h3>
+                <p class="topic-description">${escapeHtml(topic.description || '')}</p>
+                <div class="topic-meta">
+                    <span class="topic-status ${topic.status}">${topic.status === 'consolidated' ? t('topics.consolidated') : t('topics.inProgress')}</span>
+                    ${quoteCounts[topic.id] ? `<span class="topic-quote-count">${quoteCounts[topic.id]} ${t('sidebar.quotes').toLowerCase()}</span>` : ''}
+                </div>
+            </div>
+            <div class="topic-actions">
+                <button class="btn-icon" onclick="event.stopPropagation(); editTopic('${topic.id}')" title="${t('quotes.edit')}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                </button>
+                <button class="btn-icon btn-danger" onclick="event.stopPropagation(); deleteTopic('${topic.id}')" title="${t('quotes.delete')}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `).join('');
+
+    contentBody.innerHTML = `
+        <div class="topics-grid">
+            ${html}
+        </div>
+    `;
+
+    // Add click handlers to open topic detail
+    contentBody.querySelectorAll('.topic-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const topicId = card.dataset.topicId;
+            openTopicView(topicId);
+        });
+    });
+}
+
+function renderInsightsView() {
+    // TODO: Implement insights view rendering
+    const contentBody = document.querySelector('.content-body');
+    if (contentBody && state.currentSection === 'insights') {
+        if (state.insights.length === 0) {
+            contentBody.innerHTML = `
+                <div class="empty-state">
+                    <h3>No hay insights</h3>
+                    <p>Captura tu primer insight de un video o artículo</p>
+                    <button class="btn btn-primary" onclick="openInsightModal()">
+                        ${t('sidebar.captureInsight')}
+                    </button>
+                </div>
+            `;
+        } else {
+            renderInsightsList();
+        }
+    }
+}
+
+function renderInsightsList() {
+    const contentBody = document.querySelector('.content-body');
+    if (!contentBody) return;
+
+    const html = state.insights.map(insight => {
+        const linkedTopic = insight.linkedTopicId ? state.topics.find(t => t.id === insight.linkedTopicId) : null;
+
+        return `
+            <div class="insight-card" data-insight-id="${insight.id}">
+                <div class="insight-header">
+                    <div class="insight-status-badge ${insight.status}">${t('insights.' + insight.status)}</div>
+                    <div class="insight-actions">
+                        <button class="btn-icon" onclick="event.stopPropagation(); editInsight('${insight.id}')" title="${t('quotes.edit')}">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                        </button>
+                        <button class="btn-icon btn-danger" onclick="event.stopPropagation(); deleteInsight('${insight.id}')" title="${t('quotes.delete')}">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                ${insight.sourceThumbnail ? `<img class="insight-thumbnail" src="${insight.sourceThumbnail}" alt="">` : ''}
+                <h3 class="insight-title">${escapeHtml(insight.sourceTitle || 'Sin título')}</h3>
+                <p class="insight-preview">${escapeHtml((insight.rawNotes || '').substring(0, 150))}${insight.rawNotes?.length > 150 ? '...' : ''}</p>
+                <div class="insight-meta">
+                    <span class="insight-source-type ${insight.sourceType}">${insight.sourceType || 'article'}</span>
+                    ${linkedTopic ? `<span class="insight-linked-topic">${linkedTopic.icon} ${escapeHtml(linkedTopic.name)}</span>` : ''}
+                    <span class="insight-date">${new Date(insight.createdAt).toLocaleDateString()}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    contentBody.innerHTML = `
+        <div class="insights-list">
+            ${html}
+        </div>
+    `;
+
+    // Add click handlers to open insight detail
+    contentBody.querySelectorAll('.insight-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const insightId = card.dataset.insightId;
+            openInsightView(insightId);
+        });
+    });
+}
+
+function openTopicModal(topicToEdit = null) {
+    // Reset form
+    elements.topicForm.reset();
+    elements.topicId.value = '';
+    elements.topicIconValue.value = '📁';
+
+    // Reset icon picker
+    elements.iconPicker.querySelectorAll('.icon-option').forEach(btn => {
+        btn.classList.toggle('selected', btn.dataset.icon === '📁');
+    });
+
+    if (topicToEdit) {
+        elements.topicModalTitle.textContent = t('topics.editTopic');
+        elements.topicId.value = topicToEdit.id;
+        elements.topicName.value = topicToEdit.name;
+        elements.topicDescription.value = topicToEdit.description || '';
+        elements.topicIconValue.value = topicToEdit.icon || '📁';
+
+        // Update icon picker
+        elements.iconPicker.querySelectorAll('.icon-option').forEach(btn => {
+            btn.classList.toggle('selected', btn.dataset.icon === topicToEdit.icon);
+        });
+    } else {
+        elements.topicModalTitle.textContent = t('topics.newTopic');
+    }
+
+    elements.topicModal.classList.add('active');
+    elements.topicName.focus();
+}
+
+function closeTopicModal() {
+    elements.topicModal.classList.remove('active');
+    elements.topicForm.reset();
+}
+
+function openInsightModal(insightToEdit = null) {
+    // Reset form
+    elements.insightForm.reset();
+    elements.insightId.value = '';
+    elements.sourcePreview.classList.add('hidden');
+
+    // Populate topics dropdown
+    updateInsightTopicsDropdown();
+
+    if (insightToEdit) {
+        elements.insightModalTitle.textContent = t('insights.editInsight') || 'Editar insight';
+        elements.insightId.value = insightToEdit.id;
+        elements.insightSourceUrl.value = insightToEdit.sourceUrl || '';
+        elements.insightNotes.value = insightToEdit.rawNotes || '';
+        elements.insightTags.value = (insightToEdit.tags || []).join(', ');
+        elements.insightLinkedTopic.value = insightToEdit.linkedTopicId || '';
+
+        // Show preview if we have source info
+        if (insightToEdit.sourceTitle) {
+            showSourcePreview({
+                title: insightToEdit.sourceTitle,
+                type: insightToEdit.sourceType,
+                thumbnail: insightToEdit.sourceThumbnail,
+                channel: insightToEdit.sourceChannel
+            });
+        }
+    } else {
+        elements.insightModalTitle.textContent = t('insights.capture');
+    }
+
+    elements.insightModal.classList.add('active');
+    elements.insightSourceUrl.focus();
+}
+
+function closeInsightModal() {
+    elements.insightModal.classList.remove('active');
+    elements.insightForm.reset();
+    elements.sourcePreview.classList.add('hidden');
+}
+
+function updateInsightTopicsDropdown() {
+    const select = elements.insightLinkedTopic;
+    if (!select) return;
+
+    // Keep the first "no link" option
+    select.innerHTML = '<option value="">Sin vincular</option>';
+
+    state.topics.forEach(topic => {
+        const option = document.createElement('option');
+        option.value = topic.id;
+        option.textContent = `${topic.icon || '📁'} ${topic.name}`;
+        select.appendChild(option);
+    });
+}
+
+function showSourcePreview(data) {
+    if (!data.title) return;
+
+    elements.sourceTitle.textContent = data.title;
+    elements.sourceTypeBadge.textContent = data.type || 'article';
+    elements.sourceTypeBadge.className = `source-type-badge ${data.type || 'article'}`;
+    elements.sourceChannel.textContent = data.channel || '';
+
+    if (data.thumbnail) {
+        elements.sourceThumbnail.src = data.thumbnail;
+        elements.sourceThumbnail.style.display = 'block';
+    } else {
+        elements.sourceThumbnail.style.display = 'none';
+    }
+
+    elements.sourcePreview.classList.remove('hidden');
+}
+
+async function fetchUrlMetadata(url) {
+    if (!url) return null;
+
+    const sourceType = insightService.detectSourceType(url);
+
+    // For YouTube, extract video info using oEmbed
+    if (sourceType === 'youtube') {
+        const videoId = insightService.extractYouTubeVideoId(url);
+        if (videoId) {
+            try {
+                const response = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+                if (response.ok) {
+                    const data = await response.json();
+                    return {
+                        title: data.title,
+                        channel: data.author_name,
+                        thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+                        type: 'youtube'
+                    };
+                }
+            } catch (err) {
+                console.warn('Error fetching YouTube metadata:', err);
+            }
+        }
+    }
+
+    // For other URLs, just return basic info
+    return {
+        title: url,
+        type: sourceType,
+        thumbnail: null,
+        channel: null
+    };
+}
+
+// Setup modal listeners
+function setupInsightModalListeners() {
+    // Cancel button
+    if (elements.cancelInsightBtn) {
+        elements.cancelInsightBtn.onclick = closeInsightModal;
+    }
+
+    // Close on overlay click
+    if (elements.insightModal) {
+        elements.insightModal.onclick = (e) => {
+            if (e.target === elements.insightModal) {
+                closeInsightModal();
+            }
+        };
+    }
+
+    // Fetch metadata button
+    if (elements.fetchMetadataBtn) {
+        elements.fetchMetadataBtn.onclick = async () => {
+            const url = elements.insightSourceUrl.value.trim();
+            if (!url) {
+                toast.warning('Ingresa una URL primero');
+                return;
+            }
+
+            elements.fetchMetadataBtn.disabled = true;
+            try {
+                const metadata = await fetchUrlMetadata(url);
+                if (metadata) {
+                    showSourcePreview(metadata);
+                }
+            } catch (err) {
+                toast.error('No se pudo obtener información de la URL');
+            } finally {
+                elements.fetchMetadataBtn.disabled = false;
+            }
+        };
+    }
+
+    // Form submit
+    if (elements.insightForm) {
+        elements.insightForm.onsubmit = async (e) => {
+            e.preventDefault();
+            await handleInsightSubmit();
+        };
+    }
+}
+
+async function handleInsightSubmit() {
+    const url = elements.insightSourceUrl.value.trim();
+    const notes = elements.insightNotes.value.trim();
+
+    if (!notes && !url) {
+        toast.warning('Añade una URL o apuntes');
+        return;
+    }
+
+    const insightId = elements.insightId.value;
+    const sourceType = insightService.detectSourceType(url);
+
+    // Get metadata from preview if available
+    const sourceTitle = elements.sourceTitle.textContent || url || 'Sin título';
+    const sourceChannel = elements.sourceChannel.textContent || null;
+    const sourceThumbnail = elements.sourceThumbnail.src || null;
+
+    const data = {
+        sourceUrl: url,
+        sourceTitle: sourceTitle,
+        sourceType: sourceType,
+        sourceChannel: sourceChannel,
+        sourceThumbnail: sourceThumbnail && !sourceThumbnail.includes('data:') ? sourceThumbnail : null,
+        rawNotes: notes,
+        tags: elements.insightTags.value.split(',').map(t => t.trim().toLowerCase()).filter(Boolean),
+        linkedTopicId: elements.insightLinkedTopic.value || null,
+        status: 'draft'
+    };
+
+    try {
+        if (insightId) {
+            await insightService.update(insightId, data);
+            toast.success('Insight actualizado');
+        } else {
+            await insightService.create(data, authService.getCurrentUser().uid);
+            toast.success('Insight guardado');
+        }
+        closeInsightModal();
+
+        // Switch to insights view
+        if (state.currentSection !== 'insights') {
+            switchSection('insights');
+        }
+    } catch (err) {
+        console.error('Error saving insight:', err);
+        toast.error('Error al guardar el insight');
+    }
+}
+
+function setupTopicModalListeners() {
+    // Cancel button
+    if (elements.cancelTopicBtn) {
+        elements.cancelTopicBtn.onclick = closeTopicModal;
+    }
+
+    // Close on overlay click
+    if (elements.topicModal) {
+        elements.topicModal.onclick = (e) => {
+            if (e.target === elements.topicModal) {
+                closeTopicModal();
+            }
+        };
+    }
+
+    // Icon picker
+    if (elements.iconPicker) {
+        elements.iconPicker.onclick = (e) => {
+            const btn = e.target.closest('.icon-option');
+            if (btn) {
+                elements.iconPicker.querySelectorAll('.icon-option').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                elements.topicIconValue.value = btn.dataset.icon;
+            }
+        };
+    }
+
+    // Form submit
+    if (elements.topicForm) {
+        elements.topicForm.onsubmit = async (e) => {
+            e.preventDefault();
+            await handleTopicSubmit();
+        };
+    }
+}
+
+async function handleTopicSubmit() {
+    const name = elements.topicName.value.trim();
+    if (!name) {
+        toast.warning('El nombre es requerido');
+        return;
+    }
+
+    const topicId = elements.topicId.value;
+    const data = {
+        name: name,
+        description: elements.topicDescription.value.trim(),
+        icon: elements.topicIconValue.value || '📁'
+    };
+
+    try {
+        if (topicId) {
+            await topicService.update(topicId, data);
+            toast.success('Tema actualizado');
+        } else {
+            await topicService.create(data, authService.getCurrentUser().uid);
+            toast.success('Tema creado');
+        }
+        closeTopicModal();
+
+        // Switch to wiki view
+        if (state.currentSection !== 'wiki') {
+            switchSection('wiki');
+        }
+    } catch (err) {
+        console.error('Error saving topic:', err);
+        toast.error('Error al guardar el tema');
+    }
+}
+
+// Make functions globally available for onclick handlers
+window.openTopicModal = openTopicModal;
+window.openInsightModal = openInsightModal;
 
 function updateCollectionSelects() {
     updateAllCollectionSelects({
@@ -907,6 +2478,20 @@ window.createCollection = createCollection;
 window.logout = logout;
 window.openReplyModal = openReplyModal;
 window.toggleReplies = toggleReplies;
+window.switchSection = switchSection;
+window.editTopic = editTopic;
+window.deleteTopic = deleteTopic;
+window.editInsight = editInsight;
+window.deleteInsight = deleteInsight;
+window.saveInsightNotes = saveInsightNotes;
+window.showTranscriptInput = showTranscriptInput;
+window.hideTranscriptInput = hideTranscriptInput;
+window.saveTranscript = saveTranscript;
+window.clearTranscript = clearTranscript;
+window.fetchYouTubeTranscript = fetchYouTubeTranscript;
+window.removeHighlight = removeHighlight;
+window.convertHighlightToQuote = convertHighlightToQuote;
+window.seekToTime = seekToTime;
 
 // ============================================================================
 // Mobile Handlers
