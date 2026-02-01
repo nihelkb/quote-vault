@@ -826,6 +826,10 @@ header {
     color: var(--text);
 }
 
+.empty-state p {
+    margin-bottom: 26px;
+}
+
 .hidden {
     display: none !important;
 }
@@ -1197,7 +1201,7 @@ header {
 }
 
 .status-dot.draft {
-    background: #f59e0b;
+    background: #f7d44b;
 }
 
 .status-dot.reviewed {
@@ -1216,6 +1220,15 @@ header {
     cursor: pointer;
     transition: background 0.2s;
     border-radius: 0;
+}
+
+.nav-section-button {
+    background: none;
+    border: 0;
+    width: 100%;
+    text-align: left;
+    font: inherit;
+    color: inherit;
 }
 
 .nav-section-header:hover {

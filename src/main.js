@@ -34,6 +34,7 @@ const state = {
     currentView: 'list', // list, compare
     currentSection: 'quotes', // wiki, insights, quotes
     currentInsightId: null, // Currently viewing insight
+    insightStatusFilter: '',
     authMode: 'login'
 };
 
@@ -89,6 +90,7 @@ const elements = {
     navNewTopicBtn: document.getElementById('navNewTopicBtn'),
 
     // Insights elements
+    allInsightsHeader: document.getElementById('allInsightsHeader'),
     totalInsights: document.getElementById('totalInsights'),
     insightsDraftBadge: document.getElementById('insightsDraftBadge'),
     insightsDraftCount: document.getElementById('insightsDraftCount'),
@@ -1684,6 +1686,25 @@ function setupNavSidebarListeners() {
         };
     }
 
+    if (elements.allInsightsHeader) {
+        elements.allInsightsHeader.onclick = () => {
+            state.insightStatusFilter = '';
+            updateInsightStatusActive();
+            renderInsightsView();
+        };
+    }
+
+    if (elements.sidebarInsightStatus) {
+        elements.sidebarInsightStatus.querySelectorAll('.nav-item').forEach(item => {
+            item.onclick = () => {
+                const status = item.dataset.status || '';
+                state.insightStatusFilter = state.insightStatusFilter === status ? '' : status;
+                updateInsightStatusActive();
+                renderInsightsView();
+            };
+        });
+    }
+
     // New collection button in sidebar
     if (elements.navNewCollectionBtn) {
         elements.navNewCollectionBtn.onclick = () => {
@@ -1705,6 +1726,15 @@ function setupNavSidebarListeners() {
             openInsightModal();
         };
     }
+}
+
+function updateInsightStatusActive() {
+    if (!elements.sidebarInsightStatus) return;
+
+    elements.sidebarInsightStatus.querySelectorAll('.nav-item').forEach(item => {
+        const status = item.dataset.status || '';
+        item.classList.toggle('active', !!state.insightStatusFilter && status === state.insightStatusFilter);
+    });
 }
 
 function setupMainNavTabs() {
@@ -1861,11 +1891,15 @@ function renderInsightsView() {
     // TODO: Implement insights view rendering
     const contentBody = document.querySelector('.content-body');
     if (contentBody && state.currentSection === 'insights') {
-        if (state.insights.length === 0) {
+        const filteredInsights = insightService.filterByStatus(state.insights, state.insightStatusFilter);
+
+        updateInsightStatusActive();
+
+        if (filteredInsights.length === 0) {
             contentBody.innerHTML = `
                 <div class="empty-state">
                     <h3>No hay insights</h3>
-                    <p>Captura tu primer insight de un video o artículo</p>
+                    <p>${state.insightStatusFilter ? 'No hay insights en este estado.' : 'Captura tu primer insight de un video o artículo'}</p>
                     <button class="btn btn-primary" onclick="openInsightModal()">
                         ${t('sidebar.captureInsight')}
                     </button>
@@ -1881,7 +1915,9 @@ function renderInsightsList() {
     const contentBody = document.querySelector('.content-body');
     if (!contentBody) return;
 
-    const html = state.insights.map(insight => {
+    const filteredInsights = insightService.filterByStatus(state.insights, state.insightStatusFilter);
+
+    const html = filteredInsights.map(insight => {
         const linkedTopic = insight.linkedTopicId ? state.topics.find(t => t.id === insight.linkedTopicId) : null;
 
         return `
