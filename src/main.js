@@ -24,6 +24,21 @@ import { i18n, t } from './utils/i18n.js';
 import { escapeHtml } from './utils/helpers.js';
 
 // ============================================================================
+// Utility Functions
+// ============================================================================
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// ============================================================================
 // Application State
 // ============================================================================
 const state = {
@@ -113,17 +128,35 @@ const elements = {
     quotesFavor: document.getElementById('quotesFavor'),
     quotesAgainst: document.getElementById('quotesAgainst'),
 
-    // Filters
+    // Filters - Quotes
     searchInput: document.getElementById('searchInput'),
     filterCollection: document.getElementById('filterCollection'),
     filterStance: document.getElementById('filterStance'),
     filterFavorite: document.getElementById('filterFavorite'),
     sortBy: document.getElementById('sortBy'),
 
-    // Custom selects
+    // Custom selects - Quotes
     stanceSelect: document.getElementById('stanceSelect'),
     favoriteSelect: document.getElementById('favoriteSelect'),
     sortSelect: document.getElementById('sortSelect'),
+
+    // Headers
+    wikiHeader: document.querySelector('.wiki-header'),
+    insightsHeader: document.querySelector('.insights-header'),
+
+    // Filters - Wiki
+    wikiSearchInput: document.getElementById('wikiSearchInput'),
+    wikiFilterStatus: document.getElementById('wikiFilterStatus'),
+    wikiStatusSelect: document.getElementById('wikiStatusSelect'),
+    newTopicBtnHeader: document.getElementById('newTopicBtnHeader'),
+
+    // Filters - Insights
+    insightsSearchInput: document.getElementById('insightsSearchInput'),
+    insightsFilterStatus: document.getElementById('insightsFilterStatus'),
+    insightsFilterSource: document.getElementById('insightsFilterSource'),
+    insightsStatusSelect: document.getElementById('insightsStatusSelect'),
+    insightsSourceSelect: document.getElementById('insightsSourceSelect'),
+    newInsightBtnHeader: document.getElementById('newInsightBtnHeader'),
 
     // View controls
     viewList: document.getElementById('viewList'),
@@ -2101,13 +2134,19 @@ function switchSection(section) {
     // Get main content elements
     const desktopHeader = document.querySelector('.content-header.desktop-header');
 
+    // Hide all headers first
+    if (desktopHeader) desktopHeader.style.display = 'none';
+    if (elements.wikiHeader) elements.wikiHeader.style.display = 'none';
+    if (elements.insightsHeader) elements.insightsHeader.style.display = 'none';
+
     // Show active section
     switch (section) {
         case 'wiki':
             if (elements.navWikiTab) elements.navWikiTab.classList.add('active');
             if (elements.navWikiContent) elements.navWikiContent.style.display = 'block';
+            // Show wiki header
+            if (elements.wikiHeader) elements.wikiHeader.style.display = 'flex';
             // Hide quote-specific elements
-            if (desktopHeader) desktopHeader.style.display = 'none';
             const viewControlsWiki = document.querySelector('.view-controls');
             if (viewControlsWiki) viewControlsWiki.style.display = 'none';
             if (elements.quotesList) elements.quotesList.classList.add('hidden');
@@ -2118,8 +2157,9 @@ function switchSection(section) {
         case 'insights':
             if (elements.navInsightsTab) elements.navInsightsTab.classList.add('active');
             if (elements.navInsightsContent) elements.navInsightsContent.style.display = 'block';
+            // Show insights header
+            if (elements.insightsHeader) elements.insightsHeader.style.display = 'flex';
             // Hide quote-specific elements
-            if (desktopHeader) desktopHeader.style.display = 'none';
             const viewControlsInsights = document.querySelector('.view-controls');
             if (viewControlsInsights) viewControlsInsights.style.display = 'none';
             if (elements.quotesList) elements.quotesList.classList.add('hidden');
@@ -2244,6 +2284,23 @@ function renderTopicsList() {
     const contentBody = document.querySelector('.content-body');
     if (!contentBody) return;
 
+    // Get filter values
+    const searchTerm = elements.wikiSearchInput?.value?.toLowerCase() || '';
+    const statusFilter = elements.wikiFilterStatus?.value || '';
+
+    // Filter topics
+    let filteredTopics = state.topics.filter(topic => {
+        // Search filter
+        const matchesSearch = !searchTerm ||
+            topic.name.toLowerCase().includes(searchTerm) ||
+            (topic.description && topic.description.toLowerCase().includes(searchTerm));
+
+        // Status filter
+        const matchesStatus = !statusFilter || topic.status === statusFilter;
+
+        return matchesSearch && matchesStatus;
+    });
+
     // Count quotes per topic
     const quoteCounts = {};
     state.quotes.forEach(quote => {
@@ -2252,7 +2309,18 @@ function renderTopicsList() {
         }
     });
 
-    const html = state.topics.map(topic => `
+    // Show empty state if no results
+    if (filteredTopics.length === 0) {
+        contentBody.innerHTML = `
+            <div class="empty-state">
+                <h3>${t('wiki.noResults')}</h3>
+                <p>${t('wiki.tryDifferentFilters')}</p>
+            </div>
+        `;
+        return;
+    }
+
+    const html = filteredTopics.map(topic => `
         <div class="topic-card" data-topic-id="${topic.id}">
             <div class="topic-icon">${topic.icon || '📁'}</div>
             <div class="topic-info">
@@ -2295,22 +2363,58 @@ function renderTopicsList() {
     });
 }
 
+function getFilteredInsights() {
+    // Get filter values from header
+    const searchTerm = elements.insightsSearchInput?.value?.toLowerCase() || '';
+    const headerStatusFilter = elements.insightsFilterStatus?.value || '';
+    const sourceFilter = elements.insightsFilterSource?.value || '';
+
+    // Use header status filter if set, otherwise use sidebar filter
+    const statusFilter = headerStatusFilter || state.insightStatusFilter;
+
+    // Start with status filter
+    let filtered = insightService.filterByStatus(state.insights, statusFilter);
+
+    // Apply search filter
+    if (searchTerm) {
+        filtered = filtered.filter(insight => {
+            const title = (insight.sourceTitle || '').toLowerCase();
+            const author = (insight.sourceAuthor || '').toLowerCase();
+            const keyTakeaway = (insight.keyTakeaway || '').toLowerCase();
+            return title.includes(searchTerm) || author.includes(searchTerm) || keyTakeaway.includes(searchTerm);
+        });
+    }
+
+    // Apply source type filter
+    if (sourceFilter) {
+        filtered = filtered.filter(insight => {
+            // Map 'video' to 'youtube' for compatibility
+            const insightSource = insight.sourceType === 'youtube' ? 'video' : insight.sourceType;
+            return insightSource === sourceFilter || insight.sourceType === sourceFilter;
+        });
+    }
+
+    return filtered;
+}
+
 function renderInsightsView() {
-    // TODO: Implement insights view rendering
     const contentBody = document.querySelector('.content-body');
     if (contentBody && state.currentSection === 'insights') {
-        const filteredInsights = insightService.filterByStatus(state.insights, state.insightStatusFilter);
+        const filteredInsights = getFilteredInsights();
 
         updateInsightStatusActive();
 
         if (filteredInsights.length === 0) {
+            const hasFilters = elements.insightsSearchInput?.value || elements.insightsFilterStatus?.value || elements.insightsFilterSource?.value || state.insightStatusFilter;
             contentBody.innerHTML = `
                 <div class="empty-state">
-                    <h3>No hay insights</h3>
-                    <p>${state.insightStatusFilter ? 'No hay insights en este estado.' : 'Captura tu primer insight de un video o artículo'}</p>
-                    <button class="btn btn-primary" onclick="openInsightModal()">
-                        ${t('sidebar.captureInsight')}
-                    </button>
+                    <h3>${hasFilters ? t('insights.noResults') : t('insights.noInsights')}</h3>
+                    <p>${hasFilters ? t('insights.tryDifferentFilters') : t('insights.captureFirst')}</p>
+                    ${!hasFilters ? `
+                        <button class="btn btn-primary" onclick="openInsightModal()">
+                            ${t('sidebar.captureInsight')}
+                        </button>
+                    ` : ''}
                 </div>
             `;
         } else {
@@ -2323,7 +2427,7 @@ function renderInsightsList() {
     const contentBody = document.querySelector('.content-body');
     if (!contentBody) return;
 
-    const filteredInsights = insightService.filterByStatus(state.insights, state.insightStatusFilter);
+    const filteredInsights = getFilteredInsights();
 
     const html = filteredInsights.map(insight => {
         const linkedTopic = insight.linkedTopicId ? state.topics.find(t => t.id === insight.linkedTopicId) : null;
@@ -2828,11 +2932,46 @@ async function handleQuoteSubmit(e) {
 function setupFilterListeners() {
     elements.searchInput.addEventListener('input', renderQuotes);
 
-    // Setup custom selects
+    // Setup custom selects - Quotes
     setupCustomSelect(elements.stanceSelect, elements.filterStance);
     setupCustomSelect(elements.favoriteSelect, elements.filterFavorite);
     setupCustomSelect(elements.sortSelect, elements.sortBy);
     // Collection filter is now controlled by sidebar navigation
+
+    // Setup custom selects - Wiki
+    setupCustomSelect(elements.wikiStatusSelect, elements.wikiFilterStatus, renderWikiView);
+
+    // Setup custom selects - Insights
+    setupCustomSelect(elements.insightsStatusSelect, elements.insightsFilterStatus, renderInsightsView);
+    setupCustomSelect(elements.insightsSourceSelect, elements.insightsFilterSource, renderInsightsView);
+
+    // Wiki search listener
+    if (elements.wikiSearchInput) {
+        elements.wikiSearchInput.addEventListener('input', debounce(() => {
+            renderWikiView();
+        }, 300));
+    }
+
+    // Insights search listener
+    if (elements.insightsSearchInput) {
+        elements.insightsSearchInput.addEventListener('input', debounce(() => {
+            renderInsightsView();
+        }, 300));
+    }
+
+    // New topic button in header
+    if (elements.newTopicBtnHeader) {
+        elements.newTopicBtnHeader.addEventListener('click', () => {
+            openTopicModal();
+        });
+    }
+
+    // New insight button in header
+    if (elements.newInsightBtnHeader) {
+        elements.newInsightBtnHeader.addEventListener('click', () => {
+            openInsightModal();
+        });
+    }
 
     // Close all dropdowns when clicking outside
     document.addEventListener('click', (e) => {
@@ -2844,7 +2983,7 @@ function setupFilterListeners() {
     });
 }
 
-function setupCustomSelect(customSelect, hiddenSelect) {
+function setupCustomSelect(customSelect, hiddenSelect, onChangeCallback = null) {
     if (!customSelect || !hiddenSelect) return;
 
     const btn = customSelect.querySelector('.custom-select-btn');
@@ -2883,7 +3022,13 @@ function setupCustomSelect(customSelect, hiddenSelect) {
 
             // Trigger change event
             hiddenSelect.dispatchEvent(new Event('change'));
-            renderQuotes();
+
+            // Call the appropriate callback
+            if (onChangeCallback) {
+                onChangeCallback();
+            } else {
+                renderQuotes();
+            }
         });
     });
 }

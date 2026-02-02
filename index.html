@@ -484,6 +484,176 @@
             </div>
         </header>
 
+        <!-- Wiki Header -->
+        <header class="content-header wiki-header" style="display: none;">
+            <div class="content-filters">
+                <input type="text" class="search-box" id="wikiSearchInput" data-i18n-placeholder="wiki.searchPlaceholder" placeholder="Buscar temas...">
+
+                <!-- Status Filter -->
+                <div class="custom-select" id="wikiStatusSelect">
+                    <button type="button" class="custom-select-btn">
+                        <span class="selected-text" data-i18n="wiki.allStatuses">Todos los estados</span>
+                        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="custom-select-dropdown">
+                        <button type="button" class="custom-select-option active" data-value="">
+                            <span data-i18n="wiki.allStatuses">Todos los estados</span>
+                            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </button>
+                        <button type="button" class="custom-select-option" data-value="in-progress">
+                            <span data-i18n="topics.inProgress">En progreso</span>
+                            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </button>
+                        <button type="button" class="custom-select-option" data-value="consolidated">
+                            <span data-i18n="topics.consolidated">Consolidado</span>
+                            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                    <select id="wikiFilterStatus" hidden>
+                        <option value="">Todos los estados</option>
+                        <option value="in-progress">En progreso</option>
+                        <option value="consolidated">Consolidado</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-primary btn-icon-text" id="newTopicBtnHeader">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    <span data-i18n="sidebar.newTopic">Nuevo tema</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Insights Header -->
+        <header class="content-header insights-header" style="display: none;">
+            <div class="content-filters">
+                <input type="text" class="search-box" id="insightsSearchInput" data-i18n-placeholder="insights.searchPlaceholder" placeholder="Buscar insights...">
+
+                <!-- Status Filter -->
+                <div class="custom-select" id="insightsStatusSelect">
+                    <button type="button" class="custom-select-btn">
+                        <span class="selected-text" data-i18n="insights.allStatuses">Todos los estados</span>
+                        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="custom-select-dropdown">
+                        <button type="button" class="custom-select-option active" data-value="">
+                            <span data-i18n="insights.allStatuses">Todos los estados</span>
+                            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </button>
+                        <button type="button" class="custom-select-option" data-value="draft">
+                            <span data-i18n="insights.draft">Borrador</span>
+                            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </button>
+                        <button type="button" class="custom-select-option" data-value="reviewed">
+                            <span data-i18n="insights.reviewed">Revisado</span>
+                            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </button>
+                        <button type="button" class="custom-select-option" data-value="integrated">
+                            <span data-i18n="insights.integrated">Integrado</span>
+                            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </button>
+                        <button type="button" class="custom-select-option" data-value="discarded">
+                            <span data-i18n="insights.discarded">Descartado</span>
+                            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                    <select id="insightsFilterStatus" hidden>
+                        <option value="">Todos los estados</option>
+                        <option value="draft">Borrador</option>
+                        <option value="reviewed">Revisado</option>
+                        <option value="integrated">Integrado</option>
+                        <option value="discarded">Descartado</option>
+                    </select>
+                </div>
+
+                <!-- Source Type Filter -->
+                <div class="custom-select" id="insightsSourceSelect">
+                    <button type="button" class="custom-select-btn">
+                        <span class="selected-text" data-i18n="insights.allSources">Todas las fuentes</span>
+                        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="custom-select-dropdown">
+                        <button type="button" class="custom-select-option active" data-value="">
+                            <span data-i18n="insights.allSources">Todas las fuentes</span>
+                            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </button>
+                        <button type="button" class="custom-select-option" data-value="video">
+                            <span data-i18n="insights.sourceVideo">Video</span>
+                            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </button>
+                        <button type="button" class="custom-select-option" data-value="article">
+                            <span data-i18n="insights.sourceArticle">Artículo</span>
+                            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </button>
+                        <button type="button" class="custom-select-option" data-value="book">
+                            <span data-i18n="insights.sourceBook">Libro</span>
+                            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </button>
+                        <button type="button" class="custom-select-option" data-value="podcast">
+                            <span data-i18n="insights.sourcePodcast">Podcast</span>
+                            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </button>
+                        <button type="button" class="custom-select-option" data-value="other">
+                            <span data-i18n="insights.sourceOther">Otro</span>
+                            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                    <select id="insightsFilterSource" hidden>
+                        <option value="">Todas las fuentes</option>
+                        <option value="video">Video</option>
+                        <option value="article">Artículo</option>
+                        <option value="book">Libro</option>
+                        <option value="podcast">Podcast</option>
+                        <option value="other">Otro</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-primary btn-icon-text" id="newInsightBtnHeader">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    <span data-i18n="sidebar.captureInsight">Capturar insight</span>
+                </button>
+            </div>
+        </header>
+
         <!-- Content Body -->
         <div class="content-body">
             <div class="view-controls">

@@ -169,7 +169,25 @@
     "promoteToWiki": "Promover a Wiki",
     "markAsReviewed": "Marcar como revisado",
     "discard": "Descartar",
-    "editInsight": "Editar información"
+    "editInsight": "Editar información",
+    "searchPlaceholder": "Buscar insights...",
+    "allStatuses": "Todos los estados",
+    "allSources": "Todas las fuentes",
+    "sourceVideo": "Video",
+    "sourceArticle": "Artículo",
+    "sourceBook": "Libro",
+    "sourcePodcast": "Podcast",
+    "sourceOther": "Otro",
+    "noResults": "No se encontraron insights",
+    "tryDifferentFilters": "Intenta con otros filtros o términos de búsqueda",
+    "noInsights": "No hay insights",
+    "captureFirst": "Captura tu primer insight de un video o artículo"
+  },
+  "wiki": {
+    "searchPlaceholder": "Buscar temas...",
+    "allStatuses": "Todos los estados",
+    "noResults": "No se encontraron temas",
+    "tryDifferentFilters": "Intenta con otros filtros o términos de búsqueda"
   },
   "topics": {
     "newTopic": "Nuevo tema",

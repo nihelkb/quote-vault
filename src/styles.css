@@ -1478,6 +1478,16 @@ header {
     z-index: 10;
 }
 
+.content-header.wiki-header,
+.content-header.insights-header {
+    display: none;
+}
+
+.content-header.wiki-header[style*="flex"],
+.content-header.insights-header[style*="flex"] {
+    display: flex;
+}
+
 .content-filters {
     display: flex;
     gap: 12px;
