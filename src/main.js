@@ -22,6 +22,8 @@ import { toast } from './utils/toast.js';
 import { confirmModal } from './utils/confirmModal.js';
 import { i18n, t } from './utils/i18n.js';
 import { escapeHtml } from './utils/helpers.js';
+import { showBlockerModal } from './utils/blockerModal.js';
+import { FirebaseBlockedError } from './utils/firebaseBlockerDetector.js';
 
 // ============================================================================
 // Utility Functions
@@ -36,6 +38,25 @@ function debounce(func, wait) {
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
     };
+}
+
+/**
+ * Handle errors from Firebase operations
+ * Shows blocker modal if request was blocked by client
+ */
+function handleFirebaseError(error, defaultMessage = 'Error al realizar la operación') {
+    console.error('Firebase error:', error);
+
+    if (error instanceof FirebaseBlockedError || error?.name === 'FirebaseBlockedError') {
+        showBlockerModal(() => {
+            // On successful retry, reload the page
+            window.location.reload();
+        });
+        return;
+    }
+
+    // Show toast for other errors
+    toast.error(error.message || defaultMessage);
 }
 
 // ============================================================================
@@ -1820,8 +1841,7 @@ async function clearTranscript(insightId) {
                 }
                 toast.success('Transcripción eliminada');
             } catch (error) {
-                console.error('Error clearing transcript:', error);
-                toast.error('Error al eliminar la transcripción');
+                handleFirebaseError(error, 'Error al eliminar la transcripción');
             }
         }
     });
@@ -1840,8 +1860,7 @@ async function saveInsightNotes(insightId) {
             insight.structuredNotes = textarea.value;
         }
     } catch (error) {
-        console.error('Error saving notes:', error);
-        toast.error('Error al guardar las notas');
+        handleFirebaseError(error, 'Error al guardar las notas');
     }
 }
 
@@ -1893,15 +1912,21 @@ async function fetchYouTubeTranscript(insightId, videoId) {
         }
     } catch (error) {
         console.error('Error fetching transcript:', error);
-        toast.error(error.message || 'No se pudo obtener la transcripción');
 
-        // Show manual input as fallback
-        const container = document.getElementById('transcriptInputContainer');
-        if (container) {
-            container.classList.remove('hidden');
-            const textarea = document.getElementById('transcriptInput');
-            if (textarea) {
-                textarea.placeholder = 'No se pudo obtener automáticamente. Para copiar manualmente:\n1. Abre el video en YouTube\n2. Haz clic en los 3 puntos (...) bajo el video\n3. Selecciona "Mostrar transcripción"\n4. Copia todo el texto y pégalo aquí';
+        // Check if it's a Firebase blocking error
+        if (error instanceof FirebaseBlockedError || error?.name === 'FirebaseBlockedError') {
+            handleFirebaseError(error);
+        } else {
+            toast.error(error.message || 'No se pudo obtener la transcripción');
+
+            // Show manual input as fallback
+            const container = document.getElementById('transcriptInputContainer');
+            if (container) {
+                container.classList.remove('hidden');
+                const textarea = document.getElementById('transcriptInput');
+                if (textarea) {
+                    textarea.placeholder = 'No se pudo obtener automáticamente. Para copiar manualmente:\n1. Abre el video en YouTube\n2. Haz clic en los 3 puntos (...) bajo el video\n3. Selecciona "Mostrar transcripción"\n4. Copia todo el texto y pégalo aquí';
+                }
             }
         }
     } finally {
@@ -2794,8 +2819,7 @@ async function handleInsightSubmit() {
             switchSection('insights');
         }
     } catch (err) {
-        console.error('Error saving insight:', err);
-        toast.error('Error al guardar el insight');
+        handleFirebaseError(err, t('toast.saveError'));
     }
 }
 

@@ -14,6 +14,7 @@ import {
     onSnapshot,
     getDoc
 } from 'firebase/firestore';
+import { safeFirebaseOperation, FirebaseBlockedError, isBlockedError } from '../utils/firebaseBlockerDetector.js';
 
 class InsightService {
     constructor() {
@@ -24,7 +25,7 @@ class InsightService {
     /**
      * Subscribe to user's insights in real-time
      */
-    subscribe(userId, callback) {
+    subscribe(userId, callback, onError = null) {
         if (this.unsubscribe) {
             this.unsubscribe();
         }
@@ -34,15 +35,26 @@ class InsightService {
             where('userId', '==', userId)
         );
 
-        this.unsubscribe = onSnapshot(q, (snapshot) => {
-            const insights = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            // Sort by createdAt descending (newest first)
-            insights.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-            callback(insights);
-        });
+        this.unsubscribe = onSnapshot(
+            q,
+            (snapshot) => {
+                const insights = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                // Sort by createdAt descending (newest first)
+                insights.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                callback(insights);
+            },
+            (error) => {
+                console.error('Firestore subscription error:', error);
+                if (isBlockedError(error) && onError) {
+                    onError(new FirebaseBlockedError(error.message));
+                } else if (onError) {
+                    onError(error);
+                }
+            }
+        );
 
         return this.unsubscribe;
     }
@@ -98,8 +110,10 @@ class InsightService {
             updatedAt: now
         };
 
-        const docRef = await addDoc(collection(db, this.collectionName), insightData);
-        return { id: docRef.id, ...insightData };
+        return await safeFirebaseOperation(async () => {
+            const docRef = await addDoc(collection(db, this.collectionName), insightData);
+            return { id: docRef.id, ...insightData };
+        });
     }
 
     /**
@@ -115,25 +129,31 @@ class InsightService {
         delete updateData.createdAt;
         delete updateData.id;
 
-        await updateDoc(doc(db, this.collectionName, insightId), updateData);
+        return await safeFirebaseOperation(async () => {
+            await updateDoc(doc(db, this.collectionName, insightId), updateData);
+        });
     }
 
     /**
      * Delete an insight
      */
     async delete(insightId) {
-        await deleteDoc(doc(db, this.collectionName, insightId));
+        return await safeFirebaseOperation(async () => {
+            await deleteDoc(doc(db, this.collectionName, insightId));
+        });
     }
 
     /**
      * Get a single insight by ID
      */
     async getById(insightId) {
-        const docSnap = await getDoc(doc(db, this.collectionName, insightId));
-        if (docSnap.exists()) {
-            return { id: docSnap.id, ...docSnap.data() };
-        }
-        return null;
+        return await safeFirebaseOperation(async () => {
+            const docSnap = await getDoc(doc(db, this.collectionName, insightId));
+            if (docSnap.exists()) {
+                return { id: docSnap.id, ...docSnap.data() };
+            }
+            return null;
+        });
     }
 
     /**
