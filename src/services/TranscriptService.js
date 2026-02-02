@@ -5,21 +5,16 @@
 
 class TranscriptService {
     constructor() {
-        // API endpoints - ordered by reliability (supadata works best)
-        this.apis = [
-            {
+        // API endpoints - ordered by reliability
+        // Only include Supadata if API key is configured
+        this.apis = [];
+
+        if (import.meta.env.VITE_SUPADATA_API_KEY) {
+            this.apis.push({
                 name: 'supadata',
                 fetch: this.fetchFromSupadata.bind(this)
-            },
-            {
-                name: 'kome',
-                fetch: this.fetchFromKome.bind(this)
-            },
-            {
-                name: 'youtubetranscript',
-                fetch: this.fetchFromYouTubeTranscript.bind(this)
-            }
-        ];
+            });
+        }
     }
 
     /**
@@ -44,59 +39,6 @@ class TranscriptService {
         throw new Error(lastError?.message || 'No se pudo obtener la transcripción');
     }
 
-    /**
-     * Kome.ai API (free, no auth)
-     */
-    async fetchFromKome(videoId, language) {
-        const response = await fetch('https://api.kome.ai/api/tools/youtube-transcript', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                video_id: videoId,
-                format: true
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`Kome API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (data.transcript) {
-            // Kome returns formatted text, convert to segments
-            return this.parseKomeTranscript(data.transcript);
-        }
-
-        throw new Error('No transcript data from Kome');
-    }
-
-    /**
-     * YouTubeTranscript.com API (free)
-     */
-    async fetchFromYouTubeTranscript(videoId, language) {
-        // This API might have CORS issues, but worth trying
-        const response = await fetch(
-            `https://youtubetranscript.com/?server_vid2=${videoId}`,
-            {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json'
-                }
-            }
-        );
-
-        if (!response.ok) {
-            throw new Error(`YouTubeTranscript API error: ${response.status}`);
-        }
-
-        const text = await response.text();
-
-        // Parse XML response
-        return this.parseXMLTranscript(text);
-    }
 
     async fetchFromSupadata(videoId) {
         const apiKey = import.meta.env.VITE_SUPADATA_API_KEY;
@@ -119,47 +61,6 @@ class TranscriptService {
             text: item.text,
             start: item.offset / 1000, // Convertir ms a segundos
             duration: item.duration / 1000
-        }));
-    }
-
-    /**
-     * Parse Kome transcript format
-     */
-    parseKomeTranscript(transcript) {
-        if (typeof transcript === 'string') {
-            // If it's plain text, create segments
-            const lines = transcript.split('\n').filter(l => l.trim());
-            return lines.map((text, index) => ({
-                text: text.trim(),
-                start: index * 5, // Approximate timing
-                duration: 5
-            }));
-        }
-
-        // If it's already structured
-        if (Array.isArray(transcript)) {
-            return transcript.map(item => ({
-                text: item.text || item.content || '',
-                start: item.start || item.offset || 0,
-                duration: item.duration || 5
-            }));
-        }
-
-        return [];
-    }
-
-    /**
-     * Parse XML transcript format
-     */
-    parseXMLTranscript(xmlText) {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(xmlText, 'text/xml');
-        const textElements = doc.querySelectorAll('text');
-
-        return Array.from(textElements).map(el => ({
-            text: el.textContent || '',
-            start: parseFloat(el.getAttribute('start') || 0),
-            duration: parseFloat(el.getAttribute('dur') || 5)
         }));
     }
 
