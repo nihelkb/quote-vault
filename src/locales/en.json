@@ -181,7 +181,11 @@
     "noResults": "No insights found",
     "tryDifferentFilters": "Try different filters or search terms",
     "noInsights": "No insights yet",
-    "captureFirst": "Capture your first insight from a video or article"
+    "captureFirst": "Capture your first insight from a video or article",
+    "transcriptLanguage": "Transcript language",
+    "fetchFromYouTube": "Fetch from YouTube",
+    "fetching": "Fetching...",
+    "fetchingTranscript": "Fetching transcript... This may take a few seconds."
   },
   "wiki": {
     "searchPlaceholder": "Search topics...",

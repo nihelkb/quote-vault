@@ -1023,14 +1023,24 @@ function openInsightView(insightId) {
                                         </div>
                                         <h3>No hay transcripción disponible</h3>
                                         <p class="transcript-hint">Obtén la transcripción automáticamente o pégala manualmente.</p>
+                                        ${isYouTube ? `
+                                            <div class="transcript-language-selector">
+                                                <label for="transcriptLang">${t('insights.transcriptLanguage')}:</label>
+                                                <select id="transcriptLang" class="transcript-lang-select">
+                                                    ${transcriptService.getAvailableLanguages().map(lang =>
+                                                        `<option value="${lang.code}">${lang.label}</option>`
+                                                    ).join('')}
+                                                </select>
+                                            </div>
+                                        ` : ''}
                                         <div class="transcript-actions">
                                             ${isYouTube ? `
-                                                <button class="btn btn-primary" onclick="fetchYouTubeTranscript('${insight.id}', '${videoId}')">
+                                                <button class="btn btn-primary" onclick="fetchYouTubeTranscript('${insight.id}', '${videoId}')" id="fetchTranscriptBtn">
                                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                         <polyline points="23 4 23 10 17 10"></polyline>
                                                         <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
                                                     </svg>
-                                                    Obtener de YouTube
+                                                    ${t('insights.fetchFromYouTube')}
                                                 </button>
                                             ` : ''}
                                             <button class="btn btn-secondary" onclick="showTranscriptInput()">
@@ -1865,7 +1875,10 @@ async function saveInsightNotes(insightId) {
 }
 
 async function fetchYouTubeTranscript(insightId, videoId) {
-    const fetchBtn = document.querySelector('[onclick*="fetchYouTubeTranscript"]');
+    const fetchBtn = document.querySelector('#fetchTranscriptBtn, [onclick*="fetchYouTubeTranscript"]');
+    const langSelect = document.getElementById('transcriptLang');
+    const selectedLang = langSelect?.value || 'auto';
+
     if (fetchBtn) {
         fetchBtn.disabled = true;
         fetchBtn.innerHTML = `
@@ -1873,14 +1886,17 @@ async function fetchYouTubeTranscript(insightId, videoId) {
                 <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
                 <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path>
             </svg>
-            Obteniendo...
+            ${t('insights.fetching')}
         `;
     }
 
-    try {
-        toast.info('Obteniendo transcripción... Esto puede demorar unos segundos.');
+    // Disable language selector while fetching
+    if (langSelect) langSelect.disabled = true;
 
-        const result = await transcriptService.fetchTranscript(videoId);
+    try {
+        toast.info(t('insights.fetchingTranscript'));
+
+        const result = await transcriptService.fetchTranscript(videoId, selectedLang);
 
         if (result && result.raw) {
             // Save the formatted transcript
@@ -1930,6 +1946,10 @@ async function fetchYouTubeTranscript(insightId, videoId) {
             }
         }
     } finally {
+        // Re-enable language selector
+        const langSelect = document.getElementById('transcriptLang');
+        if (langSelect) langSelect.disabled = false;
+
         if (fetchBtn) {
             fetchBtn.disabled = false;
             fetchBtn.innerHTML = `
@@ -1937,7 +1957,7 @@ async function fetchYouTubeTranscript(insightId, videoId) {
                     <polyline points="23 4 23 10 17 10"></polyline>
                     <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
                 </svg>
-                Obtener de YouTube
+                ${t('insights.fetchFromYouTube')}
             `;
         }
     }

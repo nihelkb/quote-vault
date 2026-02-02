@@ -1,65 +1,96 @@
 /**
  * TranscriptService - Fetches YouTube video transcripts
- * Uses multiple free APIs with fallback support
+ * Uses Supadata API with language selection support
  */
 
 class TranscriptService {
     constructor() {
-        // API endpoints - ordered by reliability
-        // Only include Supadata if API key is configured
-        this.apis = [];
+        // Available languages for transcription
+        this.availableLanguages = [
+            { code: 'auto', label: 'Auto (Original)', labelEn: 'Auto (Original)' },
+            { code: 'es', label: 'Español', labelEn: 'Spanish' },
+            { code: 'en', label: 'English', labelEn: 'English' },
+            { code: 'pt', label: 'Português', labelEn: 'Portuguese' },
+            { code: 'fr', label: 'Français', labelEn: 'French' },
+            { code: 'de', label: 'Deutsch', labelEn: 'German' },
+            { code: 'it', label: 'Italiano', labelEn: 'Italian' },
+            { code: 'ja', label: '日本語', labelEn: 'Japanese' },
+            { code: 'ko', label: '한국어', labelEn: 'Korean' },
+            { code: 'zh', label: '中文', labelEn: 'Chinese' }
+        ];
+    }
 
-        if (import.meta.env.VITE_SUPADATA_API_KEY) {
-            this.apis.push({
-                name: 'supadata',
-                fetch: this.fetchFromSupadata.bind(this)
-            });
+    /**
+     * Get available languages for the UI
+     */
+    getAvailableLanguages() {
+        return this.availableLanguages;
+    }
+
+    /**
+     * Main method to fetch transcript
+     * @param {string} videoId - YouTube video ID
+     * @param {string} language - Language code (es, en, auto, etc.)
+     */
+    async fetchTranscript(videoId, language = 'auto') {
+        const apiKey = import.meta.env.VITE_SUPADATA_API_KEY;
+        
+        if (!apiKey) {
+            throw new Error('API de transcripción no configurada. Contacta al administrador.');
+        }
+
+        try {
+            console.log(`Fetching transcript for ${videoId} in language: ${language}`);
+            const result = await this.fetchFromSupadata(videoId, language);
+            if (result && result.length > 0) {
+                return this.formatTranscript(result);
+            }
+            throw new Error('No se encontró transcripción para este video');
+        } catch (error) {
+            console.error('Transcript fetch failed:', error.message);
+            throw error;
         }
     }
 
     /**
-     * Main method to fetch transcript with fallback
+     * Fetch transcript from Supadata API
+     * @param {string} videoId - YouTube video ID
+     * @param {string} language - Language code
      */
-    async fetchTranscript(videoId, language = 'es') {
-        let lastError = null;
-
-        for (const api of this.apis) {
-            try {
-                console.log(`Trying ${api.name} API...`);
-                const result = await api.fetch(videoId, language);
-                if (result && result.length > 0) {
-                    return this.formatTranscript(result);
-                }
-            } catch (error) {
-                console.warn(`${api.name} API failed:`, error.message);
-                lastError = error;
-            }
-        }
-
-        throw new Error(lastError?.message || 'No se pudo obtener la transcripción');
-    }
-
-
-    async fetchFromSupadata(videoId) {
+    async fetchFromSupadata(videoId, language = 'auto') {
         const apiKey = import.meta.env.VITE_SUPADATA_API_KEY;
         if (!apiKey) {
             throw new Error('VITE_SUPADATA_API_KEY not configured');
         }
 
-        const response = await fetch(`https://api.supadata.ai/v1/transcript?url=https://youtu.be/${videoId}`, {
+        // Build URL with language parameter
+        let url = `https://api.supadata.ai/v1/transcript?mode=auto&url=https://youtu.be/${videoId}`;
+        if (language && language !== 'auto') {
+            url += `&lang=${language}`;
+        }
+
+        const response = await fetch(url, {
             method: 'GET',
             headers: {
                 'x-api-key': apiKey
             }
         });
 
-        if (!response.ok) throw new Error('Error en Supadata API');
-        
-        const data = await response.json();
-        // Supadata devuelve un array: [{text: "...", offset: 0, duration: 1000}, ...]
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `Error al obtener transcripción (${response.status})`);
+        }
+
+        const data = await response.json();        
+
+        if (!data.content || data.content.length === 0) {
+            throw new Error('No hay transcripción disponible para este video en el idioma seleccionado');
+        }
+
+        // Supadata returns: [{text: "...", offset: 0, duration: 1000}, ...]
         return data.content.map(item => ({
             text: item.text,
-            start: item.offset / 1000, // Convertir ms a segundos
+            start: item.offset / 1000, // Convert ms to seconds
             duration: item.duration / 1000
         }));
     }

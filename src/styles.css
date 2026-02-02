@@ -2794,6 +2794,47 @@ header {
     color: var(--text-muted);
 }
 
+/* Transcript language selector */
+.transcript-language-selector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.transcript-language-selector label {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.transcript-lang-select {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: white;
+    font-size: 0.9rem;
+    color: var(--text);
+    cursor: pointer;
+    min-width: 160px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.transcript-lang-select:hover {
+    border-color: var(--accent);
+}
+
+.transcript-lang-select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(45, 45, 45, 0.1);
+}
+
+.transcript-lang-select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 .transcript-actions {
     display: flex;
     gap: 12px;
