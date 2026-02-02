@@ -857,12 +857,7 @@ function openInsightView(insightId) {
                 ${isYouTube ? `
                     <div class="insight-video-section" id="insightVideoSection">
                         <div class="video-container">
-                            <iframe
-                                src="https://www.youtube.com/embed/${videoId}"
-                                frameborder="0"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowfullscreen>
-                            </iframe>
+                            <div id="ytPlayerContainer" data-video-id="${videoId}"></div>
                         </div>
                         <div class="video-notes-section">
                             <div class="video-notes-header">
@@ -1117,6 +1112,11 @@ function openInsightView(insightId) {
 
     // Setup quick note input
     setupQuickNoteInput();
+
+    // Initialize YouTube player if it's a YouTube video
+    if (isYouTube && videoId) {
+        initYouTubePlayer(videoId);
+    }
 }
 
 function setupInsightDetailTabs() {
@@ -1655,16 +1655,97 @@ function setupQuickNoteInput() {
     });
 }
 
-// YouTube time helper (simplified - for full support would need YouTube IFrame API)
+// YouTube IFrame API integration
 let ytPlayer = null;
+let ytApiReady = false;
+let ytApiLoadPromise = null;
 
+/**
+ * Load YouTube IFrame API if not already loaded
+ */
+function loadYouTubeAPI() {
+    if (ytApiLoadPromise) return ytApiLoadPromise;
+
+    ytApiLoadPromise = new Promise((resolve) => {
+        // Check if API is already loaded
+        if (globalThis.YT?.Player) {
+            ytApiReady = true;
+            resolve();
+            return;
+        }
+
+        // Define the callback that YouTube API will call
+        globalThis.onYouTubeIframeAPIReady = () => {
+            ytApiReady = true;
+            resolve();
+        };
+
+        // Load the API script if not already in DOM
+        if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+            const tag = document.createElement('script');
+            tag.src = 'https://www.youtube.com/iframe_api';
+            const firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        }
+    });
+
+    return ytApiLoadPromise;
+}
+
+/**
+ * Initialize YouTube player in the container
+ */
+async function initYouTubePlayer(videoId) {
+    await loadYouTubeAPI();
+
+    const container = document.getElementById('ytPlayerContainer');
+    if (!container) return;
+
+    // Destroy existing player if any
+    if (ytPlayer && typeof ytPlayer.destroy === 'function') {
+        try {
+            ytPlayer.destroy();
+        } catch (e) {
+            console.warn('Error destroying player:', e);
+        }
+        ytPlayer = null;
+    }
+
+    // Create new player
+    ytPlayer = new globalThis.YT.Player('ytPlayerContainer', {
+        videoId: videoId,
+        width: '100%',
+        height: '100%',
+        playerVars: {
+            autoplay: 0,
+            modestbranding: 1,
+            rel: 0
+        },
+        events: {
+            onReady: (event) => {
+                console.log('YouTube player ready');
+            },
+            onError: (event) => {
+                console.error('YouTube player error:', event.data);
+            }
+        }
+    });
+}
+
+/**
+ * Get current time from YouTube player
+ */
 function getYouTubeCurrentTime() {
     return new Promise((resolve) => {
-        // If we have access to the YouTube player, get current time
         if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
-            resolve(ytPlayer.getCurrentTime());
+            try {
+                const time = ytPlayer.getCurrentTime();
+                resolve(time || 0);
+            } catch (e) {
+                console.warn('Error getting YouTube time:', e);
+                resolve(0);
+            }
         } else {
-            // Fallback: prompt user or use 0
             resolve(0);
         }
     });
@@ -1767,18 +1848,21 @@ function formatTimestamp(seconds) {
 }
 
 function seekToTime(seconds) {
-    // Find the YouTube iframe
-    const iframe = document.querySelector('.video-container iframe');
-    if (iframe && iframe.src.includes('youtube.com')) {
-        // Update iframe src to seek to time
-        const currentSrc = iframe.src;
-        const baseUrl = currentSrc.split('?')[0];
-        const videoId = baseUrl.split('/').pop();
-
-        // Use YouTube's embed URL with start parameter
-        iframe.src = `https://www.youtube.com/embed/${videoId}?start=${Math.floor(seconds)}&autoplay=1`;
-
+    // Use YouTube IFrame API if player is available
+    if (ytPlayer && typeof ytPlayer.seekTo === 'function') {
+        ytPlayer.seekTo(seconds, true);
+        ytPlayer.playVideo();
         toast.info(`Saltando a ${formatTimestamp(seconds)}`);
+    } else {
+        // Fallback: Find the YouTube iframe and reload with start time
+        const iframe = document.querySelector('.video-container iframe');
+        if (iframe && iframe.src.includes('youtube.com')) {
+            const currentSrc = iframe.src;
+            const baseUrl = currentSrc.split('?')[0];
+            const videoId = baseUrl.split('/').pop();
+            iframe.src = `https://www.youtube.com/embed/${videoId}?start=${Math.floor(seconds)}&autoplay=1`;
+            toast.info(`Saltando a ${formatTimestamp(seconds)}`);
+        }
     }
 }
 
