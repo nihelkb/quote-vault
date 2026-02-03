@@ -213,6 +213,33 @@
       "connections": "Conexiones"
     }
   },
+  "tooltips": {
+    "hideSidebar": "Ocultar menú",
+    "showSidebar": "Abrir menú",
+    "menu": "Menú",
+    "filters": "Filtros",
+    "close": "Cerrar",
+    "changeLanguage": "Cambiar idioma",
+    "listView": "Vista lista",
+    "compareView": "Vista comparativa",
+    "newCollection": "Nueva colección",
+    "fetchMetadata": "Obtener info de la URL",
+    "newQuote": "Nueva cita",
+    "favorite": "Destacar",
+    "unfavorite": "Quitar de destacados",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "convertToQuote": "Convertir a cita",
+    "removeHighlight": "Eliminar resaltado",
+    "deleteNote": "Eliminar nota",
+    "back": "Volver",
+    "key":"Punto clave",
+    "question":"Pregunta",
+    "idea":"Idea",
+    "todo":"Pendiente",
+    "addTimestampNote": "Añadir nota con timestamp",
+    "reloadTranscript": "Recargar transcripción"
+  },
   "entries": {
     "newEntry": "Nueva entrada",
     "editEntry": "Editar entrada",

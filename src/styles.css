@@ -1650,7 +1650,6 @@ header {
 .insight-card {
     background: white;
     border-radius: 12px;
-    overflow: hidden;
     cursor: pointer;
     transition: all 0.2s ease;
     border: 1px solid var(--border);
@@ -1668,6 +1667,7 @@ header {
     aspect-ratio: 16 / 9;
     background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
     overflow: hidden;
+    border-radius: 11px 11px 0 0;
 }
 
 .insight-card-thumbnail img {
@@ -3819,5 +3819,76 @@ header {
     .tag, .stance {
         font-size: 0.7rem;
         padding: 3px 10px;
+    }
+}
+
+/* =====================
+   Tooltips  (portal — lives on <body>, never clipped)
+   ===================== */
+.tooltip-bubble {
+    position: fixed;
+    z-index: 2000;
+    opacity: 0;
+    pointer-events: none;
+    background: white;
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: opacity 0.15s ease;
+}
+
+/* Arrow — white triangle that overlaps the bubble border by 1 px */
+.tooltip-bubble::after {
+    content: '';
+    position: absolute;
+    border: 6px solid transparent;
+}
+
+/* top  → arrow at the bottom, pointing down */
+.tooltip-bubble[data-position="top"]::after {
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-top-color: white;
+    margin-top: -1px;
+}
+
+/* bottom → arrow at the top, pointing up */
+.tooltip-bubble[data-position="bottom"]::after {
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-bottom-color: white;
+    margin-bottom: -1px;
+}
+
+/* left  → arrow at the right, pointing right */
+.tooltip-bubble[data-position="left"]::after {
+    top: 50%;
+    left: 100%;
+    transform: translateY(-50%);
+    border-left-color: white;
+    margin-left: -1px;
+}
+
+/* right → arrow at the left, pointing left */
+.tooltip-bubble[data-position="right"]::after {
+    top: 50%;
+    right: 100%;
+    transform: translateY(-50%);
+    border-right-color: white;
+    margin-right: -1px;
+}
+
+/* Touch devices: native title se encarga */
+@media (max-width: 768px) {
+    .tooltip-bubble {
+        display: none;
     }
 }

@@ -128,6 +128,12 @@ class I18n {
             el.title = this.t(key);
         });
 
+        // Translate tooltips
+        document.querySelectorAll('[data-i18n-tooltip]').forEach(el => {
+            const key = el.getAttribute('data-i18n-tooltip');
+            el.setAttribute('data-tooltip', this.t(key));
+        });
+
         // Translate option values
         document.querySelectorAll('[data-i18n-options]').forEach(select => {
             const optionsKey = select.getAttribute('data-i18n-options');

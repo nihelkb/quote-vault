@@ -24,6 +24,7 @@ import { i18n, t } from './utils/i18n.js';
 import { escapeHtml } from './utils/helpers.js';
 import { showBlockerModal } from './utils/blockerModal.js';
 import { FirebaseBlockedError } from './utils/firebaseBlockerDetector.js';
+import './utils/tooltip.js'; // side-effect: registers global tooltip event listeners
 
 // ============================================================================
 // Utility Functions
@@ -820,7 +821,7 @@ function openInsightView(insightId) {
     contentBody.innerHTML = `
         <div class="insight-detail-view">
             <div class="insight-detail-header">
-                <button class="btn btn-secondary btn-back" onclick="switchSection('insights')">
+                <button class="btn btn-secondary btn-back" onclick="switchSection('insights')" data-tooltip="${t('tooltips.back')}" data-tooltip-position="bottom">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="15 18 9 12 15 6"></polyline>
                     </svg>
@@ -876,26 +877,26 @@ function openInsightView(insightId) {
                             <!-- Quick note input -->
                             <div class="quick-note-input">
                                 <div class="quick-note-type-selector">
-                                    <button class="note-type-btn active" data-type="key" title="Punto clave">
+                                    <button class="note-type-btn active" data-type="key" data-tooltip="${t('tooltips.key')}">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                                             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                                         </svg>
                                     </button>
-                                    <button class="note-type-btn" data-type="question" title="Pregunta">
+                                    <button class="note-type-btn" data-type="question" data-tooltip="${t('tooltips.question')}">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <circle cx="12" cy="12" r="10"></circle>
                                             <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
                                             <line x1="12" y1="17" x2="12.01" y2="17"></line>
                                         </svg>
                                     </button>
-                                    <button class="note-type-btn" data-type="idea" title="Idea">
+                                    <button class="note-type-btn" data-type="idea" data-tooltip="${t('tooltips.idea')}">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <line x1="9" y1="18" x2="15" y2="18"></line>
                                             <line x1="10" y1="22" x2="14" y2="22"></line>
                                             <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"></path>
                                         </svg>
                                     </button>
-                                    <button class="note-type-btn" data-type="todo" title="Pendiente">
+                                    <button class="note-type-btn" data-type="todo" data-tooltip="${t('tooltips.todo')}">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                                         </svg>
@@ -909,7 +910,7 @@ function openInsightView(insightId) {
                                         data-insight-id="${insight.id}"
                                         data-video-id="${videoId}"
                                     />
-                                    <button class="btn-timestamp" onclick="insertTimestampNote('${insight.id}', '${videoId}')" title="Añadir con timestamp actual">
+                                    <button class="btn-timestamp" onclick="insertTimestampNote('${insight.id}', '${videoId}')" title="${t('tooltips.addTimestampNote')}" data-tooltip="${t('tooltips.addTimestampNote')}" data-tooltip-position="left">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <circle cx="12" cy="12" r="10"></circle>
                                             <polyline points="12 6 12 12 16 14"></polyline>
@@ -991,7 +992,7 @@ function openInsightView(insightId) {
                                         </div>
                                         <div class="transcript-toolbar-right">
                                             ${isYouTube ? `
-                                                <button class="btn btn-secondary btn-sm" onclick="fetchYouTubeTranscript('${insight.id}', '${videoId}')" title="Recargar transcripción">
+                                                <button class="btn btn-secondary btn-sm" onclick="fetchYouTubeTranscript('${insight.id}', '${videoId}')" title="${t('tooltips.reloadTranscript')}" data-tooltip="${t('tooltips.reloadTranscript')}" data-tooltip-position="bottom">
                                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                         <polyline points="23 4 23 10 17 10"></polyline>
                                                         <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
@@ -1072,12 +1073,12 @@ function openInsightView(insightId) {
                                                     ${h.timestamp ? `<span class="highlight-timestamp">${h.timestamp}</span>` : ''}
                                                 </div>
                                                 <div class="highlight-actions">
-                                                    <button class="btn-icon" onclick="convertHighlightToQuote('${insight.id}', '${h.id}')" title="Convertir a cita">
+                                                    <button class="btn-icon" onclick="convertHighlightToQuote('${insight.id}', '${h.id}')" title="${t('tooltips.convertToQuote')}" data-tooltip="${t('tooltips.convertToQuote')}" data-tooltip-position="bottom">
                                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                                                         </svg>
                                                     </button>
-                                                    <button class="btn-icon btn-danger" onclick="removeHighlight('${insight.id}', '${h.id}')" title="Eliminar">
+                                                    <button class="btn-icon btn-danger" onclick="removeHighlight('${insight.id}', '${h.id}')" title="${t('tooltips.removeHighlight')}" data-tooltip="${t('tooltips.removeHighlight')}" data-tooltip-position="bottom">
                                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                             <polyline points="3 6 5 6 21 6"></polyline>
                                                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -1339,12 +1340,12 @@ function refreshHighlightsTab(insight) {
                                 ${h.timestamp ? `<span class="highlight-timestamp">${h.timestamp}</span>` : ''}
                             </div>
                             <div class="highlight-actions">
-                                <button class="btn-icon" onclick="convertHighlightToQuote('${insight.id}', '${h.id}')" title="Convertir a cita">
+                                <button class="btn-icon" onclick="convertHighlightToQuote('${insight.id}', '${h.id}')" title="${t('tooltips.convertToQuote')}" data-tooltip="${t('tooltips.convertToQuote')}" data-tooltip-position="bottom">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                                     </svg>
                                 </button>
-                                <button class="btn-icon btn-danger" onclick="removeHighlight('${insight.id}', '${h.id}')" title="Eliminar">
+                                <button class="btn-icon btn-danger" onclick="removeHighlight('${insight.id}', '${h.id}')" title="${t('tooltips.removeHighlight')}" data-tooltip="${t('tooltips.removeHighlight')}" data-tooltip-position="bottom">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <polyline points="3 6 5 6 21 6"></polyline>
                                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -1493,7 +1494,7 @@ function renderTimestampedNotes(notes, insightId, videoId) {
                 ` : ''}
                 <span class="note-type-icon" ${note.type === 'todo' ? `onclick="toggleTodoNote('${insightId}', '${note.id}')"` : ''}>${icon}</span>
                 <span class="note-text">${escapeHtml(note.text)}</span>
-                <button class="note-delete" onclick="deleteTimestampedNote('${insightId}', '${note.id}')" title="Eliminar">
+                <button class="note-delete" onclick="deleteTimestampedNote('${insightId}', '${note.id}')" title="${t('tooltips.deleteNote')}" data-tooltip="${t('tooltips.deleteNote')}" data-tooltip-position="left">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
                         <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -2324,14 +2325,14 @@ function restoreQuotesView() {
     if (!document.getElementById('quotesList')) {
         contentBody.innerHTML = `
             <div class="view-controls">
-                <button class="view-btn ${state.currentView === 'list' ? 'active' : ''}" id="viewList" data-i18n-title="quotes.listView" title="Vista lista">
+                <button class="view-btn ${state.currentView === 'list' ? 'active' : ''}" id="viewList" data-i18n-title="quotes.listView" title="Vista lista" data-tooltip="${t('tooltips.listView')}">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="3" y1="6" x2="21" y2="6"></line>
                         <line x1="3" y1="12" x2="21" y2="12"></line>
                         <line x1="3" y1="18" x2="21" y2="18"></line>
                     </svg>
                 </button>
-                <button class="view-btn ${state.currentView === 'compare' ? 'active' : ''}" id="viewCompare" data-i18n-title="quotes.compareView" title="Vista comparativa">
+                <button class="view-btn ${state.currentView === 'compare' ? 'active' : ''}" id="viewCompare" data-i18n-title="quotes.compareView" title="Vista comparativa" data-tooltip="${t('tooltips.compareView')}">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="3" y="3" width="7" height="18"></rect>
                         <rect x="14" y="3" width="7" height="18"></rect>
@@ -2461,13 +2462,13 @@ function renderTopicsList() {
                 </div>
             </div>
             <div class="topic-actions">
-                <button class="btn-icon" onclick="event.stopPropagation(); editTopic('${topic.id}')" title="${t('quotes.edit')}">
+                <button class="btn-icon" onclick="event.stopPropagation(); editTopic('${topic.id}')" title="${t('quotes.edit')}" data-tooltip="${t('tooltips.edit')}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                     </svg>
                 </button>
-                <button class="btn-icon btn-danger" onclick="event.stopPropagation(); deleteTopic('${topic.id}')" title="${t('quotes.delete')}">
+                <button class="btn-icon btn-danger" onclick="event.stopPropagation(); deleteTopic('${topic.id}')" title="${t('quotes.delete')}" data-tooltip="${t('tooltips.delete')}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="3 6 5 6 21 6"></polyline>
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -2604,13 +2605,13 @@ function renderInsightsList() {
                         <span>${insight.sourceType || 'other'}</span>
                     </div>
                     <div class="insight-card-actions">
-                        <button class="insight-card-action" onclick="event.stopPropagation(); editInsight('${insight.id}')" title="${t('quotes.edit')}">
+                        <button class="insight-card-action" onclick="event.stopPropagation(); editInsight('${insight.id}')" title="${t('quotes.edit')}" data-tooltip="${t('tooltips.edit')}">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                             </svg>
                         </button>
-                        <button class="insight-card-action danger" onclick="event.stopPropagation(); deleteInsight('${insight.id}')" title="${t('quotes.delete')}">
+                        <button class="insight-card-action danger" onclick="event.stopPropagation(); deleteInsight('${insight.id}')" title="${t('quotes.delete')}" data-tooltip="${t('tooltips.delete')}">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="3 6 5 6 21 6"></polyline>
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>

@@ -75,7 +75,7 @@
         <aside class="nav-sidebar" id="navSidebar">
             <div class="nav-sidebar-header">
                 <h1 class="nav-sidebar-title" data-i18n="app.title">Knowledge Vault</h1>
-                <button class="nav-sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+                <button class="nav-sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar" data-tooltip="Ocultar menú" data-i18n-tooltip="tooltips.hideSidebar" data-tooltip-position="bottom">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="15 18 9 12 15 6"></polyline>
                     </svg>
@@ -228,7 +228,7 @@
                 </div>
                 <div class="nav-footer-actions">
                     <div class="language-selector" id="languageSelector">
-                        <button type="button" class="language-btn" id="languageBtn">
+                        <button type="button" class="language-btn" id="languageBtn" data-tooltip="Cambiar idioma" data-i18n-tooltip="tooltips.changeLanguage">
                             <span id="currentLang">ES</span>
                         </button>
                         <div class="language-dropdown" id="languageDropdown">
@@ -265,7 +265,7 @@
         <!-- Main Content Area -->
         <main class="main-area">
             <!-- Sidebar open button (visible when sidebar is collapsed) -->
-            <button class="sidebar-open-btn" id="sidebarOpenBtn" aria-label="Open sidebar">
+            <button class="sidebar-open-btn" id="sidebarOpenBtn" aria-label="Open sidebar" data-tooltip="Abrir menú" data-i18n-tooltip="tooltips.showSidebar" data-tooltip-position="right">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="3" y1="12" x2="21" y2="12"></line>
                     <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -301,7 +301,7 @@
                             </button>
                         </div>
                     </div>
-                    <button class="icon-btn" id="mobileMenuBtn" aria-label="Menu">
+                    <button class="icon-btn" id="mobileMenuBtn" aria-label="Menu" data-tooltip="Menú" data-i18n-tooltip="tooltips.menu">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="1"></circle>
                             <circle cx="19" cy="12" r="1"></circle>
@@ -318,7 +318,7 @@
                     </svg>
                     <input type="text" class="mobile-search-input" id="mobileSearchInput" data-i18n-placeholder="quotes.searchPlaceholder" placeholder="Buscar...">
                 </div>
-                <button class="icon-btn filter-btn" id="filterToggleBtn" aria-label="Filtros">
+                <button class="icon-btn filter-btn" id="filterToggleBtn" aria-label="Filtros" data-tooltip="Filtros" data-i18n-tooltip="tooltips.filters">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
                     </svg>
@@ -342,7 +342,7 @@
         <div class="filters-panel hidden" id="filtersPanel">
             <div class="filters-panel-header">
                 <h3 data-i18n="filters.title">Filtros</h3>
-                <button class="icon-btn" id="closeFiltersBtn" aria-label="Cerrar">
+                <button class="icon-btn" id="closeFiltersBtn" aria-label="Cerrar" data-tooltip="Cerrar" data-i18n-tooltip="tooltips.close">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
                         <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -657,14 +657,14 @@
         <!-- Content Body -->
         <div class="content-body">
             <div class="view-controls">
-                <button class="view-btn active" id="viewList" data-i18n-title="quotes.listView" title="Vista lista">
+                <button class="view-btn active" id="viewList" data-i18n-title="quotes.listView" title="Vista lista" data-tooltip="Vista lista" data-i18n-tooltip="tooltips.listView">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="3" y1="6" x2="21" y2="6"></line>
                         <line x1="3" y1="12" x2="21" y2="12"></line>
                         <line x1="3" y1="18" x2="21" y2="18"></line>
                     </svg>
                 </button>
-                <button class="view-btn" id="viewCompare" data-i18n-title="quotes.compareView" title="Vista comparativa">
+                <button class="view-btn" id="viewCompare" data-i18n-title="quotes.compareView" title="Vista comparativa" data-tooltip="Vista comparativa" data-i18n-tooltip="tooltips.compareView">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="3" y="3" width="7" height="18"></rect>
                         <rect x="14" y="3" width="7" height="18"></rect>
@@ -692,7 +692,7 @@
         </div>
 
         <!-- Mobile FAB -->
-        <button class="mobile-fab" id="mobileFab" aria-label="Nueva cita">
+        <button class="mobile-fab" id="mobileFab" aria-label="Nueva cita" data-tooltip="Nueva cita" data-i18n-tooltip="tooltips.newQuote">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -731,7 +731,7 @@
                             <select id="quoteCollection">
                                 <option value="" data-i18n="quotes.noCollection">Sin colección</option>
                             </select>
-                            <button type="button" class="btn-icon" id="newCollectionBtn" data-i18n-title="collections.newCollection" title="Nueva colección">+</button>
+                            <button type="button" class="btn-icon" id="newCollectionBtn" data-i18n-title="collections.newCollection" title="Nueva colección" data-tooltip="Nueva colección" data-i18n-tooltip="tooltips.newCollection">+</button>
                         </div>
                     </div>
                     <div class="form-group">
@@ -801,7 +801,7 @@
                     <label for="insightSourceUrl" data-i18n="insights.sourceUrl">URL de la fuente</label>
                     <div class="url-input-wrapper">
                         <input type="url" id="insightSourceUrl" data-i18n-placeholder="insights.sourceUrlPlaceholder" placeholder="Pega la URL del video, artículo...">
-                        <button type="button" class="btn btn-secondary btn-small" id="fetchMetadataBtn">
+                        <button type="button" class="btn btn-secondary btn-small" id="fetchMetadataBtn" data-tooltip="Obtener info" data-i18n-tooltip="tooltips.fetchMetadata">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 <path d="M9 12l2 2 4-4"></path>

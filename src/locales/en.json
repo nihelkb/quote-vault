@@ -213,6 +213,33 @@
       "connections": "Connections"
     }
   },
+  "tooltips": {
+    "hideSidebar": "Hide sidebar",
+    "showSidebar": "Show sidebar",
+    "menu": "Menu",
+    "filters": "Filters",
+    "close": "Close",
+    "changeLanguage": "Change language",
+    "listView": "List view",
+    "compareView": "Compare view",
+    "newCollection": "New collection",
+    "fetchMetadata": "Fetch URL info",
+    "newQuote": "New quote",
+    "favorite": "Add to favorites",
+    "unfavorite": "Remove from favorites",
+    "edit": "Edit",
+    "delete": "Delete",
+    "convertToQuote": "Convert to quote",
+    "removeHighlight": "Remove highlight",
+    "deleteNote": "Delete note",
+    "back": "Back",
+    "key":"Key point",
+    "question":"Question",
+    "idea":"Idea",
+    "todo":"To-do",
+    "addTimestampNote": "Add note with timestamp",
+    "reloadTranscript": "Reload transcript"
+  },
   "entries": {
     "newEntry": "New entry",
     "editEntry": "Edit entry",
