@@ -71,6 +71,7 @@ const state = {
     currentView: 'list', // list, compare
     currentSection: 'quotes', // wiki, insights, quotes
     currentInsightId: null, // Currently viewing insight
+    currentTopicId: null,   // Currently viewing topic
     insightStatusFilter: '',
     authMode: 'login'
 };
@@ -282,10 +283,18 @@ function init() {
         // Re-render current section
         switch (state.currentSection) {
             case 'wiki':
-                renderWikiView();
+                if (state.currentTopicId) {
+                    openTopicView(state.currentTopicId);
+                } else {
+                    renderWikiView();
+                }
                 break;
             case 'insights':
-                renderInsightsView();
+                if (state.currentInsightId) {
+                    openInsightView(state.currentInsightId);
+                } else {
+                    renderInsightsView();
+                }
                 break;
             case 'quotes':
             default:
@@ -511,7 +520,7 @@ function subscribeToData(userId) {
     topicService.subscribe(userId, (topics) => {
         state.topics = topics;
         renderSidebarTopics();
-        if (state.currentSection === 'wiki') {
+        if (state.currentSection === 'wiki' && !state.currentTopicId) {
             renderWikiView();
         }
     });
@@ -748,6 +757,8 @@ function renderSidebarTopics() {
 function openTopicView(topicId) {
     const topic = state.topics.find(t => t.id === topicId);
     if (!topic) return;
+
+    state.currentTopicId = topicId;
 
     // For now, show a detail view - full wiki view will be Phase 3
     const contentBody = document.querySelector('.content-body');
@@ -2250,6 +2261,7 @@ function switchSection(section) {
 
     // Clear detail view state when switching sections
     state.currentInsightId = null;
+    state.currentTopicId = null;
 
     // Update tab active states
     [elements.navWikiTab, elements.navInsightsTab, elements.navQuotesTab].forEach(tab => {

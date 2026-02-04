@@ -4,12 +4,6 @@
  * and provides utilities for handling these situations
  */
 
-const FIREBASE_TEST_ENDPOINTS = [
-    'https://firestore.googleapis.com',
-    'https://www.googleapis.com',
-    'https://firebase.googleapis.com'
-];
-
 class FirebaseBlockerDetector {
     constructor() {
         this.isBlocked = null;
