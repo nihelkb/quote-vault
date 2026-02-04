@@ -138,7 +138,8 @@
     "enterUrlFirst": "Ingresa una URL primero",
     "errorFetchingMetadata": "No se pudo obtener información de la URL",
     "addUrlOrNotes": "Añade una URL o apuntes",
-    "nameRequired": "El nombre es requerido"
+    "nameRequired": "El nombre es requerido",
+    "statusUpdated": "Estado actualizado"
   },
   "language": {
     "select": "Idioma",
@@ -298,7 +299,8 @@
     "idea":"Idea",
     "todo":"Pendiente",
     "addTimestampNote": "Añadir nota con timestamp",
-    "reloadTranscript": "Recargar transcripción"
+    "reloadTranscript": "Recargar transcripción",
+    "changeStatus": "Cambiar estado"
   },
   "highlightColors": {
     "yellow": "Amarillo",

@@ -138,7 +138,8 @@
     "enterUrlFirst": "Enter a URL first",
     "errorFetchingMetadata": "Could not fetch URL information",
     "addUrlOrNotes": "Add a URL or notes",
-    "nameRequired": "Name is required"
+    "nameRequired": "Name is required",
+    "statusUpdated": "Status updated"
   },
   "language": {
     "select": "Language",
@@ -298,7 +299,8 @@
     "idea":"Idea",
     "todo":"To-do",
     "addTimestampNote": "Add note with timestamp",
-    "reloadTranscript": "Reload transcript"
+    "reloadTranscript": "Reload transcript",
+    "changeStatus": "Change status"
   },
   "highlightColors": {
     "yellow": "Yellow",

@@ -840,7 +840,19 @@ function openInsightView(insightId) {
                 <div class="insight-detail-title">
                     <h1>${escapeHtml(insight.sourceTitle || t('insights.untitled'))}</h1>
                     <div class="insight-detail-meta">
-                        <span class="insight-status-badge ${insight.status}">${t('insights.' + insight.status)}</span>
+                        <div class="status-dropdown-wrapper">
+                            <button class="insight-status-badge ${insight.status}" onclick="toggleStatusDropdown()" data-tooltip="${t('tooltips.changeStatus')}" data-tooltip-position="right">
+                                ${t('insights.' + insight.status)}
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="status-dropdown hidden" id="statusDropdown">
+                                ${['draft', 'reviewed', 'integrated', 'discarded'].map(s => `
+                                    <button class="status-option ${s}${s === insight.status ? ' active' : ''}" data-status="${s}" onclick="changeInsightStatus('${insight.id}', '${s}')">
+                                        ${t('insights.' + s)}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
                         ${linkedTopic ? `<span class="insight-linked-topic">${linkedTopic.icon} ${escapeHtml(linkedTopic.name)}</span>` : ''}
                     </div>
                 </div>
@@ -2119,6 +2131,58 @@ function deleteInsight(insightId) {
     });
 }
 
+function toggleStatusDropdown() {
+    const dropdown = document.getElementById('statusDropdown');
+    if (!dropdown) return;
+
+    if (!dropdown.classList.contains('hidden')) {
+        dropdown.classList.add('hidden');
+        return;
+    }
+
+    dropdown.classList.remove('hidden');
+
+    // Close on outside click
+    setTimeout(() => {
+        document.addEventListener('click', function closeDropdown(e) {
+            const wrapper = document.querySelector('.status-dropdown-wrapper');
+            if (!wrapper || !wrapper.contains(e.target)) {
+                dropdown.classList.add('hidden');
+                document.removeEventListener('click', closeDropdown);
+            }
+        });
+    }, 0);
+}
+
+async function changeInsightStatus(insightId, newStatus) {
+    const dropdown = document.getElementById('statusDropdown');
+    if (dropdown) dropdown.classList.add('hidden');
+
+    const insight = state.insights.find(i => i.id === insightId);
+    if (!insight || insight.status === newStatus) return;
+
+    try {
+        await insightService.updateStatus(insightId, newStatus);
+        insight.status = newStatus;
+
+        // Update badge class and text in-place (avoids restarting video)
+        const badge = document.querySelector('.insight-status-badge');
+        if (badge) {
+            badge.className = `insight-status-badge ${newStatus}`;
+            badge.innerHTML = `${t('insights.' + newStatus)}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+        }
+
+        // Update active checkmark in dropdown
+        document.querySelectorAll('.status-option').forEach(opt => {
+            opt.classList.toggle('active', opt.dataset.status === newStatus);
+        });
+
+        toast.success(t('toast.statusUpdated'));
+    } catch (error) {
+        handleFirebaseError(error, t('toast.errorDefault'));
+    }
+}
+
 function updateInsightsCounts() {
     const counts = insightService.getStatusCounts(state.insights);
 
@@ -2917,8 +2981,7 @@ async function handleInsightSubmit() {
         sourceThumbnail: sourceThumbnail && !sourceThumbnail.includes('data:') ? sourceThumbnail : null,
         rawNotes: notes,
         tags: elements.insightTags.value.split(',').map(t => t.trim().toLowerCase()).filter(Boolean),
-        linkedTopicId: elements.insightLinkedTopic.value || null,
-        status: 'draft'
+        linkedTopicId: elements.insightLinkedTopic.value || null
     };
 
     try {
@@ -3395,6 +3458,8 @@ window.seekToTime = seekToTime;
 window.insertTimestampNote = insertTimestampNote;
 window.deleteTimestampedNote = deleteTimestampedNote;
 window.toggleTodoNote = toggleTodoNote;
+window.toggleStatusDropdown = toggleStatusDropdown;
+window.changeInsightStatus = changeInsightStatus;
 
 // ============================================================================
 // Mobile Handlers
