@@ -38,7 +38,7 @@ export function renderQuoteCard(quote, collectionName = null, depth = 0, options
     return `
         <article class="${cardClass}" data-quote-id="${quote.id}" data-depth="${depth}">
             <div class="quote-header">
-                ${isReply ? `<span class="reply-indicator" title="${t('replies.replyTo')}">
+                ${isReply ? `<span class="reply-indicator" data-tooltip="${t('replies.replyTo')}" data-tooltip-position="right">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="9 14 4 9 9 4"></polyline>
                         <path d="M20 20v-7a4 4 0 0 0-4-4H4"></path>
@@ -47,7 +47,6 @@ export function renderQuoteCard(quote, collectionName = null, depth = 0, options
                 <button
                     class="favorite-btn ${favoriteClass}"
                     onclick="toggleFavorite('${quote.id}', ${!quote.favorite})"
-                    title="${favoriteTitle}"
                     data-tooltip="${favoriteTitle}"
                 >
                     <svg viewBox="0 0 24 24" fill="${favoriteFill}" stroke="currentColor" stroke-width="2">
@@ -69,7 +68,7 @@ export function renderQuoteCard(quote, collectionName = null, depth = 0, options
             </div>
             ${quote.notes ? `<div class="quote-notes"><strong>${t('quotes.notes')}</strong> ${escapeHtml(quote.notes)}</div>` : ''}
             <div class="quote-actions">
-                <button class="action-btn reply-btn" onclick="openReplyModal('${quote.id}', '${oppositeStance}', '${quote.collectionId || ''}')" title="${replyBtnLabel}">
+                <button class="action-btn reply-btn" onclick="openReplyModal('${quote.id}', '${oppositeStance}', '${quote.collectionId || ''}')" data-tooltip="${replyBtnLabel}">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="9 14 4 9 9 4"></polyline>
                         <path d="M20 20v-7a4 4 0 0 0-4-4H4"></path>

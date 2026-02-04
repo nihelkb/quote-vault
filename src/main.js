@@ -45,7 +45,7 @@ function debounce(func, wait) {
  * Handle errors from Firebase operations
  * Shows blocker modal if request was blocked by client
  */
-function handleFirebaseError(error, defaultMessage = 'Error al realizar la operación') {
+function handleFirebaseError(error, defaultMessage = t('toast.errorDefault')) {
     console.error('Firebase error:', error);
 
     if (error instanceof FirebaseBlockedError || error?.name === 'FirebaseBlockedError') {
@@ -686,7 +686,7 @@ function renderSidebarTags() {
     }
 
     const html = sortedTags.map(([tag, count]) => `
-        <button class="nav-tag" data-tag="${escapeHtml(tag)}" title="${count} ${t('sidebar.quotes')}">
+        <button class="nav-tag" data-tag="${escapeHtml(tag)}" data-tooltip="${count} ${t('sidebar.quotes')}">
             ${escapeHtml(tag)}
         </button>
     `).join('');
@@ -827,7 +827,7 @@ function openInsightView(insightId) {
                     </svg>
                 </button>
                 <div class="insight-detail-title">
-                    <h1>${escapeHtml(insight.sourceTitle || 'Sin título')}</h1>
+                    <h1>${escapeHtml(insight.sourceTitle || t('insights.untitled'))}</h1>
                     <div class="insight-detail-meta">
                         <span class="insight-status-badge ${insight.status}">${t('insights.' + insight.status)}</span>
                         ${linkedTopic ? `<span class="insight-linked-topic">${linkedTopic.icon} ${escapeHtml(linkedTopic.name)}</span>` : ''}
@@ -841,7 +841,7 @@ function openInsightView(insightId) {
                                 <polyline points="15 3 21 3 21 9"></polyline>
                                 <line x1="10" y1="14" x2="21" y2="3"></line>
                             </svg>
-                            ${isYouTube ? 'Abrir en YouTube' : 'Abrir fuente'}
+                            ${isYouTube ? t('insights.openOnYouTube') : t('insights.openSource')}
                         </a>
                     ` : ''}
                     <button class="btn btn-secondary" onclick="editInsight('${insight.id}')">
@@ -849,7 +849,7 @@ function openInsightView(insightId) {
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                         </svg>
-                        Editar info
+                        ${t('insights.editInfo')}
                     </button>
                 </div>
             </div>
@@ -869,9 +869,9 @@ function openInsightView(insightId) {
                                         <line x1="16" y1="13" x2="8" y2="13"></line>
                                         <line x1="16" y1="17" x2="8" y2="17"></line>
                                     </svg>
-                                    Mis notas
+                                    ${t('insights.myNotes')}
                                 </h3>
-                                <span class="notes-count">${(insight.timestampedNotes || []).length} notas</span>
+                                <span class="notes-count">${t('insights.notesCount', { count: (insight.timestampedNotes || []).length })}</span>
                             </div>
 
                             <!-- Quick note input -->
@@ -906,11 +906,11 @@ function openInsightView(insightId) {
                                     <input
                                         type="text"
                                         id="quickNoteInput"
-                                        placeholder="Añade una nota... (Enter para guardar)"
+                                        placeholder="${t('insights.quickNotePlaceholder')}"
                                         data-insight-id="${insight.id}"
                                         data-video-id="${videoId}"
                                     />
-                                    <button class="btn-timestamp" onclick="insertTimestampNote('${insight.id}', '${videoId}')" title="${t('tooltips.addTimestampNote')}" data-tooltip="${t('tooltips.addTimestampNote')}" data-tooltip-position="left">
+                                    <button class="btn-timestamp" onclick="insertTimestampNote('${insight.id}', '${videoId}')" data-tooltip="${t('tooltips.addTimestampNote')}">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <circle cx="12" cy="12" r="10"></circle>
                                             <polyline points="12 6 12 12 16 14"></polyline>
@@ -933,17 +933,17 @@ function openInsightView(insightId) {
                                         <line x1="21" y1="14" x2="3" y2="14"></line>
                                         <line x1="21" y1="18" x2="3" y2="18"></line>
                                     </svg>
-                                    Notas libres
+                                    ${t('insights.freeNotesLabel')}
                                 </summary>
                                 <div class="free-notes-content">
                                     <textarea
                                         id="insightNotesEditor"
                                         class="video-notes-textarea"
-                                        placeholder="Espacio para notas más extensas, resúmenes o reflexiones..."
+                                        placeholder="${t('insights.freeNotesPlaceholder')}"
                                         data-insight-id="${insight.id}"
                                     >${escapeHtml(insight.structuredNotes || insight.rawNotes || '')}</textarea>
                                     <button class="btn btn-secondary btn-sm" onclick="saveInsightNotes('${insight.id}')">
-                                        Guardar notas libres
+                                        ${t('insights.saveFreeNotes')}
                                     </button>
                                 </div>
                             </details>
@@ -963,7 +963,7 @@ function openInsightView(insightId) {
                                 <line x1="9" y1="13" x2="15" y2="13"></line>
                                 <line x1="9" y1="17" x2="12" y2="17"></line>
                             </svg>
-                            Transcripción
+                            ${t('insights.transcript')}
                         </button>
                         <button class="insight-tab" data-tab="highlights">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -971,7 +971,7 @@ function openInsightView(insightId) {
                                 <path d="M2 17l10 5 10-5"></path>
                                 <path d="M2 12l10 5 10-5"></path>
                             </svg>
-                            Destacados (${(insight.highlights || []).length})
+                            ${t('insights.highlights')} (${(insight.highlights || []).length})
                         </button>
                     </div>
 
@@ -987,12 +987,12 @@ function openInsightView(insightId) {
                                                     <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
                                                     <path d="M2 17l10 5 10-5"></path>
                                                 </svg>
-                                                Selecciona texto para destacarlo
+                                                ${t('insights.selectTextToHighlight')}
                                             </span>
                                         </div>
                                         <div class="transcript-toolbar-right">
                                             ${isYouTube ? `
-                                                <button class="btn btn-secondary btn-sm" onclick="fetchYouTubeTranscript('${insight.id}', '${videoId}')" title="${t('tooltips.reloadTranscript')}" data-tooltip="${t('tooltips.reloadTranscript')}" data-tooltip-position="bottom">
+                                                <button class="btn btn-secondary btn-sm" onclick="fetchYouTubeTranscript('${insight.id}', '${videoId}')" data-tooltip="${t('tooltips.reloadTranscript')}" data-tooltip-position="bottom">
                                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                         <polyline points="23 4 23 10 17 10"></polyline>
                                                         <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
@@ -1000,7 +1000,7 @@ function openInsightView(insightId) {
                                                 </button>
                                             ` : ''}
                                             <button class="btn btn-secondary btn-sm" onclick="clearTranscript('${insight.id}')">
-                                                Borrar
+                                                ${t('insights.clearTranscript')}
                                             </button>
                                         </div>
                                     </div>
@@ -1017,8 +1017,8 @@ function openInsightView(insightId) {
                                                 <line x1="9" y1="17" x2="12" y2="17"></line>
                                             </svg>
                                         </div>
-                                        <h3>No hay transcripción disponible</h3>
-                                        <p class="transcript-hint">Obtén la transcripción automáticamente o pégala manualmente.</p>
+                                        <h3>${t('insights.noTranscript')}</h3>
+                                        <p class="transcript-hint">${t('insights.getTranscriptHint')}</p>
                                         ${isYouTube ? `
                                             <div class="transcript-language-selector">
                                                 <label for="transcriptLang">${t('insights.transcriptLanguage')}:</label>
@@ -1044,14 +1044,14 @@ function openInsightView(insightId) {
                                                     <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
                                                     <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
                                                 </svg>
-                                                Pegar manualmente
+                                                ${t('insights.pasteManually')}
                                             </button>
                                         </div>
                                         <div class="transcript-input-container hidden" id="transcriptInputContainer">
-                                            <textarea id="transcriptInput" class="transcript-input" placeholder="Pega aquí la transcripción del video..."></textarea>
+                                            <textarea id="transcriptInput" class="transcript-input" placeholder="${t('insights.pasteTranscriptPlaceholder')}"></textarea>
                                             <div class="transcript-input-actions">
-                                                <button class="btn btn-secondary btn-sm" onclick="hideTranscriptInput()">Cancelar</button>
-                                                <button class="btn btn-primary btn-sm" onclick="saveTranscript('${insight.id}')">Guardar transcripción</button>
+                                                <button class="btn btn-secondary btn-sm" onclick="hideTranscriptInput()">${t('form.cancel')}</button>
+                                                <button class="btn btn-primary btn-sm" onclick="saveTranscript('${insight.id}')">${t('insights.saveTranscript')}</button>
                                             </div>
                                         </div>
                                     </div>
@@ -1073,12 +1073,12 @@ function openInsightView(insightId) {
                                                     ${h.timestamp ? `<span class="highlight-timestamp">${h.timestamp}</span>` : ''}
                                                 </div>
                                                 <div class="highlight-actions">
-                                                    <button class="btn-icon" onclick="convertHighlightToQuote('${insight.id}', '${h.id}')" title="${t('tooltips.convertToQuote')}" data-tooltip="${t('tooltips.convertToQuote')}" data-tooltip-position="bottom">
+                                                    <button class="btn-icon" onclick="convertHighlightToQuote('${insight.id}', '${h.id}')" data-tooltip="${t('tooltips.convertToQuote')}" data-tooltip-position="bottom">
                                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                                                         </svg>
                                                     </button>
-                                                    <button class="btn-icon btn-danger" onclick="removeHighlight('${insight.id}', '${h.id}')" title="${t('tooltips.removeHighlight')}" data-tooltip="${t('tooltips.removeHighlight')}" data-tooltip-position="bottom">
+                                                    <button class="btn-icon btn-danger" onclick="removeHighlight('${insight.id}', '${h.id}')" data-tooltip="${t('tooltips.removeHighlight')}" data-tooltip-position="bottom">
                                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                             <polyline points="3 6 5 6 21 6"></polyline>
                                                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -1090,8 +1090,8 @@ function openInsightView(insightId) {
                                     </div>
                                 ` : `
                                     <div class="highlights-empty">
-                                        <p>No hay texto destacado aún.</p>
-                                        <p class="highlight-hint">Ve a la pestaña de Transcripción y selecciona texto para destacarlo.</p>
+                                        <p>${t('insights.noHighlights')}</p>
+                                        <p class="highlight-hint">${t('insights.highlightsHint')}</p>
                                     </div>
                                 `}
                             </div>
@@ -1249,10 +1249,10 @@ function showHighlightPopup(insightId, text, selection) {
     const popup = document.createElement('div');
     popup.className = 'highlight-popup';
     popup.innerHTML = `
-        <button class="highlight-btn" data-color="yellow" style="background: #fef08a" title="Amarillo"></button>
-        <button class="highlight-btn" data-color="green" style="background: #bbf7d0" title="Verde"></button>
-        <button class="highlight-btn" data-color="blue" style="background: #bfdbfe" title="Azul"></button>
-        <button class="highlight-btn" data-color="pink" style="background: #fbcfe8" title="Rosa"></button>
+        <button class="highlight-btn" data-color="yellow" style="background: #fef08a" data-tooltip="${t('highlightColors.yellow')}"></button>
+        <button class="highlight-btn" data-color="green" style="background: #bbf7d0" data-tooltip="${t('highlightColors.green')}"></button>
+        <button class="highlight-btn" data-color="blue" style="background: #bfdbfe" data-tooltip="${t('highlightColors.blue')}"></button>
+        <button class="highlight-btn" data-color="pink" style="background: #fbcfe8" data-tooltip="${t('highlightColors.pink')}"></button>
     `;
 
     popup.style.position = 'fixed';
@@ -1286,7 +1286,7 @@ function showHighlightPopup(insightId, text, selection) {
 async function addHighlightToInsight(insightId, text, color) {
     try {
         await insightService.addHighlight(insightId, { text, color });
-        toast.success('Texto destacado');
+        toast.success(t('toast.highlightAdded'));
 
         // Update local state WITHOUT reloading the entire view (keeps video playing)
         const insight = state.insights.find(i => i.id === insightId);
@@ -1302,7 +1302,7 @@ async function addHighlightToInsight(insightId, text, color) {
         }
     } catch (error) {
         console.error('Error adding highlight:', error);
-        toast.error('Error al destacar texto');
+        toast.error(t('toast.errorHighlighting'));
     }
 }
 
@@ -1340,12 +1340,12 @@ function refreshHighlightsTab(insight) {
                                 ${h.timestamp ? `<span class="highlight-timestamp">${h.timestamp}</span>` : ''}
                             </div>
                             <div class="highlight-actions">
-                                <button class="btn-icon" onclick="convertHighlightToQuote('${insight.id}', '${h.id}')" title="${t('tooltips.convertToQuote')}" data-tooltip="${t('tooltips.convertToQuote')}" data-tooltip-position="bottom">
+                                <button class="btn-icon" onclick="convertHighlightToQuote('${insight.id}', '${h.id}')"data-tooltip="${t('tooltips.convertToQuote')}" data-tooltip-position="bottom">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                                     </svg>
                                 </button>
-                                <button class="btn-icon btn-danger" onclick="removeHighlight('${insight.id}', '${h.id}')" title="${t('tooltips.removeHighlight')}" data-tooltip="${t('tooltips.removeHighlight')}" data-tooltip-position="bottom">
+                                <button class="btn-icon btn-danger" onclick="removeHighlight('${insight.id}', '${h.id}')" data-tooltip="${t('tooltips.removeHighlight')}" data-tooltip-position="bottom">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <polyline points="3 6 5 6 21 6"></polyline>
                                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -1361,8 +1361,8 @@ function refreshHighlightsTab(insight) {
         highlightsPane.innerHTML = `
             <div class="highlights-container">
                 <div class="highlights-empty">
-                    <p>No hay texto destacado aún.</p>
-                    <p class="highlight-hint">Ve a la pestaña de Transcripción y selecciona texto para destacarlo.</p>
+                    <p>${t('insights.noHighlights')}</p>
+                    <p class="highlight-hint">${t('insights.highlightsHint')}</p>
                 </div>
             </div>
         `;
@@ -1381,7 +1381,7 @@ function updateHighlightsTabCount(count) {
                 <path d="M2 17l10 5 10-5"></path>
                 <path d="M2 12l10 5 10-5"></path>
             </svg>
-            Destacados (${count})
+            ${t('insights.highlights')} (${count})
         `;
     }
 }
@@ -1389,7 +1389,7 @@ function updateHighlightsTabCount(count) {
 async function removeHighlight(insightId, highlightId) {
     try {
         await insightService.removeHighlight(insightId, highlightId);
-        toast.success('Destacado eliminado');
+        toast.success(t('toast.highlightRemoved'));
 
         // Update local state WITHOUT reloading the view
         const insight = state.insights.find(i => i.id === insightId);
@@ -1401,7 +1401,7 @@ async function removeHighlight(insightId, highlightId) {
         }
     } catch (error) {
         console.error('Error removing highlight:', error);
-        toast.error('Error al eliminar destacado');
+        toast.error(t('toast.errorRemovingHighlight'));
     }
 }
 
@@ -1437,8 +1437,8 @@ function renderTimestampedNotes(notes, insightId, videoId) {
     if (!notes || notes.length === 0) {
         return `
             <div class="timestamped-notes-empty">
-                <p>No hay notas todavía</p>
-                <span>Usa el campo de arriba para añadir notas mientras ves el video</span>
+                <p>${t('insights.noNotes')}</p>
+                <span>${t('insights.noNotesHint')}</span>
             </div>
         `;
     }
@@ -1488,13 +1488,13 @@ function renderTimestampedNotes(notes, insightId, videoId) {
         return `
             <div class="timestamped-note ${typeClass} ${completedClass}" data-note-id="${note.id}">
                 ${timestamp !== null ? `
-                    <button class="note-timestamp" onclick="seekToTime(${note.timestamp})" title="Ir a ${timestamp}">
+                    <button class="note-timestamp" onclick="seekToTime(${note.timestamp})" data-tooltip="${t('insights.seekTo', { time: timestamp })}" data-tooltip-position="left">
                         ${timestamp}
                     </button>
                 ` : ''}
                 <span class="note-type-icon" ${note.type === 'todo' ? `onclick="toggleTodoNote('${insightId}', '${note.id}')"` : ''}>${icon}</span>
                 <span class="note-text">${escapeHtml(note.text)}</span>
-                <button class="note-delete" onclick="deleteTimestampedNote('${insightId}', '${note.id}')" title="${t('tooltips.deleteNote')}" data-tooltip="${t('tooltips.deleteNote')}" data-tooltip-position="left">
+                <button class="note-delete" onclick="deleteTimestampedNote('${insightId}', '${note.id}')" data-tooltip="${t('tooltips.deleteNote')}" data-tooltip-position="right">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
                         <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -1568,7 +1568,7 @@ async function addTimestampedNote(insightId, noteData) {
 
     } catch (error) {
         console.error('Error adding note:', error);
-        showNotification('Error al añadir la nota', 'error');
+        showNotification(t('toast.errorNoteAdd'), 'error');
     }
 }
 
@@ -1589,7 +1589,7 @@ async function deleteTimestampedNote(insightId, noteId) {
 
     } catch (error) {
         console.error('Error deleting note:', error);
-        showNotification('Error al eliminar la nota', 'error');
+        showNotification(t('toast.errorNoteDelete'), 'error');
     }
 }
 
@@ -1767,7 +1767,7 @@ function renderTranscriptArticle(insight) {
 
             return `
                 <div class="transcript-paragraph" data-time="${p.startTime}">
-                    <button class="transcript-timestamp" onclick="seekToTime(${p.startTime})" title="Ir a ${timestamp}">
+                    <button class="transcript-timestamp" onclick="seekToTime(${p.startTime})" data-tooltip="${t('insights.seekTo', { time: timestamp })}" data-tooltip-position="left">
                         ${timestamp}
                     </button>
                     <p>${highlightedText}</p>
@@ -1897,13 +1897,13 @@ async function saveTranscript(insightId) {
 
     const transcript = textarea.value.trim();
     if (!transcript) {
-        toast.warning('Pega la transcripción primero');
+        toast.warning(t('toast.pasteTranscriptFirst'));
         return;
     }
 
     try {
         await insightService.saveTranscript(insightId, transcript);
-        toast.success('Transcripción guardada');
+        toast.success(t('toast.transcriptSaved'));
         // Update local state and refresh
         const insight = state.insights.find(i => i.id === insightId);
         if (insight) {
@@ -1914,15 +1914,15 @@ async function saveTranscript(insightId) {
         }
     } catch (error) {
         console.error('Error saving transcript:', error);
-        toast.error('Error al guardar la transcripción');
+        toast.error(t('toast.errorSavingTranscript'));
     }
 }
 
 async function clearTranscript(insightId) {
     confirmModal.show({
-        title: '¿Borrar transcripción?',
-        message: 'Se eliminarán también todos los destacados asociados.',
-        actionText: 'Borrar',
+        title: t('insights.clearTranscriptTitle'),
+        message: t('insights.clearTranscriptWarning'),
+        actionText: t('insights.clearTranscript'),
         onConfirm: async () => {
             try {
                 await insightService.update(insightId, { transcript: '', highlights: [] });
@@ -1934,9 +1934,9 @@ async function clearTranscript(insightId) {
                     const transcriptTab = document.querySelector('.insight-tab[data-tab="transcript"]');
                     if (transcriptTab) transcriptTab.click();
                 }
-                toast.success('Transcripción eliminada');
+                toast.success(t('toast.transcriptDeleted'));
             } catch (error) {
-                handleFirebaseError(error, 'Error al eliminar la transcripción');
+                handleFirebaseError(error, t('toast.errorDeletingTranscript'));
             }
         }
     });
@@ -1948,14 +1948,14 @@ async function saveInsightNotes(insightId) {
 
     try {
         await insightService.saveNotes(insightId, textarea.value);
-        toast.success('Notas guardadas');
+        toast.success(t('toast.notesSaved'));
         // Update local state
         const insight = state.insights.find(i => i.id === insightId);
         if (insight) {
             insight.structuredNotes = textarea.value;
         }
     } catch (error) {
-        handleFirebaseError(error, 'Error al guardar las notas');
+        handleFirebaseError(error, t('toast.errorSavingNotes'));
     }
 }
 
@@ -1999,7 +1999,7 @@ async function fetchYouTubeTranscript(insightId, videoId) {
                 insight.transcriptParagraphs = result.paragraphs;
             }
 
-            toast.success('Transcripción obtenida correctamente');
+            toast.success(t('toast.transcriptFetched'));
 
             // Refresh the view
             openInsightView(insightId);
@@ -2009,7 +2009,7 @@ async function fetchYouTubeTranscript(insightId, videoId) {
                 if (transcriptTab) transcriptTab.click();
             }, 100);
         } else {
-            throw new Error('No se encontró transcripción para este video');
+            throw new Error(t('toast.transcriptNotFound'));
         }
     } catch (error) {
         console.error('Error fetching transcript:', error);
@@ -2018,7 +2018,7 @@ async function fetchYouTubeTranscript(insightId, videoId) {
         if (error instanceof FirebaseBlockedError || error?.name === 'FirebaseBlockedError') {
             handleFirebaseError(error);
         } else {
-            toast.error(error.message || 'No se pudo obtener la transcripción');
+            toast.error(error.message || t('toast.errorFetchingTranscript'));
 
             // Show manual input as fallback
             const container = document.getElementById('transcriptInputContainer');
@@ -2026,7 +2026,7 @@ async function fetchYouTubeTranscript(insightId, videoId) {
                 container.classList.remove('hidden');
                 const textarea = document.getElementById('transcriptInput');
                 if (textarea) {
-                    textarea.placeholder = 'No se pudo obtener automáticamente. Para copiar manualmente:\n1. Abre el video en YouTube\n2. Haz clic en los 3 puntos (...) bajo el video\n3. Selecciona "Mostrar transcripción"\n4. Copia todo el texto y pégalo aquí';
+                    textarea.placeholder = t('insights.manualCopyInstructions');
                 }
             }
         }
@@ -2073,13 +2073,13 @@ function deleteTopic(topicId) {
         onConfirm: async () => {
             try {
                 await topicService.delete(topicId);
-                toast.success('Tema eliminado');
+                toast.success(t('toast.topicDeleted'));
                 if (state.currentSection === 'wiki') {
                     renderWikiView();
                 }
             } catch (error) {
                 console.error('Error deleting topic:', error);
-                toast.error('Error al eliminar el tema');
+                toast.error(t('toast.errorDeletingTopic'));
             }
         }
     });
@@ -2096,13 +2096,13 @@ function deleteInsight(insightId) {
         onConfirm: async () => {
             try {
                 await insightService.delete(insightId);
-                toast.success('Insight eliminado');
+                toast.success(t('toast.insightDeleted'));
                 if (state.currentSection === 'insights') {
                     renderInsightsView();
                 }
             } catch (error) {
                 console.error('Error deleting insight:', error);
-                toast.error('Error al eliminar el insight');
+                toast.error(t('toast.errorDeletingInsight'));
             }
         }
     });
@@ -2325,14 +2325,14 @@ function restoreQuotesView() {
     if (!document.getElementById('quotesList')) {
         contentBody.innerHTML = `
             <div class="view-controls">
-                <button class="view-btn ${state.currentView === 'list' ? 'active' : ''}" id="viewList" data-i18n-title="quotes.listView" title="Vista lista" data-tooltip="${t('tooltips.listView')}">
+                <button class="view-btn ${state.currentView === 'list' ? 'active' : ''}" id="viewList" data-i18n-title="quotes.listView" data-tooltip="${t('tooltips.listView')}">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="3" y1="6" x2="21" y2="6"></line>
                         <line x1="3" y1="12" x2="21" y2="12"></line>
                         <line x1="3" y1="18" x2="21" y2="18"></line>
                     </svg>
                 </button>
-                <button class="view-btn ${state.currentView === 'compare' ? 'active' : ''}" id="viewCompare" data-i18n-title="quotes.compareView" title="Vista comparativa" data-tooltip="${t('tooltips.compareView')}">
+                <button class="view-btn ${state.currentView === 'compare' ? 'active' : ''}" id="viewCompare" data-i18n-title="quotes.compareView" data-tooltip="${t('tooltips.compareView')}">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="3" y="3" width="7" height="18"></rect>
                         <rect x="14" y="3" width="7" height="18"></rect>
@@ -2462,13 +2462,13 @@ function renderTopicsList() {
                 </div>
             </div>
             <div class="topic-actions">
-                <button class="btn-icon" onclick="event.stopPropagation(); editTopic('${topic.id}')" title="${t('quotes.edit')}" data-tooltip="${t('tooltips.edit')}">
+                <button class="btn-icon" onclick="event.stopPropagation(); editTopic('${topic.id}')" data-tooltip="${t('tooltips.edit')}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                     </svg>
                 </button>
-                <button class="btn-icon btn-danger" onclick="event.stopPropagation(); deleteTopic('${topic.id}')" title="${t('quotes.delete')}" data-tooltip="${t('tooltips.delete')}">
+                <button class="btn-icon btn-danger" onclick="event.stopPropagation(); deleteTopic('${topic.id}')" data-tooltip="${t('tooltips.delete')}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="3 6 5 6 21 6"></polyline>
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -2605,13 +2605,13 @@ function renderInsightsList() {
                         <span>${insight.sourceType || 'other'}</span>
                     </div>
                     <div class="insight-card-actions">
-                        <button class="insight-card-action" onclick="event.stopPropagation(); editInsight('${insight.id}')" title="${t('quotes.edit')}" data-tooltip="${t('tooltips.edit')}">
+                        <button class="insight-card-action" onclick="event.stopPropagation(); editInsight('${insight.id}')" data-tooltip="${t('tooltips.edit')}">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                             </svg>
                         </button>
-                        <button class="insight-card-action danger" onclick="event.stopPropagation(); deleteInsight('${insight.id}')" title="${t('quotes.delete')}" data-tooltip="${t('tooltips.delete')}">
+                        <button class="insight-card-action danger" onclick="event.stopPropagation(); deleteInsight('${insight.id}')" data-tooltip="${t('tooltips.delete')}">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="3 6 5 6 21 6"></polyline>
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -2625,7 +2625,7 @@ function renderInsightsList() {
                         <span class="insight-status-text">${t('insights.' + insight.status)}</span>
                         <span class="insight-card-date">${new Date(insight.createdAt).toLocaleDateString()}</span>
                     </div>
-                    <h3 class="insight-card-title">${escapeHtml(insight.sourceTitle || 'Sin título')}</h3>
+                    <h3 class="insight-card-title">${escapeHtml(insight.sourceTitle || t('insights.untitled'))}</h3>
                     ${linkedTopic ? `
                         <div class="insight-card-topic">
                             <span>${linkedTopic.icon}</span>
@@ -2634,7 +2634,7 @@ function renderInsightsList() {
                     ` : ''}
                     <div class="insight-card-stats">
                         ${notesCount > 0 ? `
-                            <span class="insight-stat" title="${notesCount} notas">
+                            <span class="insight-stat" data-tooltip="${t('insights.notesCount', { count: notesCount })}">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                                     <polyline points="14 2 14 8 20 8"></polyline>
@@ -2643,7 +2643,7 @@ function renderInsightsList() {
                             </span>
                         ` : ''}
                         ${highlightsCount > 0 ? `
-                            <span class="insight-stat" title="${highlightsCount} destacados">
+                            <span class="insight-stat" data-tooltip="${t('insights.highlightsCount', { count: highlightsCount })}">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
                                     <path d="M2 17l10 5 10-5"></path>
@@ -2652,7 +2652,7 @@ function renderInsightsList() {
                             </span>
                         ` : ''}
                         ${insight.transcript ? `
-                            <span class="insight-stat" title="Tiene transcripción">
+                            <span class="insight-stat" data-tooltip="${t('insights.hasTranscript')}">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                                     <line x1="9" y1="9" x2="15" y2="9"></line>
@@ -2734,7 +2734,7 @@ function openInsightModal(insightToEdit = null) {
     updateInsightTopicsDropdown();
 
     if (insightToEdit) {
-        elements.insightModalTitle.textContent = t('insights.editInsight') || 'Editar insight';
+        elements.insightModalTitle.textContent = t('insights.editInsight');
         elements.insightId.value = insightToEdit.id;
         elements.insightSourceUrl.value = insightToEdit.sourceUrl || '';
         elements.insightNotes.value = insightToEdit.rawNotes || '';
@@ -2853,7 +2853,7 @@ function setupInsightModalListeners() {
         elements.fetchMetadataBtn.onclick = async () => {
             const url = elements.insightSourceUrl.value.trim();
             if (!url) {
-                toast.warning('Ingresa una URL primero');
+                toast.warning(t('toast.enterUrlFirst'));
                 return;
             }
 
@@ -2864,7 +2864,7 @@ function setupInsightModalListeners() {
                     showSourcePreview(metadata);
                 }
             } catch (err) {
-                toast.error('No se pudo obtener información de la URL');
+                toast.error(t('toast.errorFetchingMetadata'));
             } finally {
                 elements.fetchMetadataBtn.disabled = false;
             }
@@ -2885,7 +2885,7 @@ async function handleInsightSubmit() {
     const notes = elements.insightNotes.value.trim();
 
     if (!notes && !url) {
-        toast.warning('Añade una URL o apuntes');
+        toast.warning(t('toast.addUrlOrNotes'));
         return;
     }
 
@@ -2893,7 +2893,7 @@ async function handleInsightSubmit() {
     const sourceType = insightService.detectSourceType(url);
 
     // Get metadata from preview if available
-    const sourceTitle = elements.sourceTitle.textContent || url || 'Sin título';
+    const sourceTitle = elements.sourceTitle.textContent || url || t('insights.untitled');
     const sourceChannel = elements.sourceChannel.textContent || null;
     const sourceThumbnail = elements.sourceThumbnail.src || null;
 
@@ -2912,10 +2912,10 @@ async function handleInsightSubmit() {
     try {
         if (insightId) {
             await insightService.update(insightId, data);
-            toast.success('Insight actualizado');
+            toast.success(t('toast.insightUpdated'));
         } else {
             await insightService.create(data, authService.getCurrentUser().uid);
-            toast.success('Insight guardado');
+            toast.success(t('toast.insightSaved'));
         }
         closeInsightModal();
 
@@ -2967,7 +2967,7 @@ function setupTopicModalListeners() {
 async function handleTopicSubmit() {
     const name = elements.topicName.value.trim();
     if (!name) {
-        toast.warning('El nombre es requerido');
+        toast.warning(t('toast.nameRequired'));
         return;
     }
 
@@ -2981,10 +2981,10 @@ async function handleTopicSubmit() {
     try {
         if (topicId) {
             await topicService.update(topicId, data);
-            toast.success('Tema actualizado');
+            toast.success(t('toast.topicUpdated'));
         } else {
             await topicService.create(data, authService.getCurrentUser().uid);
-            toast.success('Tema creado');
+            toast.success(t('toast.topicCreated'));
         }
         closeTopicModal();
 
@@ -2994,7 +2994,7 @@ async function handleTopicSubmit() {
         }
     } catch (err) {
         console.error('Error saving topic:', err);
-        toast.error('Error al guardar el tema');
+        toast.error(t('toast.errorSavingTopic'));
     }
 }
 

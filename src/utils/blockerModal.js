@@ -36,13 +36,11 @@ export function showBlockerModal(onRetry = null) {
             <div class="blocker-modal-actions">
                 <button class="btn btn-primary blocker-modal-retry">${messages.retry}</button>
                 <button class="btn btn-secondary blocker-modal-dismiss">
-                    ${locale === 'es' ? 'Cerrar' : 'Close'}
+                    ${t('tooltips.close')}
                 </button>
             </div>
             <p class="blocker-modal-hint">
-                ${locale === 'es'
-                    ? 'Si el problema persiste, prueba con otro navegador o dispositivo.'
-                    : 'If the problem persists, try another browser or device.'}
+                ${t('blockerModal.persistenceHint')}
             </p>
         </div>
     `;
@@ -55,7 +53,7 @@ export function showBlockerModal(onRetry = null) {
 
     retryBtn.addEventListener('click', async () => {
         retryBtn.disabled = true;
-        retryBtn.textContent = locale === 'es' ? 'Verificando...' : 'Checking...';
+        retryBtn.textContent = t('blockerModal.checking');
 
         // Reset the detector and check again
         firebaseBlockerDetector.reset();

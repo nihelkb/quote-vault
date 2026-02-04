@@ -4,6 +4,8 @@
  * Open/Closed Principle: Extensible for different confirmation types
  */
 
+import { t } from './i18n.js';
+
 class ConfirmModalManager {
     constructor() {
         this.modal = null;
@@ -97,9 +99,9 @@ class ConfirmModalManager {
      */
     confirmDelete(itemName, onConfirm) {
         this.show({
-            title: `¿Eliminar ${itemName}?`,
-            message: 'Esta acción no se puede deshacer.',
-            actionText: 'Eliminar',
+            title: t('confirm.deleteItem', { item: itemName }),
+            message: t('confirm.cannotUndo'),
+            actionText: t('quotes.delete'),
             onConfirm
         });
     }
