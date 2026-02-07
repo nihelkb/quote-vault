@@ -1809,10 +1809,7 @@ function openInsightView(insightId) {
                             <details class="free-notes-section">
                                 <summary>
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <line x1="21" y1="10" x2="3" y2="10"></line>
-                                        <line x1="21" y1="6" x2="3" y2="6"></line>
-                                        <line x1="21" y1="14" x2="3" y2="14"></line>
-                                        <line x1="21" y1="18" x2="3" y2="18"></line>
+                                        <polyline points="9 18 15 12 9 6"></polyline>
                                     </svg>
                                     ${t('insights.freeNotesLabel')}
                                 </summary>
