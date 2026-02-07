@@ -821,18 +821,44 @@
                 <div class="form-group">
                     <label for="topicIcon" data-i18n="topics.icon">Icono</label>
                     <div class="icon-picker" id="iconPicker">
-                        <button type="button" class="icon-option selected" data-icon="📁">📁</button>
-                        <button type="button" class="icon-option" data-icon="🌍">🌍</button>
-                        <button type="button" class="icon-option" data-icon="💰">💰</button>
-                        <button type="button" class="icon-option" data-icon="⚖️">⚖️</button>
-                        <button type="button" class="icon-option" data-icon="🏛️">🏛️</button>
-                        <button type="button" class="icon-option" data-icon="🔬">🔬</button>
-                        <button type="button" class="icon-option" data-icon="💻">💻</button>
-                        <button type="button" class="icon-option" data-icon="🧠">🧠</button>
-                        <button type="button" class="icon-option" data-icon="📚">📚</button>
-                        <button type="button" class="icon-option" data-icon="🎯">🎯</button>
+                        <button type="button" class="icon-option selected" data-icon="folder" title="Carpeta">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+                        </button>
+                        <button type="button" class="icon-option" data-icon="globe" title="Mundo">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+                        </button>
+                        <button type="button" class="icon-option" data-icon="coin" title="Finanzas">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M9 9h6M9 15h6"/></svg>
+                        </button>
+                        <button type="button" class="icon-option" data-icon="scale" title="Justicia">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3v18M5 8l7-5 7 5M5 8v5a7 7 0 007 7 7 7 0 007-7V8"/><circle cx="5" cy="11" r="2"/><circle cx="19" cy="11" r="2"/></svg>
+                        </button>
+                        <button type="button" class="icon-option" data-icon="building" title="Instituciones">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/><path d="M9 9v.01M9 12v.01M9 15v.01M9 18v.01"/></svg>
+                        </button>
+                        <button type="button" class="icon-option" data-icon="flask" title="Ciencia">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 3h6M10 3v7.4a2 2 0 01-.5 1.3L4 19a2 2 0 001.5 3h13a2 2 0 001.5-3l-5.5-7.3a2 2 0 01-.5-1.3V3"/></svg>
+                        </button>
+                        <button type="button" class="icon-option" data-icon="code" title="Tecnología">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                        </button>
+                        <button type="button" class="icon-option" data-icon="brain" title="Psicología">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5a3 3 0 00-3 3c0 1.5 1.5 3 1.5 3s-2.5.5-2.5 3a3 3 0 003 3"/><path d="M12 5a3 3 0 013 3c0 1.5-1.5 3-1.5 3s2.5.5 2.5 3a3 3 0 01-3 3"/><path d="M12 5V3M12 17v4"/></svg>
+                        </button>
+                        <button type="button" class="icon-option" data-icon="book" title="Libros">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+                        </button>
+                        <button type="button" class="icon-option" data-icon="target" title="Objetivos">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                        </button>
+                        <button type="button" class="icon-option" data-icon="heart" title="Relaciones">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+                        </button>
+                        <button type="button" class="icon-option" data-icon="star" title="Destacado">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        </button>
                     </div>
-                    <input type="hidden" id="topicIconValue" value="📁">
+                    <input type="hidden" id="topicIconValue" value="folder">
                 </div>
 
                 <div class="form-group">

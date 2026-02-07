@@ -739,7 +739,7 @@ function renderSidebarTopics() {
 
     const html = state.topics.map(topic => `
         <button class="nav-item" data-topic-id="${topic.id}">
-            <span class="topic-icon-small">${topic.icon || '📁'}</span>
+            <span class="topic-icon-small" data-icon="${topic.icon || 'folder'}">${getTopicIconSvg(topic.icon || 'folder', 16)}</span>
             <span class="topic-name">${escapeHtml(topic.name)}</span>
         </button>
     `).join('');
@@ -781,7 +781,7 @@ async function openTopicView(topicId) {
 function renderTopicDetailView(topic, linkedQuotes, linkedInsights) {
     const customSections = topic.customSections || [];
     const sortedSections = [...customSections].sort((a, b) => (a.order || 0) - (b.order || 0));
-    const topicInitial = (topic.name || '').trim().charAt(0).toUpperCase() || '?';
+    const topicIcon = getTopicIconSvg(topic.icon || 'folder', 16);
 
     return `
         <div class="topic-detail-view">
@@ -795,7 +795,7 @@ function renderTopicDetailView(topic, linkedQuotes, linkedInsights) {
                 </button>
 
                 <div class="topic-detail-title-row">
-                    <div class="topic-detail-monogram" aria-hidden="true">${escapeHtml(topicInitial)}</div>
+                    <div class="topic-detail-monogram" aria-hidden="true">${topicIcon}</div>
                     <div class="topic-detail-title">
                         <h1>${escapeHtml(topic.name)}</h1>
                         ${topic.description ? `<p class="topic-detail-description">${escapeHtml(topic.description)}</p>` : ''}
@@ -898,6 +898,26 @@ function getSectionIconSvg(iconName, size = 20) {
     };
 
     const iconPath = icons[iconName] || icons.document;
+    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">${iconPath}</svg>`;
+}
+
+function getTopicIconSvg(iconName, size = 18) {
+    const icons = {
+        folder: `<path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>`,
+        globe: `<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>`,
+        coin: `<circle cx="12" cy="12" r="10"/><path d="M12 6v12M9 9h6M9 15h6"/>`,
+        scale: `<path d="M12 3v18M5 8l7-5 7 5M5 8v5a7 7 0 007 7 7 7 0 007-7V8"/><circle cx="5" cy="11" r="2"/><circle cx="19" cy="11" r="2"/>`,
+        building: `<path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/><path d="M9 9v.01M9 12v.01M9 15v.01M9 18v.01"/>`,
+        flask: `<path d="M9 3h6M10 3v7.4a2 2 0 01-.5 1.3L4 19a2 2 0 001.5 3h13a2 2 0 001.5-3l-5.5-7.3a2 2 0 01-.5-1.3V3"/>`,
+        code: `<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>`,
+        brain: `<path d="M12 5a3 3 0 00-3 3c0 1.5 1.5 3 1.5 3s-2.5.5-2.5 3a3 3 0 003 3"/><path d="M12 5a3 3 0 013 3c0 1.5-1.5 3-1.5 3s2.5.5 2.5 3a3 3 0 01-3 3"/><path d="M12 5V3M12 17v4"/>`,
+        book: `<path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>`,
+        target: `<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>`,
+        heart: `<path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>`,
+        star: `<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>`
+    };
+
+    const iconPath = icons[iconName] || icons.folder;
     return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">${iconPath}</svg>`;
 }
 
@@ -2159,7 +2179,7 @@ function openInsightView(insightId) {
                                 `).join('')}
                             </div>
                         </div>
-                        ${linkedTopic ? `<span class="insight-linked-topic">${linkedTopic.icon} ${escapeHtml(linkedTopic.name)}</span>` : ''}
+                        ${linkedTopic ? `<span class="insight-linked-topic">${getTopicIconSvg(linkedTopic.icon || 'folder', 14)} ${escapeHtml(linkedTopic.name)}</span>` : ''}
                     </div>
                 </div>
                 <div class="insight-detail-actions">
@@ -3829,10 +3849,10 @@ function renderTopicsList() {
 
     const html = filteredTopics.map(topic => `
         <div class="topic-card" data-topic-id="${topic.id}">
-            <div class="topic-icon">${topic.icon || '📁'}</div>
+            <div class="topic-icon" data-icon="${topic.icon || 'folder'}">${getTopicIconSvg(topic.icon || 'folder', 24)}</div>
             <div class="topic-info">
                 <h3 class="topic-name">${escapeHtml(topic.name)}</h3>
-                <p class="topic-description">${escapeHtml(topic.description || '')}</p>
+                ${topic.description ? `<p class="topic-description">${escapeHtml(topic.description)}</p>` : ''}
                 <div class="topic-meta">
                     ${quoteCounts[topic.id] ? `<span class="topic-quote-count">${quoteCounts[topic.id]} ${t('sidebar.quotes').toLowerCase()}</span>` : ''}
                 </div>
@@ -4004,7 +4024,7 @@ function renderInsightsList() {
                     <h3 class="insight-card-title">${escapeHtml(insight.sourceTitle || t('insights.untitled'))}</h3>
                     ${linkedTopic ? `
                         <div class="insight-card-topic">
-                            <span>${linkedTopic.icon}</span>
+                            ${getTopicIconSvg(linkedTopic.icon || 'folder', 14)}
                             <span>${escapeHtml(linkedTopic.name)}</span>
                         </div>
                     ` : ''}
@@ -4073,7 +4093,7 @@ function openTopicModal(topicToEdit = null) {
 
     // Reset icon picker
     elements.iconPicker.querySelectorAll('.icon-option').forEach(btn => {
-        btn.classList.toggle('selected', btn.dataset.icon === '📁');
+        btn.classList.toggle('selected', btn.dataset.icon === 'folder');
     });
 
     if (topicToEdit) {
@@ -4081,7 +4101,7 @@ function openTopicModal(topicToEdit = null) {
         elements.topicId.value = topicToEdit.id;
         elements.topicName.value = topicToEdit.name;
         elements.topicDescription.value = topicToEdit.description || '';
-        elements.topicIconValue.value = topicToEdit.icon || '📁';
+        elements.topicIconValue.value = topicToEdit.icon || 'folder';
 
         // Update icon picker
         elements.iconPicker.querySelectorAll('.icon-option').forEach(btn => {
@@ -4150,7 +4170,7 @@ function updateInsightTopicsDropdown() {
     state.topics.forEach(topic => {
         const option = document.createElement('option');
         option.value = topic.id;
-        option.textContent = `${topic.icon || '📁'} ${topic.name}`;
+        option.textContent = topic.name;
         select.appendChild(option);
     });
 }

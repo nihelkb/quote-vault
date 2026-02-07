@@ -1337,7 +1337,6 @@ header {
     font-family: inherit;
     font-size: 0.85rem;
     color: var(--text-muted);
-    gap: 10px;
 }
 
 .nav-item:hover {
@@ -1358,6 +1357,11 @@ header {
 
 .nav-item.active .item-count {
     color: var(--text);
+}
+
+#sidebarTopics .nav-item {
+    justify-content: flex-start;
+    gap: 10px;
 }
 
 .nav-add-btn {
@@ -1531,8 +1535,35 @@ header {
 }
 
 .topic-icon {
-    font-size: 2rem;
-    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: #f8f6f2;
+    border: 1px solid #e8e4dc;
+    color: var(--topic-icon-color, #7a7265);
+    flex-shrink: 0;
+}
+
+.topic-icon svg {
+    width: 24px;
+    height: 24px;
+}
+
+.topic-card {
+    align-items: center;
+}
+
+.topic-card .topic-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.topic-card .topic-description:empty {
+    display: none;
 }
 
 .topic-info {
@@ -1564,8 +1595,30 @@ header {
 
 /* Sidebar topic items */
 .topic-icon-small {
-    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #8a8279;
 }
+
+.topic-icon-small svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Topic Icon Colors by Category */
+.topic-icon[data-icon="folder"], .topic-icon-small[data-icon="folder"] { color: #8b7355; }
+.topic-icon[data-icon="globe"], .topic-icon-small[data-icon="globe"] { color: #5b8a72; }
+.topic-icon[data-icon="coin"], .topic-icon-small[data-icon="coin"] { color: #b8860b; }
+.topic-icon[data-icon="scale"], .topic-icon-small[data-icon="scale"] { color: #7b68a0; }
+.topic-icon[data-icon="building"], .topic-icon-small[data-icon="building"] { color: #6b7b8a; }
+.topic-icon[data-icon="flask"], .topic-icon-small[data-icon="flask"] { color: #4a90a0; }
+.topic-icon[data-icon="code"], .topic-icon-small[data-icon="code"] { color: #6b8e5a; }
+.topic-icon[data-icon="brain"], .topic-icon-small[data-icon="brain"] { color: #a07080; }
+.topic-icon[data-icon="book"], .topic-icon-small[data-icon="book"] { color: #8b6b5a; }
+.topic-icon[data-icon="target"], .topic-icon-small[data-icon="target"] { color: #c07050; }
+.topic-icon[data-icon="heart"], .topic-icon-small[data-icon="heart"] { color: #c07080; }
+.topic-icon[data-icon="star"], .topic-icon-small[data-icon="star"] { color: #c0a050; }
 
 /* Insights Grid */
 .insights-grid {
@@ -5160,33 +5213,40 @@ header {
 
 /* Icon picker in forms */
 .icon-picker {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     margin-top: 8px;
 }
 
 .icon-option {
-    background: var(--bg);
-    border: 2px solid var(--border);
-    border-radius: 8px;
-    padding: 12px;
-    font-size: 1.5rem;
+    background: #f8f6f2;
+    border: 1px solid #e5e0d8;
+    border-radius: 10px;
+    padding: 10px;
     cursor: pointer;
     transition: all 0.2s;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b6458;
 }
 
 .icon-option:hover {
     border-color: var(--accent);
     background: white;
+    color: var(--accent);
 }
 
 .icon-option.selected {
     border-color: var(--accent);
     background: var(--accent);
     color: white;
-    filter: grayscale(0.3) brightness(1.2);
+}
+
+.icon-option svg {
+    width: 20px;
+    height: 20px;
 }
 
 /* ============================================================================
