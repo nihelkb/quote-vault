@@ -299,6 +299,19 @@ class InsightService {
     }
 
     /**
+     * Update highlight color
+     */
+    async updateHighlightColor(insightId, highlightId, color) {
+        const insight = await this.getById(insightId);
+        if (!insight) return;
+
+        const highlights = (insight.highlights || []).map(h =>
+            h.id === highlightId ? { ...h, color } : h
+        );
+        await this.update(insightId, { highlights });
+    }
+
+    /**
      * Save transcript
      */
     async saveTranscript(insightId, transcript) {

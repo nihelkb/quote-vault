@@ -1944,7 +1944,7 @@ function openInsightView(insightId) {
                                     <div class="highlights-list">
                                         ${(insight.highlights || []).map(h => `
                                             <div class="highlight-item" data-highlight-id="${h.id}">
-                                                <div class="highlight-color" style="background: ${getHighlightColor(h.color)}"></div>
+                                                <button class="highlight-color" style="background: ${getHighlightColor(h.color)}" onclick="showColorPicker('${insight.id}', '${h.id}', this)" data-tooltip="${t('tooltips.changeColor')}"></button>
                                                 <div class="highlight-content">
                                                     <p class="highlight-text">"${escapeHtml(h.text)}"</p>
                                                     ${h.note ? `<p class="highlight-note">${escapeHtml(h.note)}</p>` : ''}
@@ -2106,12 +2106,26 @@ function setupTranscriptHighlighting(insightId) {
     const transcriptText = document.getElementById('transcriptText');
     if (!transcriptText) return;
 
-    transcriptText.addEventListener('mouseup', () => {
+    // Handle text selection for new highlights
+    transcriptText.addEventListener('mouseup', (e) => {
+        // Don't show highlight popup if clicking on existing highlight
+        if (e.target.tagName === 'MARK') return;
+
         const selection = window.getSelection();
         const selectedText = selection.toString().trim();
 
         if (selectedText.length > 5) {
             showHighlightPopup(insightId, selectedText, selection);
+        }
+    });
+
+    // Handle click on existing highlights to change color
+    transcriptText.addEventListener('click', (e) => {
+        if (e.target.tagName === 'MARK') {
+            const highlightId = e.target.dataset.highlightId;
+            if (highlightId) {
+                showColorPicker(insightId, highlightId, e.target);
+            }
         }
     });
 }
@@ -2159,6 +2173,67 @@ function showHighlightPopup(insightId, text, selection) {
             }
         });
     }, 100);
+}
+
+function showColorPicker(insightId, highlightId, buttonElement) {
+    // Remove existing popup
+    const existingPopup = document.querySelector('.color-picker-popup');
+    if (existingPopup) existingPopup.remove();
+
+    const rect = buttonElement.getBoundingClientRect();
+
+    const popup = document.createElement('div');
+    popup.className = 'color-picker-popup';
+    popup.innerHTML = `
+        <button class="highlight-btn" data-color="yellow" style="background: #fef08a" data-tooltip="${t('highlightColors.yellow')}"></button>
+        <button class="highlight-btn" data-color="green" style="background: #bbf7d0" data-tooltip="${t('highlightColors.green')}"></button>
+        <button class="highlight-btn" data-color="blue" style="background: #bfdbfe" data-tooltip="${t('highlightColors.blue')}"></button>
+        <button class="highlight-btn" data-color="pink" style="background: #fbcfe8" data-tooltip="${t('highlightColors.pink')}"></button>
+    `;
+
+    popup.style.position = 'fixed';
+    popup.style.left = `${rect.left}px`;
+    popup.style.top = `${rect.bottom + 8}px`;
+
+    document.body.appendChild(popup);
+
+    // Handle color selection
+    popup.querySelectorAll('.highlight-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const color = btn.dataset.color;
+            await changeHighlightColor(insightId, highlightId, color);
+            popup.remove();
+        });
+    });
+
+    // Close popup on click outside
+    setTimeout(() => {
+        document.addEventListener('click', function closePopup(e) {
+            if (!popup.contains(e.target) && e.target !== buttonElement) {
+                popup.remove();
+                document.removeEventListener('click', closePopup);
+            }
+        });
+    }, 100);
+}
+
+async function changeHighlightColor(insightId, highlightId, color) {
+    try {
+        await insightService.updateHighlightColor(insightId, highlightId, color);
+        toast.success(t('toast.colorUpdated'));
+
+        // Update local state
+        const insight = state.insights.find(i => i.id === insightId);
+        if (insight) {
+            const updated = await insightService.getById(insightId);
+            Object.assign(insight, updated);
+
+            refreshTranscriptContent(insight);
+            refreshHighlightsTab(insight);
+        }
+    } catch (error) {
+        handleFirebaseError(error, t('toast.errorUpdating'));
+    }
 }
 
 async function addHighlightToInsight(insightId, text, color) {
@@ -2211,14 +2286,14 @@ function refreshHighlightsTab(insight) {
                 <div class="highlights-list">
                     ${highlights.map(h => `
                         <div class="highlight-item" data-highlight-id="${h.id}">
-                            <div class="highlight-color" style="background: ${getHighlightColor(h.color)}"></div>
+                            <button class="highlight-color" style="background: ${getHighlightColor(h.color)}" onclick="showColorPicker('${insight.id}', '${h.id}', this)" data-tooltip="${t('tooltips.changeColor')}"></button>
                             <div class="highlight-content">
                                 <p class="highlight-text">"${escapeHtml(h.text)}"</p>
                                 ${h.note ? `<p class="highlight-note">${escapeHtml(h.note)}</p>` : ''}
                                 ${h.timestamp ? `<span class="highlight-timestamp">${h.timestamp}</span>` : ''}
                             </div>
                             <div class="highlight-actions">
-                                <button class="btn-icon" onclick="convertHighlightToQuote('${insight.id}', '${h.id}')"data-tooltip="${t('tooltips.convertToQuote')}" data-tooltip-position="bottom">
+                                <button class="btn-icon" onclick="convertHighlightToQuote('${insight.id}', '${h.id}')" data-tooltip="${t('tooltips.convertToQuote')}" data-tooltip-position="bottom">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                                     </svg>
@@ -4300,6 +4375,8 @@ window.saveTranscript = saveTranscript;
 window.clearTranscript = clearTranscript;
 window.fetchYouTubeTranscript = fetchYouTubeTranscript;
 window.removeHighlight = removeHighlight;
+window.showColorPicker = showColorPicker;
+window.changeHighlightColor = changeHighlightColor;
 window.convertHighlightToQuote = convertHighlightToQuote;
 window.seekToTime = seekToTime;
 window.insertTimestampNote = insertTimestampNote;

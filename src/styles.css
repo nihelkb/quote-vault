@@ -2871,6 +2871,17 @@ header {
     background: var(--text-muted);
 }
 
+.transcript-article mark {
+    cursor: pointer;
+    border-radius: 2px;
+    padding: 1px 2px;
+    transition: filter 0.15s ease;
+}
+
+.transcript-article mark:hover {
+    filter: brightness(0.92);
+}
+
 .transcript-paragraph {
     display: flex;
     gap: 12px;
@@ -3091,9 +3102,29 @@ header {
 }
 
 .highlight-color {
-    width: 4px;
-    border-radius: 2px;
+    width: 8px;
+    min-height: 40px;
+    border-radius: 4px;
     flex-shrink: 0;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    padding: 0;
+}
+
+.highlight-color:hover {
+    transform: scaleX(1.5);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.color-picker-popup {
+    display: flex;
+    gap: 6px;
+    background: white;
+    padding: 8px;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
 }
 
 .highlight-content {
