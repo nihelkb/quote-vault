@@ -265,6 +265,11 @@
     "status": "Estado",
     "inProgress": "En progreso",
     "consolidated": "Consolidado",
+    "viewDetails": "Ver detalles",
+    "linkedInsights": "Insights vinculados",
+    "noLinkedInsights": "Sin insights vinculados",
+    "noEntries": "Sin entradas todavía",
+    "addFirstEntry": "Añade la primera entrada a esta sección",
     "sections": {
       "timeline": "Contexto histórico",
       "arguments": "Argumentos",
@@ -272,6 +277,22 @@
       "sources": "Fuentes",
       "quotes": "Citas relacionadas",
       "connections": "Conexiones"
+    },
+    "sectionDescriptions": {
+      "timeline": "Eventos cronológicos que contextualizan el tema",
+      "arguments": "Argumentos a favor y en contra con sus refutaciones",
+      "data": "Estadísticas, datos verificables y hechos relevantes",
+      "sources": "Libros, videos, artículos y documentos de referencia",
+      "quotes": "Citas relevantes vinculadas desde tu colección",
+      "connections": "Temas relacionados que amplían el contexto"
+    },
+    "emptyStates": {
+      "timeline": "No hay eventos en la línea temporal",
+      "arguments": "No hay argumentos registrados",
+      "data": "No hay datos o estadísticas",
+      "sources": "No hay fuentes añadidas",
+      "quotes": "No hay citas vinculadas",
+      "connections": "No hay temas relacionados"
     }
   },
   "tooltips": {

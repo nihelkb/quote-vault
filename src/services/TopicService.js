@@ -74,16 +74,8 @@ class TopicService {
             icon: data.icon || '📁',
             status: 'in_progress',
 
-            // Sections enabled by default
-            sections: {
-                timeline: true,
-                arguments: true,
-                data: true,
-                sources: true,
-                quotes: true,
-                connections: true,
-                ...data.sections
-            },
+            // Custom sections (user-defined wiki sections)
+            customSections: data.customSections || [],
 
             tags: data.tags || [],
             relatedTopicIds: data.relatedTopicIds || [],
@@ -163,6 +155,140 @@ class TopicService {
     async removeRelatedTopic(topicId, relatedTopicId, currentRelated = []) {
         const newRelated = currentRelated.filter(id => id !== relatedTopicId);
         await this.update(topicId, { relatedTopicIds: newRelated });
+    }
+
+    /**
+     * Add a custom section to a topic
+     */
+    async addCustomSection(topicId, sectionData, currentSections = []) {
+        const newSection = {
+            id: Date.now().toString(),
+            name: sectionData.name.trim(),
+            icon: sectionData.icon || '📄',
+            type: sectionData.type || 'document', // 'list' or 'document'
+
+            // For document type
+            content: sectionData.content || '',
+
+            // For list type
+            entries: sectionData.entries || [],
+
+            order: currentSections.length,
+            color: sectionData.color || null,
+            linkedInsightIds: sectionData.linkedInsightIds || [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+
+        const updatedSections = [...currentSections, newSection];
+        await this.update(topicId, { customSections: updatedSections });
+        return newSection;
+    }
+
+    /**
+     * Add an entry to a list-type section
+     */
+    async addEntryToSection(topicId, sectionId, entryData, currentSections = []) {
+        const newEntry = {
+            id: Date.now().toString(),
+            title: entryData.title?.trim() || '',
+            content: entryData.content?.trim() || '',
+            date: entryData.date || null,
+            source: entryData.source || null,
+            sourceUrl: entryData.sourceUrl || null,
+            tags: entryData.tags || [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+
+        const updatedSections = currentSections.map(section => {
+            if (section.id === sectionId) {
+                const entries = section.entries || [];
+                return {
+                    ...section,
+                    entries: [...entries, newEntry],
+                    updatedAt: new Date().toISOString()
+                };
+            }
+            return section;
+        });
+
+        await this.update(topicId, { customSections: updatedSections });
+        return newEntry;
+    }
+
+    /**
+     * Update an entry in a section
+     */
+    async updateSectionEntry(topicId, sectionId, entryId, updates, currentSections = []) {
+        const updatedSections = currentSections.map(section => {
+            if (section.id === sectionId) {
+                const entries = (section.entries || []).map(entry =>
+                    entry.id === entryId
+                        ? { ...entry, ...updates, updatedAt: new Date().toISOString() }
+                        : entry
+                );
+                return {
+                    ...section,
+                    entries,
+                    updatedAt: new Date().toISOString()
+                };
+            }
+            return section;
+        });
+
+        await this.update(topicId, { customSections: updatedSections });
+    }
+
+    /**
+     * Delete an entry from a section
+     */
+    async deleteSectionEntry(topicId, sectionId, entryId, currentSections = []) {
+        const updatedSections = currentSections.map(section => {
+            if (section.id === sectionId) {
+                const entries = (section.entries || []).filter(entry => entry.id !== entryId);
+                return {
+                    ...section,
+                    entries,
+                    updatedAt: new Date().toISOString()
+                };
+            }
+            return section;
+        });
+
+        await this.update(topicId, { customSections: updatedSections });
+    }
+
+    /**
+     * Update a custom section
+     */
+    async updateCustomSection(topicId, sectionId, updates, currentSections = []) {
+        const updatedSections = currentSections.map(section =>
+            section.id === sectionId
+                ? { ...section, ...updates, updatedAt: new Date().toISOString() }
+                : section
+        );
+        await this.update(topicId, { customSections: updatedSections });
+    }
+
+    /**
+     * Delete a custom section
+     */
+    async deleteCustomSection(topicId, sectionId, currentSections = []) {
+        const updatedSections = currentSections.filter(section => section.id !== sectionId);
+        await this.update(topicId, { customSections: updatedSections });
+    }
+
+    /**
+     * Reorder custom sections
+     */
+    async reorderSections(topicId, newSections) {
+        const reorderedSections = newSections.map((section, index) => ({
+            ...section,
+            order: index,
+            updatedAt: new Date().toISOString()
+        }));
+        await this.update(topicId, { customSections: reorderedSections });
     }
 }
 

@@ -265,6 +265,11 @@
     "status": "Status",
     "inProgress": "In progress",
     "consolidated": "Consolidated",
+    "viewDetails": "View details",
+    "linkedInsights": "Linked insights",
+    "noLinkedInsights": "No linked insights",
+    "noEntries": "No entries yet",
+    "addFirstEntry": "Add the first entry to this section",
     "sections": {
       "timeline": "Historical context",
       "arguments": "Arguments",
@@ -272,6 +277,22 @@
       "sources": "Sources",
       "quotes": "Related quotes",
       "connections": "Connections"
+    },
+    "sectionDescriptions": {
+      "timeline": "Chronological events that contextualize the topic",
+      "arguments": "Arguments for and against with their rebuttals",
+      "data": "Statistics, verifiable data and relevant facts",
+      "sources": "Reference books, videos, articles and documents",
+      "quotes": "Relevant quotes linked from your collection",
+      "connections": "Related topics that expand the context"
+    },
+    "emptyStates": {
+      "timeline": "No events in timeline",
+      "arguments": "No arguments recorded",
+      "data": "No data or statistics",
+      "sources": "No sources added",
+      "quotes": "No linked quotes",
+      "connections": "No related topics"
     }
   },
   "tooltips": {
