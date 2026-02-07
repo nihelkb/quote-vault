@@ -270,6 +270,11 @@
     "noLinkedInsights": "No linked insights",
     "noEntries": "No entries yet",
     "addFirstEntry": "Add the first entry to this section",
+    "wordCountSingular": "{count} word",
+    "wordCountPlural": "{count} words",
+    "sectionCountSingular": "{count} section",
+    "sectionCountPlural": "{count} sections",
+    "searchPlaceholder": "Search sections...",
     "sections": {
       "timeline": "Historical context",
       "arguments": "Arguments",
@@ -350,5 +355,12 @@
       "medium": "Medium confidence",
       "low": "Low confidence"
     }
+  },
+  "sections": {
+    "newSectionTitle": "New section",
+    "nameLabel": "Section name *",
+    "namePlaceholder": "E.g.: Historical context, Key concepts...",
+    "iconLabel": "Icon (optional)",
+    "createButton": "Create section"
   }
 }

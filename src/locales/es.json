@@ -270,6 +270,11 @@
     "noLinkedInsights": "Sin insights vinculados",
     "noEntries": "Sin entradas todavía",
     "addFirstEntry": "Añade la primera entrada a esta sección",
+    "wordCountSingular": "{count} palabra",
+    "wordCountPlural": "{count} palabras",
+    "sectionCountSingular": "{count} sección",
+    "sectionCountPlural": "{count} secciones",
+    "searchPlaceholder": "Buscar en secciones...",
     "sections": {
       "timeline": "Contexto histórico",
       "arguments": "Argumentos",
@@ -350,5 +355,12 @@
       "medium": "Confianza media",
       "low": "Baja confianza"
     }
+  },
+  "sections": {
+    "newSectionTitle": "Nueva sección",
+    "nameLabel": "Nombre de la sección *",
+    "namePlaceholder": "Ej: Contexto histórico, Conceptos clave...",
+    "iconLabel": "Icono (opcional)",
+    "createButton": "Crear sección"
   }
 }

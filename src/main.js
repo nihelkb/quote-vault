@@ -782,6 +782,9 @@ function renderTopicDetailView(topic, linkedQuotes, linkedInsights) {
     const customSections = topic.customSections || [];
     const sortedSections = [...customSections].sort((a, b) => (a.order || 0) - (b.order || 0));
     const topicIcon = getTopicIconSvg(topic.icon || 'folder', 16);
+    const sectionCountLabel = sortedSections.length === 1
+        ? t('topics.sectionCountSingular', { count: sortedSections.length })
+        : t('topics.sectionCountPlural', { count: sortedSections.length });
 
     return `
         <div class="topic-detail-view">
@@ -800,7 +803,7 @@ function renderTopicDetailView(topic, linkedQuotes, linkedInsights) {
                         <h1>${escapeHtml(topic.name)}</h1>
                         ${topic.description ? `<p class="topic-detail-description">${escapeHtml(topic.description)}</p>` : ''}
                         <div class="topic-detail-meta">
-                            <span class="topic-section-count">${sortedSections.length} secciones</span>
+                            <span class="topic-section-count">${sectionCountLabel}</span>
                         </div>
                     </div>
                 </div>
@@ -814,7 +817,7 @@ function renderTopicDetailView(topic, linkedQuotes, linkedInsights) {
                     <input
                         type="text"
                         id="topicSearchInput"
-                        placeholder="Buscar..."
+                        placeholder="${t('topics.searchPlaceholder')}"
                         oninput="filterTopicSections(this.value)"
                     />
                 </div>
@@ -924,6 +927,9 @@ function getTopicIconSvg(iconName, size = 18) {
 function renderCustomSectionCard(section, index = 0) {
     const hasContent = section.content && section.content.trim().length > 0;
     const wordCount = section.content ? section.content.split(/\s+/).filter(w => w).length : 0;
+    const wordCountLabel = wordCount === 1
+        ? t('topics.wordCountSingular', { count: wordCount })
+        : t('topics.wordCountPlural', { count: wordCount });
     const preview = hasContent ? escapeHtml(getContentPreview(section.content)) : '';
     const iconHtml = getSectionIconSvg(section.icon || 'document', 22);
     const colorIndex = index % 8;
@@ -937,7 +943,7 @@ function renderCustomSectionCard(section, index = 0) {
                     <span class="section-card-icon">${iconHtml}</span>
                     <h3>${escapeHtml(section.name)}</h3>
                 </div>
-                ${wordCount > 0 ? `<span class="section-card-count">${wordCount} palabra${wordCount !== 1 ? 's' : ''}</span>` : ''}
+                ${wordCount > 0 ? `<span class="section-card-count">${wordCountLabel}</span>` : ''}
             </div>
 
             ${hasContent ? `
@@ -1109,7 +1115,7 @@ function openNewSectionModal() {
     modal.innerHTML = `
         <div class="modal-content modal-sm">
             <div class="modal-header">
-                <h2>Nueva sección</h2>
+                <h2>${t('sections.newSectionTitle')}</h2>
                 <button class="btn-close" onclick="closeNewSectionModal()">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -1120,12 +1126,12 @@ function openNewSectionModal() {
             <div class="modal-body">
                 <form id="newSectionForm" onsubmit="event.preventDefault(); createCustomSection();">
                     <div class="form-group">
-                        <label for="sectionName">Nombre de la sección *</label>
-                        <input type="text" id="sectionName" required placeholder="Ej: Contexto histórico, Conceptos clave..." autofocus>
+                        <label for="sectionName">${t('sections.nameLabel')}</label>
+                        <input type="text" id="sectionName" required placeholder="${t('sections.namePlaceholder')}" autofocus>
                     </div>
 
                     <div class="form-group">
-                        <label>Icono (opcional)</label>
+                        <label>${t('sections.iconLabel')}</label>
                         <div class="icon-picker-grid" id="sectionIconPicker">
                             <button type="button" class="icon-btn selected" data-icon="document">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
@@ -1168,8 +1174,8 @@ function openNewSectionModal() {
                     </div>
 
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" onclick="closeNewSectionModal()">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Crear sección</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeNewSectionModal()">${t('form.cancel')}</button>
+                        <button type="submit" class="btn btn-primary">${t('sections.createButton')}</button>
                     </div>
                 </form>
             </div>
