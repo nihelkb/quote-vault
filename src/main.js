@@ -761,6 +761,9 @@ async function openTopicView(topicId) {
 
     state.currentTopicId = topicId;
 
+    // Hide wiki header when viewing topic detail
+    if (elements.wikiHeader) elements.wikiHeader.style.display = 'none';
+
     const contentBody = document.querySelector('.content-body');
     if (!contentBody) return;
 

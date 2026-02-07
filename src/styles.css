@@ -4160,7 +4160,6 @@ header {
     padding: 28px;
     column-count: 2;
     column-gap: 18px;
-    background: linear-gradient(135deg, #f8f9fa 0%, #f1f3f4 100%);
     min-height: calc(100vh - 200px);
 }
 
