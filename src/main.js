@@ -741,7 +741,6 @@ function renderSidebarTopics() {
         <button class="nav-item" data-topic-id="${topic.id}">
             <span class="topic-icon-small">${topic.icon || '📁'}</span>
             <span class="topic-name">${escapeHtml(topic.name)}</span>
-            <span class="topic-status-dot ${topic.status}"></span>
         </button>
     `).join('');
 
@@ -779,6 +778,7 @@ async function openTopicView(topicId) {
 function renderTopicDetailView(topic, linkedQuotes, linkedInsights) {
     const customSections = topic.customSections || [];
     const sortedSections = [...customSections].sort((a, b) => (a.order || 0) - (b.order || 0));
+    const topicInitial = (topic.name || '').trim().charAt(0).toUpperCase() || '?';
 
     return `
         <div class="topic-detail-view">
@@ -792,66 +792,57 @@ function renderTopicDetailView(topic, linkedQuotes, linkedInsights) {
                 </button>
 
                 <div class="topic-detail-title-row">
-                    <div class="topic-detail-icon">${topic.icon || '📁'}</div>
+                    <div class="topic-detail-monogram" aria-hidden="true">${escapeHtml(topicInitial)}</div>
                     <div class="topic-detail-title">
                         <h1>${escapeHtml(topic.name)}</h1>
                         ${topic.description ? `<p class="topic-detail-description">${escapeHtml(topic.description)}</p>` : ''}
                         <div class="topic-detail-meta">
-                            <button class="topic-status-badge ${topic.status}" onclick="toggleTopicStatus('${topic.id}')" data-tooltip="${t('tooltips.changeStatus')}">
-                                ${topic.status === 'consolidated' ? t('topics.consolidated') : t('topics.inProgress')}
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                                    <polyline points="6 9 12 15 18 9"></polyline>
-                                </svg>
-                            </button>
-                            <span style="color: var(--text-muted); font-size: 0.9rem;">${sortedSections.length} secciones</span>
+                            <span class="topic-section-count">${sortedSections.length} secciones</span>
                         </div>
                     </div>
                 </div>
 
+                <!-- Search in header -->
+                <div class="header-search" aria-label="Buscar en secciones">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.35-4.35"></path>
+                    </svg>
+                    <input
+                        type="text"
+                        id="topicSearchInput"
+                        placeholder="Buscar..."
+                        oninput="filterTopicSections(this.value)"
+                    />
+                </div>
+
                 <div class="topic-detail-actions">
-                    <button class="btn btn-primary" onclick="openNewSectionModal()">
+                    <button class="btn btn-primary" onclick="openNewSectionModal()" data-tooltip="Nueva sección" aria-label="Nueva sección">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <line x1="12" y1="5" x2="12" y2="19"></line>
                                 <line x1="5" y1="12" x2="19" y2="12"></line>
                             </svg>
-                        Nueva sección
                         </button>
-                    <button class="btn btn-secondary" onclick="editTopic('${topic.id}')">
+                    <button class="btn btn-secondary" onclick="editTopic('${topic.id}')" data-tooltip="Editar" aria-label="Editar">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                             </svg>
-                        ${t('quotes.edit')}
                         </button>
-                    <button class="btn btn-secondary" onclick="deleteTopicConfirm('${topic.id}')">
+                    <button class="btn btn-secondary" onclick="deleteTopicConfirm('${topic.id}')" data-tooltip="Eliminar" aria-label="Eliminar">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="3 6 5 6 21 6"></polyline>
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                             </svg>
-                        ${t('quotes.delete')}
                         </button>
                     </div>
                 </div>
-
-            <!-- Search Bar -->
-            <div class="topic-search-bar">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <path d="m21 21-4.35-4.35"></path>
-                </svg>
-                <input
-                    type="text"
-                    id="topicSearchInput"
-                    placeholder="Buscar en secciones..."
-                    oninput="filterTopicSections(this.value)"
-                />
-            </div>
 
             <!-- Body with Masonry Grid and Insights Sidebar -->
             <div class="topic-detail-body">
                 <!-- Masonry Sections Grid -->
                 <div class="topic-sections-masonry">
-                    ${sortedSections.length > 0 ? sortedSections.map(section => renderCustomSectionCard(section)).join('') : `
+                    ${sortedSections.length > 0 ? sortedSections.map((section, index) => renderCustomSectionCard(section, index)).join('') : `
                         <div class="empty-topic-state">
                             <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                 <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
@@ -907,17 +898,17 @@ function getSectionIconSvg(iconName, size = 20) {
     return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">${iconPath}</svg>`;
 }
 
-function renderCustomSectionCard(section) {
+function renderCustomSectionCard(section, index = 0) {
     const hasContent = section.content && section.content.trim().length > 0;
     const wordCount = section.content ? section.content.split(/\s+/).filter(w => w).length : 0;
     const preview = hasContent ? escapeHtml(getContentPreview(section.content)) : '';
-    const iconHtml = getSectionIconSvg(section.icon || 'document', 20);
+    const iconHtml = getSectionIconSvg(section.icon || 'document', 22);
+    const colorIndex = index % 8;
 
     return `
-        <div class="section-card ${hasContent ? 'has-content' : ''} custom-section"
+        <div class="section-card ${hasContent ? 'has-content' : ''} custom-section card-color-${colorIndex}"
              data-section-id="${section.id}"
-             onclick="openCustomSectionModal('${section.id}')"
-             style="${section.color ? `border-left: 4px solid ${section.color};` : ''}">
+             onclick="openCustomSectionModal('${section.id}')">
             <div class="section-card-header">
                 <div class="section-card-title">
                     <span class="section-card-icon">${iconHtml}</span>
@@ -3804,8 +3795,6 @@ function renderTopicsList() {
 
     // Get filter values
     const searchTerm = elements.wikiSearchInput?.value?.toLowerCase() || '';
-    const statusFilter = elements.wikiFilterStatus?.value || '';
-
     // Filter topics
     let filteredTopics = state.topics.filter(topic => {
         // Search filter
@@ -3813,10 +3802,7 @@ function renderTopicsList() {
             topic.name.toLowerCase().includes(searchTerm) ||
             (topic.description && topic.description.toLowerCase().includes(searchTerm));
 
-        // Status filter
-        const matchesStatus = !statusFilter || topic.status === statusFilter;
-
-        return matchesSearch && matchesStatus;
+        return matchesSearch;
     });
 
     // Count quotes per topic
@@ -3845,7 +3831,6 @@ function renderTopicsList() {
                 <h3 class="topic-name">${escapeHtml(topic.name)}</h3>
                 <p class="topic-description">${escapeHtml(topic.description || '')}</p>
                 <div class="topic-meta">
-                    <span class="topic-status ${topic.status}">${topic.status === 'consolidated' ? t('topics.consolidated') : t('topics.inProgress')}</span>
                     ${quoteCounts[topic.id] ? `<span class="topic-quote-count">${quoteCounts[topic.id]} ${t('sidebar.quotes').toLowerCase()}</span>` : ''}
                 </div>
             </div>
@@ -4455,8 +4440,6 @@ function setupFilterListeners() {
     // Collection filter is now controlled by sidebar navigation
 
     // Setup custom selects - Wiki
-    setupCustomSelect(elements.wikiStatusSelect, elements.wikiFilterStatus, renderWikiView);
-
     // Setup custom selects - Insights
     setupCustomSelect(elements.insightsStatusSelect, elements.insightsFilterStatus, renderInsightsView);
     setupCustomSelect(elements.insightsSourceSelect, elements.insightsFilterSource, renderInsightsView);

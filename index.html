@@ -489,41 +489,6 @@
             <div class="content-filters">
                 <input type="text" class="search-box" id="wikiSearchInput" data-i18n-placeholder="wiki.searchPlaceholder" placeholder="Buscar temas...">
 
-                <!-- Status Filter -->
-                <div class="custom-select" id="wikiStatusSelect">
-                    <button type="button" class="custom-select-btn">
-                        <span class="selected-text" data-i18n="wiki.allStatuses">Todos los estados</span>
-                        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                    </button>
-                    <div class="custom-select-dropdown">
-                        <button type="button" class="custom-select-option active" data-value="">
-                            <span data-i18n="wiki.allStatuses">Todos los estados</span>
-                            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </button>
-                        <button type="button" class="custom-select-option" data-value="in-progress">
-                            <span data-i18n="topics.inProgress">En progreso</span>
-                            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </button>
-                        <button type="button" class="custom-select-option" data-value="consolidated">
-                            <span data-i18n="topics.consolidated">Consolidado</span>
-                            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </button>
-                    </div>
-                    <select id="wikiFilterStatus" hidden>
-                        <option value="">Todos los estados</option>
-                        <option value="in-progress">En progreso</option>
-                        <option value="consolidated">Consolidado</option>
-                    </select>
-                </div>
-
                 <button class="btn btn-primary btn-icon-text" id="newTopicBtnHeader">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                         <line x1="12" y1="5" x2="12" y2="19"></line>
