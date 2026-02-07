@@ -955,8 +955,8 @@ function getContentPreview(content) {
         .replace(/\n\n+/g, '\n\n') // Normalize line breaks
         .trim();
 
-    // Return more text for fade-out effect (NO ellipsis!)
-    return plainText.substring(0, 500);
+    // Return more text for masonry effect - show substantial content
+    return plainText.substring(0, 800);
 }
 
 function renderSectionCard(sectionKey, icon, count, entries, extraData = null) {

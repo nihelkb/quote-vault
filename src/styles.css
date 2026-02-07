@@ -4236,6 +4236,21 @@ header {
     opacity: 1;
 }
 
+/* Compact empty cards for masonry effect */
+.section-card:not(.has-content) {
+    padding: 16px 18px;
+}
+
+.section-card:not(.has-content) .section-card-icon {
+    width: 32px;
+    height: 32px;
+}
+
+.section-card:not(.has-content) .section-card-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
 .section-card-header {
     display: flex;
     align-items: flex-start;
@@ -4292,18 +4307,18 @@ header {
     border: 1px solid #e8e4dc;
 }
 
-/* Content preview with subtle fade */
+/* Content preview - natural height for masonry effect */
 .section-card-content {
     position: relative;
-    max-height: 120px;
+    max-height: 320px;
     overflow: hidden;
-    margin-top: 12px;
+    margin-top: 14px;
 }
 
 .section-card-preview-text {
-    font-size: 0.875rem;
-    line-height: 1.6;
-    color: #4b5563;
+    font-size: 0.85rem;
+    line-height: 1.7;
+    color: #5a5550;
 }
 
 /* Subtle fade-out gradient */
@@ -4313,35 +4328,31 @@ header {
     bottom: 0;
     left: 0;
     right: 0;
-    height: 35px;
+    height: 50px;
     background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,1));
     pointer-events: none;
 }
 
 .section-card-empty {
     text-align: center;
-    padding: 20px 12px;
+    padding: 8px 12px;
     color: var(--text-muted);
 }
 
 .section-card-empty svg {
-    width: 28px;
-    height: 28px;
-    opacity: 0.3;
-    margin-bottom: 10px;
-    color: var(--accent);
+    display: none;
 }
 
 .section-card-empty p {
-    margin: 0 0 4px 0;
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: var(--text-light);
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--text-muted);
+    font-style: italic;
 }
 
 .section-card-empty span {
-    font-size: 0.8rem;
-    color: var(--text-muted);
+    display: none;
 }
 
 /* Delete button - positioned in corner on hover */
