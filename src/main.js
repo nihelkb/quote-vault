@@ -1677,6 +1677,9 @@ function openInsightView(insightId) {
     // Store current insight ID for later reference
     state.currentInsightId = insightId;
 
+    // Hide insights header when in detail view
+    if (elements.insightsHeader) elements.insightsHeader.style.display = 'none';
+
     const contentBody = document.querySelector('.content-body');
     if (!contentBody) return;
 

@@ -2335,8 +2335,8 @@ header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
-    background: var(--tag-bg);
+    padding: 10px 16px;
+    background: transparent;
     border-bottom: 1px solid var(--border);
 }
 
@@ -2345,18 +2345,24 @@ header {
     align-items: center;
     gap: 8px;
     margin: 0;
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: var(--text);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    letter-spacing: 0.03em;
 }
 
 .video-notes-header h3 svg {
-    color: var(--text-muted);
+    width: 14px;
+    height: 14px;
+    opacity: 0.7;
 }
 
 .notes-count {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
+    background: var(--tag-bg);
+    padding: 2px 8px;
+    border-radius: 10px;
 }
 
 /* Quick Note Input */
@@ -2364,12 +2370,15 @@ header {
     padding: 12px 16px;
     border-bottom: 1px solid var(--border);
     background: var(--bg);
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
 .quick-note-type-selector {
     display: flex;
     gap: 4px;
-    margin-bottom: 8px;
+    flex-shrink: 0;
 }
 
 .note-type-btn {
@@ -2446,6 +2455,7 @@ header {
 .quick-note-field {
     display: flex;
     gap: 8px;
+    flex: 1;
 }
 
 .quick-note-field input {
