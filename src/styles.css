@@ -4203,7 +4203,7 @@ header {
 
 .topic-detail-body {
     display: grid;
-    grid-template-columns: 1fr 320px;
+    grid-template-columns: 1fr auto;
     gap: 0;
     min-height: calc(100vh - 200px);
 }
@@ -4463,11 +4463,28 @@ header {
     max-height: calc(100vh - 200px);
     position: sticky;
     top: 120px;
+    transition: width 0.3s ease, padding 0.3s ease;
+    width: 320px;
 }
 
 .topic-insights-sidebar.collapsed {
-    padding: 16px;
-    width: 60px;
+    padding: 16px 12px;
+    width: 48px;
+}
+
+.topic-insights-sidebar.collapsed .insights-sidebar-header h3,
+.topic-insights-sidebar.collapsed .insights-sidebar-list,
+.topic-insights-sidebar.collapsed .insights-sidebar-empty {
+    display: none;
+}
+
+.topic-insights-sidebar.collapsed .insights-sidebar-header {
+    justify-content: center;
+    margin-bottom: 0;
+}
+
+.topic-insights-sidebar.collapsed .insights-sidebar-toggle svg {
+    transform: rotate(180deg);
 }
 
 .insights-sidebar-header {
@@ -4481,6 +4498,9 @@ header {
     font-size: 1rem;
     font-weight: 600;
     margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .insights-sidebar-toggle {
@@ -4494,10 +4514,16 @@ header {
     justify-content: center;
     border-radius: 4px;
     transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.insights-sidebar-toggle svg {
+    transition: transform 0.3s ease;
 }
 
 .insights-sidebar-toggle:hover {
     background: var(--tag-bg);
+    color: var(--text-primary);
 }
 
 .insights-sidebar-list {

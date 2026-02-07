@@ -864,7 +864,7 @@ function renderTopicDetailView(topic, linkedQuotes, linkedInsights) {
                 <div class="topic-insights-sidebar" id="topicInsightsSidebar">
                     <div class="insights-sidebar-header">
                         <h3>${t('topics.linkedInsights')} (${linkedInsights.length})</h3>
-                        <button class="insights-sidebar-toggle" onclick="toggleInsightsSidebar()" data-tooltip="${t('tooltips.close')}">
+                        <button class="insights-sidebar-toggle" onclick="toggleInsightsSidebar()" data-tooltip="${t('tooltips.hideLinkedInsights')}">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="15 18 9 12 15 6"></polyline>
                             </svg>
@@ -1023,7 +1023,11 @@ function toggleTopicStatus(topicId) {
 function toggleInsightsSidebar() {
     const sidebar = document.getElementById('topicInsightsSidebar');
     if (sidebar) {
-        sidebar.classList.toggle('collapsed');
+        const isCollapsed = sidebar.classList.toggle('collapsed');
+        const toggleBtn = sidebar.querySelector('.insights-sidebar-toggle');
+        if (toggleBtn) {
+            toggleBtn.setAttribute('data-tooltip', isCollapsed ? t('tooltips.showLinkedInsights') : t('tooltips.hideLinkedInsights'));
+        }
     }
 }
 

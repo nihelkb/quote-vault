@@ -303,6 +303,8 @@
   "tooltips": {
     "hideSidebar": "Ocultar menú",
     "showSidebar": "Abrir menú",
+    "hideLinkedInsights": "Ocultar insights vinculados",
+    "showLinkedInsights": "Mostrar insights vinculados",
     "menu": "Menú",
     "filters": "Filtros",
     "close": "Cerrar",

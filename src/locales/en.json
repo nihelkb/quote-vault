@@ -303,6 +303,8 @@
   "tooltips": {
     "hideSidebar": "Hide sidebar",
     "showSidebar": "Show sidebar",
+    "hideLinkedInsights": "Hide linked insights",
+    "showLinkedInsights": "Show linked insights",
     "menu": "Menu",
     "filters": "Filters",
     "close": "Close",
