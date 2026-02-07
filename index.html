@@ -85,7 +85,7 @@
             <div class="nav-sidebar-content">
                 <!-- Main Navigation Tabs -->
                 <div class="nav-main-tabs">
-                    <button class="nav-main-tab" data-view="wiki" id="navWikiTab">
+                    <button class="nav-main-tab active" data-view="wiki" id="navWikiTab">
                         <span class="nav-tab-icon">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                 <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
@@ -105,7 +105,7 @@
                         <span class="nav-tab-label" data-i18n="sidebar.insights">Insights</span>
                         <span class="nav-tab-badge hidden" id="insightsDraftBadge">0</span>
                     </button>
-                    <button class="nav-main-tab active" data-view="quotes" id="navQuotesTab">
+                    <button class="nav-main-tab" data-view="quotes" id="navQuotesTab">
                         <span class="nav-tab-icon">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                 <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21z"></path>
@@ -117,7 +117,7 @@
                 </div>
 
                 <!-- Wiki Section (Topics) -->
-                <div class="nav-view-content" id="navWikiContent" style="display: none;">
+                <div class="nav-view-content" id="navWikiContent">
                     <div class="nav-section">
                         <div class="nav-section-header">
                             <span class="nav-section-title" data-i18n="sidebar.topics">Temas</span>
@@ -179,7 +179,7 @@
                 </div>
 
                 <!-- Quotes Section -->
-                <div class="nav-view-content" id="navQuotesContent">
+                <div class="nav-view-content" id="navQuotesContent" style="display: none;">
                     <div class="nav-section">
                         <div class="nav-section-header">
                             <span class="nav-section-title" data-i18n="sidebar.allQuotes">Todas las citas</span>
@@ -360,7 +360,7 @@
         <div class="filters-overlay hidden" id="filtersOverlay"></div>
 
         <!-- Desktop Header with Filters -->
-        <header class="content-header desktop-header">
+        <header class="content-header desktop-header" style="display: none;">
             <div class="content-filters">
                 <input type="text" class="search-box" id="searchInput" data-i18n-placeholder="quotes.searchPlaceholder" placeholder="Buscar por texto, autor o fuente...">
 
@@ -485,7 +485,7 @@
         </header>
 
         <!-- Wiki Header -->
-        <header class="content-header wiki-header" style="display: none;">
+        <header class="content-header wiki-header">
             <div class="content-filters">
                 <input type="text" class="search-box" id="wikiSearchInput" data-i18n-placeholder="wiki.searchPlaceholder" placeholder="Buscar temas...">
 

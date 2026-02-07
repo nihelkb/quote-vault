@@ -71,7 +71,7 @@ const state = {
     insights: [],
     knowledgeEntries: [], // Entries for current topic
     currentView: 'list', // list, compare
-    currentSection: 'quotes', // wiki, insights, quotes
+    currentSection: 'wiki', // wiki, insights, quotes
     currentInsightId: null, // Currently viewing insight
     currentTopicId: null,   // Currently viewing topic
     insightStatusFilter: '',
@@ -414,6 +414,7 @@ function showMainApp(user) {
     const displayName = authService.getDisplayName(user);
     elements.userEmail.textContent = displayName;
     elements.userEmailMobile.textContent = displayName;
+    switchSection(state.currentSection);
 }
 
 function setupAuthListeners() {
@@ -988,81 +989,6 @@ function getContentPreview(content) {
     return plainText.substring(0, 800);
 }
 
-function renderSectionCard(sectionKey, icon, count, entries, extraData = null) {
-    const hasContent = count > 0;
-    const previewItems = getSectionPreview(sectionKey, entries, extraData);
-
-    return `
-        <div class="section-card ${hasContent ? 'has-content' : ''}" data-section="${sectionKey}" onclick="openSectionModal('${sectionKey}')">
-            <div class="section-card-header">
-                <div class="section-card-title">
-                    <span class="section-card-icon">${icon}</span>
-                    <h3>${t('topics.sections.' + sectionKey)}</h3>
-                </div>
-                <span class="section-card-count">${count}</span>
-            </div>
-
-            <p class="section-card-description">${t('topics.sectionDescriptions.' + sectionKey)}</p>
-
-            ${hasContent ? `
-                <div class="section-card-preview">
-                    ${previewItems.slice(0, 3).map(item => `
-                        <div class="section-card-preview-item">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="9 18 15 12 9 6"></polyline>
-                            </svg>
-                            <span>${escapeHtml(item)}</span>
-                        </div>
-                    `).join('')}
-                    ${count > 3 ? `<p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-top: 8px;">+${count - 3} más</p>` : ''}
-                </div>
-            ` : `
-                <div class="section-card-empty">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="8" x2="12" y2="12"></line>
-                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                    </svg>
-                    <p>${t('topics.emptyStates.' + sectionKey)}</p>
-                </div>
-            `}
-        </div>
-    `;
-}
-
-function getSectionPreview(sectionKey, entries, extraData) {
-    switch (sectionKey) {
-        case 'timeline':
-            const timelineEntries = knowledgeEntryService.getTimelineEntries(entries);
-            return timelineEntries.map(e => `${e.date || ''}: ${e.title || e.content}`.substring(0, 60));
-
-        case 'arguments':
-            const args = knowledgeEntryService.getArguments(entries);
-            const allArgs = [...args.favor, ...args.contra];
-            return allArgs.map(a => a.content.substring(0, 60));
-
-        case 'data':
-            const facts = knowledgeEntryService.getFacts(entries);
-            return facts.map(f => f.content.substring(0, 60));
-
-        case 'sources':
-            const sources = knowledgeEntryService.getSources(entries);
-            return sources.all.map(s => s.sourceTitle || s.content.substring(0, 60));
-
-        case 'quotes':
-            if (extraData && extraData.length > 0) {
-                return extraData.map(q => `${q.author}: ${q.text.substring(0, 50)}`);
-            }
-            return [];
-
-        case 'connections':
-            // TODO: Implement when we have related topics
-            return [];
-
-        default:
-            return [];
-    }
-}
 
 function renderInsightSidebarCard(insight) {
     return `
@@ -1247,6 +1173,8 @@ function openCustomSectionModal(sectionId) {
     const linkedInsightIds = section.linkedInsightIds || [];
     const linkedInsights = state.insights.filter(i => linkedInsightIds.includes(i.id));
 
+    const iconHtml = getSectionIconSvg(section.icon || 'document', 22);
+
     const modal = document.createElement('div');
     modal.className = 'section-detail-modal';
     modal.id = 'customSectionModal';
@@ -1254,7 +1182,7 @@ function openCustomSectionModal(sectionId) {
         <div class="section-detail-content">
             <div class="section-detail-header">
                 <div class="section-detail-title">
-                    <span class="section-card-icon" style="font-size: 2rem;">${section.icon}</span>
+                    <span class="section-card-icon" style="font-size: 2rem;">${iconHtml}</span>
                     <h2>${escapeHtml(section.name)}</h2>
                 </div>
                 <div class="section-detail-actions">
@@ -1722,36 +1650,6 @@ function setupSvgIconPicker(pickerId, inputId) {
     });
 }
 
-// ============================================================================
-// Section Modal Functions (Old - can be removed later)
-// ============================================================================
-
-function openSectionModal(sectionKey) {
-    const topic = state.topics.find(t => t.id === state.currentTopicId);
-    if (!topic) return;
-
-    const entries = state.knowledgeEntries;
-    const linkedQuotes = state.quotes.filter(q => q.topicId === state.currentTopicId);
-
-    // Create modal element
-    const modal = document.createElement('div');
-    modal.className = 'section-detail-modal';
-    modal.id = 'sectionModal';
-    modal.innerHTML = renderSectionModalContent(sectionKey, topic, entries, linkedQuotes);
-
-    // Add to body
-    document.body.appendChild(modal);
-
-    // Close on overlay click
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            closeSectionModal();
-        }
-    });
-
-    // Close on ESC key
-    document.addEventListener('keydown', handleModalEscape);
-}
 
 function handleModalEscape(e) {
     if (e.key === 'Escape') {
@@ -1767,385 +1665,6 @@ function closeSectionModal() {
     }
 }
 
-function renderSectionModalContent(sectionKey, topic, entries, linkedQuotes) {
-    const sectionIcon = {
-        timeline: '⏱️',
-        arguments: '⚖️',
-        data: '📊',
-        sources: '📚',
-        quotes: '💬',
-        connections: '🔗'
-    }[sectionKey];
-
-    return `
-        <div class="section-detail-content">
-            <div class="section-detail-header">
-                <div class="section-detail-title">
-                    <span class="section-card-icon">${sectionIcon}</span>
-                    <h2>${t('topics.sections.' + sectionKey)}</h2>
-                </div>
-                <div class="section-detail-actions">
-                    <button class="btn btn-primary" onclick="addEntryToSection('${sectionKey}')">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                        </svg>
-                        ${t('entries.newEntry')}
-                    </button>
-                    <button class="btn btn-secondary" onclick="closeSectionModal()">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-
-            <div class="section-detail-body">
-                ${renderSectionContent(sectionKey, entries, linkedQuotes)}
-            </div>
-        </div>
-    `;
-}
-
-function renderSectionContent(sectionKey, entries, linkedQuotes) {
-    switch (sectionKey) {
-        case 'timeline':
-            return renderTimelineSection(entries);
-        case 'arguments':
-            return renderArgumentsSection(entries);
-        case 'data':
-            return renderDataSection(entries);
-        case 'sources':
-            return renderSourcesSection(entries);
-        case 'quotes':
-            return renderQuotesSection(linkedQuotes);
-        case 'connections':
-            return renderConnectionsSection();
-        default:
-            return '<p>Sección no implementada</p>';
-    }
-}
-
-function renderTimelineSection(entries) {
-    const timelineEntries = knowledgeEntryService.getTimelineEntries(entries);
-
-    if (timelineEntries.length === 0) {
-        return `
-            <div class="section-detail-empty">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-                <h3>${t('topics.noEntries')}</h3>
-                <p>${t('topics.addFirstEntry')}</p>
-            </div>
-        `;
-    }
-
-    return `
-        <div class="entry-list">
-            ${timelineEntries.map(entry => `
-                <div class="entry-item">
-                    <div class="entry-item-header">
-                        <div class="entry-item-meta">
-                            ${entry.date ? `<span class="entry-item-date">${escapeHtml(entry.date)}</span>` : ''}
-                            ${entry.verified ? `<span class="entry-badge verified">${t('entries.verified')}</span>` : `<span class="entry-badge unverified">${t('entries.unverified')}</span>`}
-                            <span class="entry-badge ${entry.confidence}">${t('entries.confidence.' + entry.confidence)}</span>
-                        </div>
-                        <div class="entry-item-actions">
-                            <button class="btn btn-secondary btn-small" onclick="editEntry('${entry.id}')" data-tooltip="${t('tooltips.edit')}">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                </svg>
-                            </button>
-                            <button class="btn btn-secondary btn-small" onclick="deleteEntry('${entry.id}')" data-tooltip="${t('tooltips.delete')}">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="3 6 5 6 21 6"></polyline>
-                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="entry-item-content">
-                        ${entry.title ? `<div class="entry-item-title">${escapeHtml(entry.title)}</div>` : ''}
-                        <div class="entry-item-text">${escapeHtml(entry.content)}</div>
-                    </div>
-                    ${entry.sourceUrl || entry.sourceTitle ? `
-                        <div class="entry-item-source">
-                            ${t('form.sourceLabel')}: ${entry.sourceTitle ? escapeHtml(entry.sourceTitle) : ''}
-                            ${entry.sourceUrl ? `<a href="${escapeHtml(entry.sourceUrl)}" target="_blank" rel="noopener">↗</a>` : ''}
-                        </div>
-                    ` : ''}
-                    ${entry.notes ? `<div class="entry-item-notes">${escapeHtml(entry.notes)}</div>` : ''}
-                </div>
-            `).join('')}
-        </div>
-    `;
-}
-
-function renderArgumentsSection(entries) {
-    const args = knowledgeEntryService.getArguments(entries);
-
-    if (args.all.length === 0) {
-        return `
-            <div class="section-detail-empty">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path>
-                </svg>
-                <h3>${t('topics.noEntries')}</h3>
-                <p>${t('topics.addFirstEntry')}</p>
-            </div>
-        `;
-    }
-
-    return `
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-            <div>
-                <h3 style="color: var(--favor); margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    ${t('stances.favor')} (${args.favor.length})
-                </h3>
-                <div class="entry-list">
-                    ${args.favor.length > 0 ? args.favor.map(entry => renderArgumentEntry(entry, args.all)).join('') : `<p style="color: var(--text-muted);">${t('quotes.noQuotesFavor')}</p>`}
-                </div>
-            </div>
-            <div>
-                <h3 style="color: var(--against); margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    ${t('stances.contra')} (${args.contra.length})
-                </h3>
-                <div class="entry-list">
-                    ${args.contra.length > 0 ? args.contra.map(entry => renderArgumentEntry(entry, args.all)).join('') : `<p style="color: var(--text-muted);">${t('quotes.noQuotesAgainst')}</p>`}
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-function renderArgumentEntry(entry, allEntries) {
-    const counterarguments = knowledgeEntryService.getCounterarguments(allEntries, entry.id);
-
-    return `
-        <div class="entry-item" style="margin-bottom: 16px;">
-            <div class="entry-item-header">
-                <div class="entry-item-meta">
-                    ${entry.author ? `<strong>${escapeHtml(entry.author)}</strong>` : ''}
-                    ${entry.verified ? `<span class="entry-badge verified">${t('entries.verified')}</span>` : ''}
-                </div>
-                <div class="entry-item-actions">
-                    <button class="btn btn-secondary btn-small" onclick="editEntry('${entry.id}')" data-tooltip="${t('tooltips.edit')}">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                        </svg>
-                    </button>
-                    <button class="btn btn-secondary btn-small" onclick="deleteEntry('${entry.id}')" data-tooltip="${t('tooltips.delete')}">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            <div class="entry-item-content">
-                <div class="entry-item-text">${escapeHtml(entry.content)}</div>
-            </div>
-            ${counterarguments.length > 0 ? `
-                <div style="margin-top: 12px; padding-left: 16px; border-left: 2px solid var(--border);">
-                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">
-                        ${counterarguments.length} ${counterarguments.length === 1 ? t('replies.reply') : t('replies.replies')}
-                    </p>
-                    ${counterarguments.map(counter => `
-                        <div style="background: var(--bg); padding: 12px; border-radius: 6px; margin-bottom: 8px; font-size: 0.9rem;">
-                            ${escapeHtml(counter.content)}
-                        </div>
-                    `).join('')}
-                </div>
-            ` : ''}
-            ${entry.notes ? `<div class="entry-item-notes">${escapeHtml(entry.notes)}</div>` : ''}
-        </div>
-    `;
-}
-
-function renderDataSection(entries) {
-    const facts = knowledgeEntryService.getFacts(entries);
-
-    if (facts.length === 0) {
-        return `
-            <div class="section-detail-empty">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                </svg>
-                <h3>${t('topics.noEntries')}</h3>
-                <p>${t('topics.addFirstEntry')}</p>
-            </div>
-        `;
-    }
-
-    return `
-        <div class="entry-list">
-            ${facts.map(entry => `
-                <div class="entry-item">
-                    <div class="entry-item-header">
-                        <div class="entry-item-meta">
-                            ${entry.verified ? `<span class="entry-badge verified">✓ ${t('entries.verified')}</span>` : `<span class="entry-badge unverified">${t('entries.unverified')}</span>`}
-                            <span class="entry-badge ${entry.confidence}">${t('entries.confidence.' + entry.confidence)}</span>
-                        </div>
-                        <div class="entry-item-actions">
-                            <button class="btn btn-secondary btn-small" onclick="editEntry('${entry.id}')" data-tooltip="${t('tooltips.edit')}">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                </svg>
-                            </button>
-                            <button class="btn btn-secondary btn-small" onclick="deleteEntry('${entry.id}')" data-tooltip="${t('tooltips.delete')}">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="3 6 5 6 21 6"></polyline>
-                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="entry-item-content">
-                        <div class="entry-item-text">${escapeHtml(entry.content)}</div>
-                    </div>
-                    ${entry.sourceUrl || entry.sourceTitle ? `
-                        <div class="entry-item-source">
-                            ${t('form.sourceLabel')}: ${entry.sourceTitle ? escapeHtml(entry.sourceTitle) : ''}
-                            ${entry.sourceUrl ? `<a href="${escapeHtml(entry.sourceUrl)}" target="_blank" rel="noopener">↗</a>` : ''}
-                        </div>
-                    ` : ''}
-                    ${entry.verificationNotes ? `<div class="entry-item-notes"><strong>Notas de verificación:</strong> ${escapeHtml(entry.verificationNotes)}</div>` : ''}
-                </div>
-            `).join('')}
-        </div>
-    `;
-}
-
-function renderSourcesSection(entries) {
-    const sources = knowledgeEntryService.getSources(entries);
-
-    if (sources.all.length === 0) {
-        return `
-            <div class="section-detail-empty">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                </svg>
-                <h3>${t('topics.noEntries')}</h3>
-                <p>${t('topics.addFirstEntry')}</p>
-            </div>
-        `;
-    }
-
-    return `
-        <div class="entry-list">
-            ${sources.all.map(entry => `
-                <div class="entry-item">
-                    <div class="entry-item-header">
-                        <div class="entry-item-meta">
-                            ${entry.sourceType ? `<span class="entry-badge">${entry.sourceType}</span>` : ''}
-                        </div>
-                        <div class="entry-item-actions">
-                            ${entry.sourceUrl ? `
-                                <a href="${escapeHtml(entry.sourceUrl)}" target="_blank" rel="noopener" class="btn btn-secondary btn-small" data-tooltip="${t('insights.openSource')}">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                                        <polyline points="15 3 21 3 21 9"></polyline>
-                                        <line x1="10" y1="14" x2="21" y2="3"></line>
-                                    </svg>
-                                </a>
-                            ` : ''}
-                            <button class="btn btn-secondary btn-small" onclick="editEntry('${entry.id}')" data-tooltip="${t('tooltips.edit')}">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                </svg>
-                            </button>
-                            <button class="btn btn-secondary btn-small" onclick="deleteEntry('${entry.id}')" data-tooltip="${t('tooltips.delete')}">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="3 6 5 6 21 6"></polyline>
-                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="entry-item-content">
-                        ${entry.sourceTitle ? `<div class="entry-item-title">${escapeHtml(entry.sourceTitle)}</div>` : ''}
-                        ${entry.content ? `<div class="entry-item-text">${escapeHtml(entry.content)}</div>` : ''}
-                        ${entry.author ? `<div style="margin-top: 8px; font-size: 0.9rem; color: var(--text-muted);">${escapeHtml(entry.author)}</div>` : ''}
-                    </div>
-                </div>
-            `).join('')}
-        </div>
-    `;
-}
-
-function renderQuotesSection(linkedQuotes) {
-    if (linkedQuotes.length === 0) {
-        return `
-            <div class="section-detail-empty">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-                </svg>
-                <h3>${t('topics.noEntries')}</h3>
-                <p>Vincula citas desde tu colección para asociarlas a este tema</p>
-            </div>
-        `;
-    }
-
-    return `
-        <div class="entry-list">
-            ${linkedQuotes.map(quote => `
-                <div class="entry-item">
-                    <div class="entry-item-header">
-                        <div class="entry-item-meta">
-                            <span class="entry-badge">${t('stances.' + quote.stance)}</span>
-                        </div>
-                        <div class="entry-item-actions">
-                            <button class="btn btn-secondary btn-small" onclick="editQuote('${quote.id}')" data-tooltip="${t('tooltips.edit')}">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="entry-item-content">
-                        <blockquote style="font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; margin: 12px 0;">
-                            "${escapeHtml(quote.text)}"
-                        </blockquote>
-                        <cite style="font-size: 0.95rem; color: var(--text-muted);">— ${escapeHtml(quote.author)}${quote.source ? `, ${escapeHtml(quote.source)}` : ''}</cite>
-                    </div>
-                    ${quote.notes ? `<div class="entry-item-notes">${escapeHtml(quote.notes)}</div>` : ''}
-                </div>
-            `).join('')}
-        </div>
-    `;
-}
-
-function renderConnectionsSection() {
-    return `
-        <div class="section-detail-empty">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
-            </svg>
-            <h3>${t('topics.noEntries')}</h3>
-            <p>Las conexiones entre temas estarán disponibles próximamente</p>
-        </div>
-    `;
-}
-
-// Placeholder functions for entry management
-function addEntryToSection(sectionKey) {
-    toast.info(`Añadir entrada a ${sectionKey} - Próximamente`);
-    // TODO: Implement entry creation form
-}
 
 function openInsightView(insightId) {
     const insight = state.insights.find(i => i.id === insightId);
