@@ -1547,8 +1547,23 @@ function openCustomSectionModal(sectionId) {
                                     </svg>
                                 </button>
                             </div>
+                            <div class="md-toolbar-separator"></div>
+
+                            <div class="md-toolbar-group" style="margin-left: auto;">
+                                <button type="button" class="md-toolbar-btn md-split-toggle" data-md-action="toggleSplitPreview" data-tooltip="${t('tooltips.preview')}">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="2" y="3" width="20" height="18" rx="2"></rect>
+                                        <line x1="12" y1="3" x2="12" y2="21"></line>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
-                        <textarea id="sectionContentEdit" rows="20">${escapeHtml(section.content || '')}</textarea>
+                        <div class="md-editor-split">
+                            <textarea id="sectionContentEdit" rows="20">${escapeHtml(section.content || '')}</textarea>
+                            <div class="md-preview-pane" id="mdPreviewPane">
+                                ${section.content ? renderMarkdown(section.content) : `<p style="color: var(--text-muted); font-style: italic;">${t('topics.clickToEdit')}</p>`}
+                            </div>
+                        </div>
                         <div class="section-edit-actions">
                             <button class="btn btn-secondary" onclick="toggleSectionEditMode('${sectionId}')">${t('form.cancel')}</button>
                             <button class="btn btn-primary" onclick="saveCustomSectionContent('${sectionId}')">${t('form.save')}</button>
@@ -1623,14 +1638,22 @@ function openCustomSectionModal(sectionId) {
                 case 'codeBlock': insertMarkdown('```\n', '\n```', { block: true, placeholder: 'code' }); break;
                 case 'link': insertLink(); break;
                 case 'horizontalRule': insertMarkdown('\n---\n', '', { block: true }); break;
+                case 'toggleSplitPreview': toggleSplitPreview(); break;
             }
         });
     });
 
-    // Keyboard shortcuts on textarea
+    // Keyboard shortcuts on textarea + live preview update
     const textareaEl = modal.querySelector('#sectionContentEdit');
     if (textareaEl) {
         textareaEl.addEventListener('keydown', handleMarkdownShortcuts);
+        textareaEl.addEventListener('input', () => {
+            const preview = document.getElementById('mdPreviewPane');
+            if (preview && preview.offsetParent !== null) {
+                const val = textareaEl.value;
+                preview.innerHTML = val ? renderMarkdown(val) : `<p style="color: var(--text-muted); font-style: italic;">${t('topics.clickToEdit')}</p>`;
+            }
+        });
     }
 
     // Close heading dropdown on outside click
@@ -1849,6 +1872,28 @@ function toggleSectionHighlightsSidebar() {
     const sidebar = document.getElementById('sectionHighlightsSidebar');
     if (!sidebar) return;
     sidebar.classList.toggle('collapsed');
+}
+
+function toggleSplitPreview() {
+    const split = document.querySelector('.md-editor-split');
+    const toggleBtn = document.querySelector('.md-split-toggle');
+    if (!split) return;
+
+    const isActive = split.classList.toggle('split-active');
+
+    if (toggleBtn) {
+        toggleBtn.classList.toggle('active', isActive);
+    }
+
+    // Update preview content when activating
+    if (isActive) {
+        const textarea = document.getElementById('sectionContentEdit');
+        const preview = document.getElementById('mdPreviewPane');
+        if (textarea && preview) {
+            const val = textarea.value;
+            preview.innerHTML = val ? renderMarkdown(val) : `<p style="color: var(--text-muted); font-style: italic;">${t('topics.clickToEdit')}</p>`;
+        }
+    }
 }
 
 function handleMarkdownShortcuts(e) {
