@@ -390,5 +390,27 @@
     "namePlaceholder": "E.g.: Historical context, Key concepts...",
     "iconLabel": "Icon (optional)",
     "createButton": "Create section"
+  },
+  "mdToolbar": {
+    "bold": "Bold",
+    "boldText": "bold text",
+    "italic": "Italic",
+    "italicText": "italic text",
+    "strikethrough": "Strikethrough",
+    "strikethroughText": "strikethrough text",
+    "heading": "Heading",
+    "heading1": "Large heading",
+    "heading2": "Medium heading",
+    "heading3": "Small heading",
+    "bulletList": "Bullet list",
+    "orderedList": "Numbered list",
+    "listItem": "list item",
+    "blockquote": "Quote",
+    "quoteText": "quote text",
+    "inlineCode": "Inline code",
+    "codeBlock": "Code block",
+    "link": "Link",
+    "linkText": "link text",
+    "horizontalRule": "Divider"
   }
 }

@@ -1428,10 +1428,130 @@ function openCustomSectionModal(sectionId) {
                         `}
                     </div>
                     <div id="sectionEditMode" style="display: none;">
+                        <div class="md-toolbar" id="mdToolbar">
+                            <div class="md-toolbar-group">
+                                <button type="button" class="md-toolbar-btn" data-md-action="bold" data-tooltip="${t('mdToolbar.bold')} (Ctrl+B)">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                        <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path>
+                                        <path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path>
+                                    </svg>
+                                </button>
+                                <button type="button" class="md-toolbar-btn" data-md-action="italic" data-tooltip="${t('mdToolbar.italic')} (Ctrl+I)">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="19" y1="4" x2="10" y2="4"></line>
+                                        <line x1="14" y1="20" x2="5" y2="20"></line>
+                                        <line x1="15" y1="4" x2="9" y2="20"></line>
+                                    </svg>
+                                </button>
+                                <button type="button" class="md-toolbar-btn" data-md-action="strikethrough" data-tooltip="${t('mdToolbar.strikethrough')}">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M16 4H9a3 3 0 0 0-2.83 4"></path>
+                                        <path d="M14 12a4 4 0 0 1 0 8H6"></path>
+                                        <line x1="4" y1="12" x2="20" y2="12"></line>
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <div class="md-toolbar-separator"></div>
+
+                            <div class="md-toolbar-group">
+                                <div class="md-toolbar-dropdown" id="headingDropdownWrapper">
+                                    <button type="button" class="md-toolbar-btn" data-md-action="toggleHeadingDropdown" data-tooltip="${t('mdToolbar.heading')}">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M6 4v16"></path>
+                                            <path d="M18 4v16"></path>
+                                            <path d="M6 12h12"></path>
+                                        </svg>
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="md-toolbar-chevron">
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                        </svg>
+                                    </button>
+                                    <div class="md-toolbar-dropdown-menu" id="headingDropdown">
+                                        <button type="button" class="md-dropdown-item" data-md-action="heading1">
+                                            <span style="font-size: 1.2em; font-weight: 700;">H1</span>
+                                            <span class="md-dropdown-hint">${t('mdToolbar.heading1')}</span>
+                                        </button>
+                                        <button type="button" class="md-dropdown-item" data-md-action="heading2">
+                                            <span style="font-size: 1.05em; font-weight: 600;">H2</span>
+                                            <span class="md-dropdown-hint">${t('mdToolbar.heading2')}</span>
+                                        </button>
+                                        <button type="button" class="md-dropdown-item" data-md-action="heading3">
+                                            <span style="font-size: 0.95em; font-weight: 600;">H3</span>
+                                            <span class="md-dropdown-hint">${t('mdToolbar.heading3')}</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="md-toolbar-separator"></div>
+
+                            <div class="md-toolbar-group">
+                                <button type="button" class="md-toolbar-btn" data-md-action="bulletList" data-tooltip="${t('mdToolbar.bulletList')}">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="9" y1="6" x2="20" y2="6"></line>
+                                        <line x1="9" y1="12" x2="20" y2="12"></line>
+                                        <line x1="9" y1="18" x2="20" y2="18"></line>
+                                        <circle cx="4" cy="6" r="1.5" fill="currentColor" stroke="none"></circle>
+                                        <circle cx="4" cy="12" r="1.5" fill="currentColor" stroke="none"></circle>
+                                        <circle cx="4" cy="18" r="1.5" fill="currentColor" stroke="none"></circle>
+                                    </svg>
+                                </button>
+                                <button type="button" class="md-toolbar-btn" data-md-action="orderedList" data-tooltip="${t('mdToolbar.orderedList')}">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="10" y1="6" x2="21" y2="6"></line>
+                                        <line x1="10" y1="12" x2="21" y2="12"></line>
+                                        <line x1="10" y1="18" x2="21" y2="18"></line>
+                                        <text x="2" y="8" font-size="9" fill="currentColor" stroke="none" font-family="sans-serif">1</text>
+                                        <text x="2" y="14" font-size="9" fill="currentColor" stroke="none" font-family="sans-serif">2</text>
+                                        <text x="2" y="20" font-size="9" fill="currentColor" stroke="none" font-family="sans-serif">3</text>
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <div class="md-toolbar-separator"></div>
+
+                            <div class="md-toolbar-group">
+                                <button type="button" class="md-toolbar-btn" data-md-action="blockquote" data-tooltip="${t('mdToolbar.blockquote')}">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21z"></path>
+                                        <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3z"></path>
+                                    </svg>
+                                </button>
+                                <button type="button" class="md-toolbar-btn" data-md-action="inlineCode" data-tooltip="${t('mdToolbar.inlineCode')} (Ctrl+E)">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="16 18 22 12 16 6"></polyline>
+                                        <polyline points="8 6 2 12 8 18"></polyline>
+                                    </svg>
+                                </button>
+                                <button type="button" class="md-toolbar-btn" data-md-action="codeBlock" data-tooltip="${t('mdToolbar.codeBlock')}">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                        <polyline points="9 8 5 12 9 16"></polyline>
+                                        <polyline points="15 8 19 12 15 16"></polyline>
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <div class="md-toolbar-separator"></div>
+
+                            <div class="md-toolbar-group">
+                                <button type="button" class="md-toolbar-btn" data-md-action="link" data-tooltip="${t('mdToolbar.link')} (Ctrl+K)">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                                    </svg>
+                                </button>
+                                <button type="button" class="md-toolbar-btn" data-md-action="horizontalRule" data-tooltip="${t('mdToolbar.horizontalRule')}">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
                         <textarea id="sectionContentEdit" rows="20">${escapeHtml(section.content || '')}</textarea>
                         <div class="section-edit-actions">
-                            <button class="btn btn-secondary" onclick="toggleSectionEditMode('${sectionId}')">${t('cancel')}</button>
-                            <button class="btn btn-primary" onclick="saveCustomSectionContent('${sectionId}')">${t('save')}</button>
+                            <button class="btn btn-secondary" onclick="toggleSectionEditMode('${sectionId}')">${t('form.cancel')}</button>
+                            <button class="btn btn-primary" onclick="saveCustomSectionContent('${sectionId}')">${t('form.save')}</button>
                         </div>
                     </div>
                 </div>
@@ -1477,6 +1597,43 @@ function openCustomSectionModal(sectionId) {
     `;
 
     document.body.appendChild(modal);
+
+    // Markdown toolbar: wire up button clicks via data-md-action
+    modal.querySelectorAll('[data-md-action]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const action = btn.dataset.mdAction;
+            switch (action) {
+                case 'bold': insertMarkdown('**', '**', { placeholder: t('mdToolbar.boldText') }); break;
+                case 'italic': insertMarkdown('*', '*', { placeholder: t('mdToolbar.italicText') }); break;
+                case 'strikethrough': insertMarkdown('~~', '~~', { placeholder: t('mdToolbar.strikethroughText') }); break;
+                case 'toggleHeadingDropdown': toggleHeadingDropdown(); break;
+                case 'heading1': insertHeading(1); break;
+                case 'heading2': insertHeading(2); break;
+                case 'heading3': insertHeading(3); break;
+                case 'bulletList': insertMarkdown('- ', '', { block: true, placeholder: t('mdToolbar.listItem') }); break;
+                case 'orderedList': insertMarkdown('1. ', '', { block: true, placeholder: t('mdToolbar.listItem') }); break;
+                case 'blockquote': insertMarkdown('> ', '', { block: true, placeholder: t('mdToolbar.quoteText') }); break;
+                case 'inlineCode': insertMarkdown('`', '`', { placeholder: 'code' }); break;
+                case 'codeBlock': insertMarkdown('```\n', '\n```', { block: true, placeholder: 'code' }); break;
+                case 'link': insertLink(); break;
+                case 'horizontalRule': insertMarkdown('\n---\n', '', { block: true }); break;
+            }
+        });
+    });
+
+    // Keyboard shortcuts on textarea
+    const textareaEl = modal.querySelector('#sectionContentEdit');
+    if (textareaEl) {
+        textareaEl.addEventListener('keydown', handleMarkdownShortcuts);
+    }
+
+    // Close heading dropdown on outside click
+    modal.addEventListener('click', (e) => {
+        if (!e.target.closest('#headingDropdownWrapper')) {
+            document.getElementById('headingDropdown')?.classList.remove('open');
+        }
+    });
 
     // Close on overlay click
     modal.addEventListener('click', (e) => {
@@ -1562,6 +1719,232 @@ async function saveCustomSectionContent(sectionId) {
         await openTopicView(state.currentTopicId);
     } catch (error) {
         handleFirebaseError(error, 'Error al guardar');
+    }
+}
+
+// ========================================================================
+// Markdown Toolbar Helpers
+// ========================================================================
+
+function insertMarkdown(prefix, suffix = '', options = {}) {
+    const textarea = document.getElementById('sectionContentEdit');
+    if (!textarea) return;
+    textarea.focus();
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const selected = text.substring(start, end);
+    const { block = false, placeholder = '', replaceLineStart = false } = options;
+
+    let newText, cursorStart, cursorEnd;
+
+    if (replaceLineStart) {
+        // For headings: toggle prefix at line start
+        const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+        const lineEnd = text.indexOf('\n', end);
+        const lineEndPos = lineEnd === -1 ? text.length : lineEnd;
+        const line = text.substring(lineStart, lineEndPos);
+
+        if (line.startsWith(prefix)) {
+            newText = text.substring(0, lineStart) + line.substring(prefix.length) + text.substring(lineEndPos);
+            cursorStart = cursorEnd = start - prefix.length;
+        } else {
+            const stripped = line.replace(/^#{1,3}\s/, '');
+            newText = text.substring(0, lineStart) + prefix + stripped + text.substring(lineEndPos);
+            cursorStart = cursorEnd = lineStart + prefix.length + stripped.length;
+        }
+    } else if (block) {
+        const before = start > 0 && text[start - 1] !== '\n' ? '\n' : '';
+        const after = end < text.length && text[end] !== '\n' ? '\n' : '';
+        const content = selected || placeholder;
+        const insertion = `${before}${prefix}${content}${suffix}${after}`;
+        newText = text.substring(0, start) + insertion + text.substring(end);
+        if (selected) {
+            cursorStart = cursorEnd = start + before.length + prefix.length + content.length + suffix.length;
+        } else {
+            cursorStart = start + before.length + prefix.length;
+            cursorEnd = cursorStart + placeholder.length;
+        }
+    } else {
+        // Inline wrap
+        if (selected) {
+            const beforeSel = text.substring(Math.max(0, start - prefix.length), start);
+            const afterSel = text.substring(end, end + suffix.length);
+            if (beforeSel === prefix && afterSel === suffix) {
+                // Toggle off
+                newText = text.substring(0, start - prefix.length) + selected + text.substring(end + suffix.length);
+                cursorStart = start - prefix.length;
+                cursorEnd = cursorStart + selected.length;
+            } else {
+                newText = text.substring(0, start) + prefix + selected + suffix + text.substring(end);
+                cursorStart = start + prefix.length;
+                cursorEnd = cursorStart + selected.length;
+            }
+        } else {
+            newText = text.substring(0, start) + prefix + placeholder + suffix + text.substring(end);
+            cursorStart = start + prefix.length;
+            cursorEnd = cursorStart + placeholder.length;
+        }
+    }
+
+    textarea.value = newText;
+    textarea.selectionStart = cursorStart;
+    textarea.selectionEnd = cursorEnd;
+    textarea.dispatchEvent(new Event('input'));
+}
+
+function insertLink() {
+    const textarea = document.getElementById('sectionContentEdit');
+    if (!textarea) return;
+    const selected = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
+    if (selected && (selected.startsWith('http://') || selected.startsWith('https://'))) {
+        // Selected text is a URL — wrap it
+        const linkText = t('mdToolbar.linkText');
+        const before = textarea.value.substring(0, textarea.selectionStart);
+        const after = textarea.value.substring(textarea.selectionEnd);
+        textarea.value = before + '[' + linkText + '](' + selected + ')' + after;
+        textarea.selectionStart = before.length + 1;
+        textarea.selectionEnd = before.length + 1 + linkText.length;
+        textarea.focus();
+    } else if (selected) {
+        insertMarkdown('[' + selected + '](', ')', { placeholder: 'url' });
+    } else {
+        insertMarkdown('[', '](url)', { placeholder: t('mdToolbar.linkText') });
+    }
+}
+
+function insertHeading(level) {
+    const prefix = '#'.repeat(level) + ' ';
+    insertMarkdown(prefix, '', { replaceLineStart: true });
+    document.getElementById('headingDropdown')?.classList.remove('open');
+}
+
+function toggleHeadingDropdown() {
+    document.getElementById('headingDropdown')?.classList.toggle('open');
+}
+
+function handleMarkdownShortcuts(e) {
+    // Auto-continue lists on Enter
+    if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+        const textarea = e.target;
+        const pos = textarea.selectionStart;
+        const text = textarea.value;
+
+        // Find the current line
+        const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+        const line = text.substring(lineStart, pos);
+
+        // Check for ordered list: "1. text"
+        const olMatch = line.match(/^(\d+)\. (.+)$/);
+        if (olMatch) {
+            const nextNum = parseInt(olMatch[1]) + 1;
+            e.preventDefault();
+            const before = text.substring(0, pos);
+            const after = text.substring(pos);
+            const insert = '\n' + nextNum + '. ';
+            textarea.value = before + insert + after;
+            textarea.selectionStart = textarea.selectionEnd = pos + insert.length;
+            textarea.dispatchEvent(new Event('input'));
+            return;
+        }
+
+        // Check for empty ordered list item: "1. " (just the prefix, no content) — remove it
+        const olEmptyMatch = line.match(/^(\d+)\. $/);
+        if (olEmptyMatch) {
+            e.preventDefault();
+            const before = text.substring(0, lineStart);
+            const after = text.substring(pos);
+            textarea.value = before + after;
+            textarea.selectionStart = textarea.selectionEnd = lineStart;
+            textarea.dispatchEvent(new Event('input'));
+            return;
+        }
+
+        // Check for unordered list: "- text"
+        const ulMatch = line.match(/^- (.+)$/);
+        if (ulMatch) {
+            e.preventDefault();
+            const before = text.substring(0, pos);
+            const after = text.substring(pos);
+            const insert = '\n- ';
+            textarea.value = before + insert + after;
+            textarea.selectionStart = textarea.selectionEnd = pos + insert.length;
+            textarea.dispatchEvent(new Event('input'));
+            return;
+        }
+
+        // Check for empty unordered list item: "- " — remove it
+        if (line === '- ') {
+            e.preventDefault();
+            const before = text.substring(0, lineStart);
+            const after = text.substring(pos);
+            textarea.value = before + after;
+            textarea.selectionStart = textarea.selectionEnd = lineStart;
+            textarea.dispatchEvent(new Event('input'));
+            return;
+        }
+
+        // Check for blockquote: "> text"
+        const bqMatch = line.match(/^> (.+)$/);
+        if (bqMatch) {
+            e.preventDefault();
+            const before = text.substring(0, pos);
+            const after = text.substring(pos);
+            const insert = '\n> ';
+            textarea.value = before + insert + after;
+            textarea.selectionStart = textarea.selectionEnd = pos + insert.length;
+            textarea.dispatchEvent(new Event('input'));
+            return;
+        }
+
+        // Check for empty blockquote: "> " — remove it
+        if (line === '> ') {
+            e.preventDefault();
+            const before = text.substring(0, lineStart);
+            const after = text.substring(pos);
+            textarea.value = before + after;
+            textarea.selectionStart = textarea.selectionEnd = lineStart;
+            textarea.dispatchEvent(new Event('input'));
+            return;
+        }
+
+        return;
+    }
+
+    const isMod = e.ctrlKey || e.metaKey;
+    if (!isMod) return;
+
+    if (isMod && e.shiftKey) {
+        switch (e.key) {
+            case '7':
+                e.preventDefault();
+                insertMarkdown('1. ', '', { block: true, placeholder: t('mdToolbar.listItem') });
+                return;
+            case '8':
+                e.preventDefault();
+                insertMarkdown('- ', '', { block: true, placeholder: t('mdToolbar.listItem') });
+                return;
+        }
+    }
+
+    switch (e.key.toLowerCase()) {
+        case 'b':
+            e.preventDefault();
+            insertMarkdown('**', '**', { placeholder: t('mdToolbar.boldText') });
+            break;
+        case 'i':
+            e.preventDefault();
+            insertMarkdown('*', '*', { placeholder: t('mdToolbar.italicText') });
+            break;
+        case 'k':
+            e.preventDefault();
+            insertLink();
+            break;
+        case 'e':
+            e.preventDefault();
+            insertMarkdown('`', '`', { placeholder: 'code' });
+            break;
     }
 }
 
@@ -1809,13 +2192,23 @@ async function deleteCustomSection(sectionId) {
 function renderMarkdown(markdown) {
     let html = escapeHtml(markdown);
 
+    // Fenced code blocks (must be before inline code)
+    html = html.replace(/```\n?([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+
     // Headers
     html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
     html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
     html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
 
+    // Horizontal rules (before bold/italic to avoid conflicts with ***)
+    html = html.replace(/^---$/gm, '<hr>');
+    html = html.replace(/^\*\*\*$/gm, '<hr>');
+
     // Bold
     html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+    // Strikethrough
+    html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
 
     // Italic
     html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
@@ -1823,12 +2216,17 @@ function renderMarkdown(markdown) {
     // Links
     html = html.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
 
-    // Code
+    // Inline code
     html = html.replace(/`(.+?)`/g, '<code>$1</code>');
 
-    // Lists
+    // Ordered lists
+    html = html.replace(/^\d+\. (.+)$/gm, '<li data-ol>$1</li>');
+    html = html.replace(/((?:<li data-ol>[\s\S]*?<\/li>\n?)+)/g, '<ol>$1</ol>');
+    html = html.replace(/ data-ol/g, '');
+
+    // Unordered lists
     html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
-    html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+    html = html.replace(/((?:<li>[\s\S]*?<\/li>\n?)+)/g, '<ul>$1</ul>');
 
     // Blockquotes
     html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
@@ -1837,14 +2235,20 @@ function renderMarkdown(markdown) {
     html = html.replace(/\n\n/g, '</p><p>');
     html = '<p>' + html + '</p>';
 
-    // Clean up empty paragraphs
+    // Clean up empty paragraphs and unwanted p wrapping
     html = html.replace(/<p><\/p>/g, '');
     html = html.replace(/<p>(<h[123]>)/g, '$1');
     html = html.replace(/(<\/h[123]>)<\/p>/g, '$1');
     html = html.replace(/<p>(<ul>)/g, '$1');
     html = html.replace(/(<\/ul>)<\/p>/g, '$1');
+    html = html.replace(/<p>(<ol>)/g, '$1');
+    html = html.replace(/(<\/ol>)<\/p>/g, '$1');
     html = html.replace(/<p>(<blockquote>)/g, '$1');
     html = html.replace(/(<\/blockquote>)<\/p>/g, '$1');
+    html = html.replace(/<p>(<pre>)/g, '$1');
+    html = html.replace(/(<\/pre>)<\/p>/g, '$1');
+    html = html.replace(/<p>(<hr>)/g, '$1');
+    html = html.replace(/(<hr>)<\/p>/g, '$1');
 
     return html;
 }
@@ -4741,6 +5145,10 @@ window.saveEntry = saveEntry;
 window.editEntry = editEntry;
 window.deleteEntry = deleteEntry;
 window.filterTopicSections = filterTopicSections;
+window.insertMarkdown = insertMarkdown;
+window.insertLink = insertLink;
+window.insertHeading = insertHeading;
+window.toggleHeadingDropdown = toggleHeadingDropdown;
 
 // ============================================================================
 // Mobile Handlers

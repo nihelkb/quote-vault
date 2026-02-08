@@ -390,5 +390,27 @@
     "namePlaceholder": "Ej: Contexto histórico, Conceptos clave...",
     "iconLabel": "Icono (opcional)",
     "createButton": "Crear sección"
+  },
+  "mdToolbar": {
+    "bold": "Negrita",
+    "boldText": "texto en negrita",
+    "italic": "Cursiva",
+    "italicText": "texto en cursiva",
+    "strikethrough": "Tachado",
+    "strikethroughText": "texto tachado",
+    "heading": "Encabezado",
+    "heading1": "Encabezado grande",
+    "heading2": "Encabezado mediano",
+    "heading3": "Encabezado pequeño",
+    "bulletList": "Lista con viñetas",
+    "orderedList": "Lista numerada",
+    "listItem": "elemento de lista",
+    "blockquote": "Cita",
+    "quoteText": "texto de cita",
+    "inlineCode": "Código en línea",
+    "codeBlock": "Bloque de código",
+    "link": "Enlace",
+    "linkText": "texto del enlace",
+    "horizontalRule": "Separador"
   }
 }
