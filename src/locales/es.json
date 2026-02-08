@@ -253,7 +253,17 @@
     "searchPlaceholder": "Buscar temas...",
     "allStatuses": "Todos los estados",
     "noResults": "No se encontraron temas",
-    "tryDifferentFilters": "Intenta con otros filtros o términos de búsqueda"
+    "tryDifferentFilters": "Intenta con otros filtros o términos de búsqueda",
+    "section": "sección",
+    "sections": "secciones",
+    "words": "palabras",
+    "edited": "Editado"
+  },
+  "time": {
+    "today": "hoy",
+    "yesterday": "ayer",
+    "daysAgo": "hace {count} días",
+    "weeksAgo": "hace {count} semanas"
   },
   "topics": {
     "newTopic": "Nuevo tema",

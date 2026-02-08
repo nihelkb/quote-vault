@@ -2801,6 +2801,30 @@ function formatTimestamp(seconds) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
+function getRelativeTime(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return t('time.today');
+    if (diffDays === 1) return t('time.yesterday');
+    if (diffDays < 7) return t('time.daysAgo', { count: diffDays });
+    if (diffDays < 30) return t('time.weeksAgo', { count: Math.floor(diffDays / 7) });
+    return date.toLocaleDateString();
+}
+
+function getTopicStats(topic) {
+    const sections = topic.customSections || [];
+    const sectionCount = sections.length;
+    const wordCount = sections.reduce((total, section) => {
+        const words = section.content ? section.content.split(/\s+/).filter(w => w).length : 0;
+        return total + words;
+    }, 0);
+    return { sectionCount, wordCount };
+}
+
 function seekToTime(seconds) {
     // Use YouTube IFrame API if player is available
     if (ytPlayer && typeof ytPlayer.seekTo === 'function') {
@@ -3451,32 +3475,44 @@ function renderTopicsList() {
         return;
     }
 
-    const html = filteredTopics.map(topic => `
+    const html = filteredTopics.map(topic => {
+        const stats = getTopicStats(topic);
+        const lastEdited = getRelativeTime(topic.updatedAt || topic.createdAt);
+        const description = topic.description ? escapeHtml(topic.description) : '';
+        const truncatedDesc = description.length > 80 ? description.substring(0, 80) + '...' : description;
+
+        return `
         <div class="topic-card" data-topic-id="${topic.id}">
-            <div class="topic-icon" data-icon="${topic.icon || 'folder'}">${getTopicIconSvg(topic.icon || 'folder', 24)}</div>
-            <div class="topic-info">
-                <h3 class="topic-name">${escapeHtml(topic.name)}</h3>
-                ${topic.description ? `<p class="topic-description">${escapeHtml(topic.description)}</p>` : ''}
-                <div class="topic-meta">
-                    ${quoteCounts[topic.id] ? `<span class="topic-quote-count">${quoteCounts[topic.id]} ${t('sidebar.quotes').toLowerCase()}</span>` : ''}
+            <div class="topic-card-header">
+                <div class="topic-icon" data-icon="${topic.icon || 'folder'}">${getTopicIconSvg(topic.icon || 'folder', 22)}</div>
+                <div class="topic-actions">
+                    <button class="btn-icon" onclick="event.stopPropagation(); editTopic('${topic.id}')" data-tooltip="${t('tooltips.edit')}">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                    </button>
+                    <button class="btn-icon btn-danger" onclick="event.stopPropagation(); deleteTopic('${topic.id}')" data-tooltip="${t('tooltips.delete')}">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </button>
                 </div>
             </div>
-            <div class="topic-actions">
-                <button class="btn-icon" onclick="event.stopPropagation(); editTopic('${topic.id}')" data-tooltip="${t('tooltips.edit')}">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                    </svg>
-                </button>
-                <button class="btn-icon btn-danger" onclick="event.stopPropagation(); deleteTopic('${topic.id}')" data-tooltip="${t('tooltips.delete')}">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </svg>
-                </button>
+            <div class="topic-card-body">
+                <h3 class="topic-name">${escapeHtml(topic.name)}</h3>
+                <div class="topic-stats">
+                    <span>${stats.sectionCount} ${stats.sectionCount === 1 ? t('wiki.section') : t('wiki.sections')}</span>
+                    <span class="topic-stats-dot">·</span>
+                    <span>${stats.wordCount.toLocaleString()} ${t('wiki.words')}</span>
+                </div>
+                ${truncatedDesc ? `<p class="topic-preview">"${truncatedDesc}"</p>` : ''}
             </div>
+            ${lastEdited ? `<div class="topic-card-footer">${t('wiki.edited')} ${lastEdited}</div>` : ''}
         </div>
-    `).join('');
+        `;
+    }).join('');
 
     contentBody.innerHTML = `
         <div class="topics-grid">

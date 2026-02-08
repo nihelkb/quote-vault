@@ -253,7 +253,17 @@
     "searchPlaceholder": "Search topics...",
     "allStatuses": "All statuses",
     "noResults": "No topics found",
-    "tryDifferentFilters": "Try different filters or search terms"
+    "tryDifferentFilters": "Try different filters or search terms",
+    "section": "section",
+    "sections": "sections",
+    "words": "words",
+    "edited": "Edited"
+  },
+  "time": {
+    "today": "today",
+    "yesterday": "yesterday",
+    "daysAgo": "{count} days ago",
+    "weeksAgo": "{count} weeks ago"
   },
   "topics": {
     "newTopic": "New topic",
