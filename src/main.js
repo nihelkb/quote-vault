@@ -776,7 +776,7 @@ async function openTopicView(topicId) {
     contentBody.innerHTML = renderTopicDetailView(topic, linkedQuotes, linkedInsights);
 
     // Setup event listeners
-    setupTopicDetailListeners(topic);
+    setupTopicDetailListeners();
 }
 
 function renderTopicDetailView(topic, linkedQuotes, linkedInsights) {
@@ -934,6 +934,7 @@ function renderCustomSectionCard(section, index = 0) {
     const preview = hasContent ? escapeHtml(getContentPreview(section.content)) : '';
     const iconHtml = getSectionIconSvg(section.icon || 'document', 22);
     const colorIndex = index % 8;
+    const linkedCount = (section.linkedHighlights || []).length;
 
     return `
         <div class="section-card ${hasContent ? 'has-content' : ''} custom-section card-color-${colorIndex}"
@@ -944,7 +945,10 @@ function renderCustomSectionCard(section, index = 0) {
                     <span class="section-card-icon">${iconHtml}</span>
                     <h3>${escapeHtml(section.name)}</h3>
                 </div>
-                ${wordCount > 0 ? `<span class="section-card-count">${wordCountLabel}</span>` : ''}
+                <div class="section-card-badges">
+                    ${linkedCount > 0 ? `<span class="linked-highlights-badge">📎 ${linkedCount}</span>` : ''}
+                    ${wordCount > 0 ? `<span class="section-card-count">${wordCountLabel}</span>` : ''}
+                </div>
             </div>
 
             ${hasContent ? `
@@ -991,20 +995,227 @@ function getContentPreview(content) {
 
 
 function renderInsightSidebarCard(insight) {
+    const highlights = insight.highlights || [];
+    const hasHighlights = highlights.length > 0;
+
     return `
-        <div class="insight-sidebar-card" data-insight-id="${insight.id}" onclick="event.stopPropagation(); openInsightView('${insight.id}')">
-            <div class="insight-card-title">${escapeHtml(insight.sourceTitle || t('insights.untitled'))}</div>
-            <div class="insight-card-meta">
-                <span class="insight-card-status ${insight.status}">${t('insights.' + insight.status)}</span>
-                ${insight.sourceType ? `<span>• ${t('insights.source' + insight.sourceType.charAt(0).toUpperCase() + insight.sourceType.slice(1))}</span>` : ''}
+        <div class="insight-sidebar-card ${hasHighlights ? 'has-highlights' : ''}" data-insight-id="${insight.id}">
+            <div class="insight-sidebar-header" onclick="event.stopPropagation(); ${hasHighlights ? `toggleInsightExpand('${insight.id}')` : `openInsightView('${insight.id}')`}">
+                <div class="insight-sidebar-info">
+                    <div class="insight-card-title">${escapeHtml(insight.sourceTitle || t('insights.untitled'))}</div>
+                    <div class="insight-card-meta">
+                        <span class="insight-card-status ${insight.status}">${t('insights.' + insight.status)}</span>
+                        ${hasHighlights ? `<span>• ${highlights.length} ${t('insights.highlights').toLowerCase()}</span>` : ''}
+                    </div>
+                </div>
+                ${hasHighlights ? `
+                    <svg class="insight-expand-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                ` : ''}
             </div>
+            ${hasHighlights ? `
+                <div class="insight-highlights-list" id="insightHighlights-${insight.id}">
+                    ${highlights.map(h => `
+                        <div class="draggable-highlight"
+                             draggable="true"
+                             data-insight-id="${insight.id}"
+                             data-highlight-id="${h.id}"
+                             data-highlight-text="${escapeHtml(h.text)}"
+                             data-highlight-color="${h.color || 'yellow'}">
+                            <div class="highlight-drag-handle">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                    <circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/>
+                                    <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+                                    <circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/>
+                                </svg>
+                            </div>
+                            <div class="highlight-drag-color" style="background: ${getHighlightColor(h.color)}"></div>
+                            <div class="highlight-drag-text">"${escapeHtml(h.text.length > 60 ? h.text.substring(0, 60) + '...' : h.text)}"</div>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : ''}
         </div>
     `;
 }
 
-function setupTopicDetailListeners(topic) {
-    // Event listeners will be added here for inline editing
-    // For now, we'll use onclick handlers in the HTML
+function toggleInsightExpand(insightId) {
+    const card = document.querySelector(`.insight-sidebar-card[data-insight-id="${insightId}"]`);
+    if (card) {
+        card.classList.toggle('expanded');
+    }
+}
+
+function setupTopicDetailListeners() {
+    // Setup drag & drop for highlights to sections
+    setupHighlightDragAndDrop();
+}
+
+function setupHighlightDragAndDrop() {
+    // Setup draggable highlights
+    const draggableHighlights = document.querySelectorAll('.draggable-highlight');
+    draggableHighlights.forEach(highlight => {
+        highlight.addEventListener('dragstart', handleHighlightDragStart);
+        highlight.addEventListener('dragend', handleHighlightDragEnd);
+    });
+
+    // Setup droppable section cards
+    const sectionCards = document.querySelectorAll('.section-card');
+    sectionCards.forEach(card => {
+        card.addEventListener('dragover', handleSectionDragOver);
+        card.addEventListener('dragleave', handleSectionDragLeave);
+        card.addEventListener('drop', handleSectionDrop);
+    });
+}
+
+function handleHighlightDragStart(e) {
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('application/json', JSON.stringify({
+        insightId: e.target.dataset.insightId,
+        highlightId: e.target.dataset.highlightId,
+        text: e.target.dataset.highlightText,
+        color: e.target.dataset.highlightColor
+    }));
+
+    // Add visual feedback to sections
+    document.querySelectorAll('.section-card').forEach(card => {
+        card.classList.add('drop-target');
+    });
+}
+
+function handleHighlightDragEnd(e) {
+    e.target.classList.remove('dragging');
+
+    // Remove visual feedback from sections
+    document.querySelectorAll('.section-card').forEach(card => {
+        card.classList.remove('drop-target', 'drag-over');
+    });
+}
+
+function handleSectionDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    e.currentTarget.classList.add('drag-over');
+}
+
+function handleSectionDragLeave(e) {
+    e.currentTarget.classList.remove('drag-over');
+}
+
+async function handleSectionDrop(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over', 'drop-target');
+
+    const sectionId = e.currentTarget.dataset.sectionId;
+    if (!sectionId) return;
+
+    try {
+        const data = JSON.parse(e.dataTransfer.getData('application/json'));
+        await linkHighlightToSection(sectionId, data);
+    } catch (error) {
+        console.error('Error handling drop:', error);
+    }
+}
+
+async function linkHighlightToSection(sectionId, highlightData) {
+    const topic = state.topics.find(t => t.id === state.currentTopicId);
+    if (!topic) return;
+
+    const section = (topic.customSections || []).find(s => s.id === sectionId);
+    if (!section) return;
+
+    // Initialize linkedHighlights array if doesn't exist
+    if (!section.linkedHighlights) {
+        section.linkedHighlights = [];
+    }
+
+    // Check if already linked
+    const alreadyLinked = section.linkedHighlights.some(
+        lh => lh.insightId === highlightData.insightId && lh.highlightId === highlightData.highlightId
+    );
+
+    if (alreadyLinked) {
+        toast.info(t('toast.highlightAlreadyLinked'));
+        return;
+    }
+
+    // Add the link
+    section.linkedHighlights.push({
+        insightId: highlightData.insightId,
+        highlightId: highlightData.highlightId,
+        text: highlightData.text,
+        color: highlightData.color,
+        linkedAt: new Date().toISOString()
+    });
+
+    // Save to Firebase
+    try {
+        await topicService.update(state.currentTopicId, {
+            customSections: topic.customSections
+        });
+
+        toast.success(t('toast.highlightLinkedToSection'));
+
+        // Update section card to show linked count
+        updateSectionCardLinkedCount(sectionId, section.linkedHighlights.length);
+    } catch (error) {
+        // Rollback on error
+        section.linkedHighlights.pop();
+        handleFirebaseError(error, t('toast.errorLinking'));
+    }
+}
+
+function updateSectionCardLinkedCount(sectionId, count) {
+    const card = document.querySelector(`.section-card[data-section-id="${sectionId}"]`);
+    if (!card) return;
+
+    let badge = card.querySelector('.linked-highlights-badge');
+    if (count > 0) {
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'linked-highlights-badge';
+            const header = card.querySelector('.section-card-header');
+            if (header) header.appendChild(badge);
+        }
+        badge.textContent = `📎 ${count}`;
+    } else if (badge) {
+        badge.remove();
+    }
+}
+
+function copyHighlightToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        toast.success(t('toast.copiedToClipboard'));
+    }).catch(() => {
+        toast.error(t('toast.errorCopying'));
+    });
+}
+
+async function unlinkHighlightFromSection(sectionId, highlightId) {
+    const topic = state.topics.find(t => t.id === state.currentTopicId);
+    if (!topic) return;
+
+    const section = (topic.customSections || []).find(s => s.id === sectionId);
+    if (!section || !section.linkedHighlights) return;
+
+    // Remove the highlight link
+    section.linkedHighlights = section.linkedHighlights.filter(lh => lh.highlightId !== highlightId);
+
+    try {
+        await topicService.update(state.currentTopicId, {
+            customSections: topic.customSections
+        });
+
+        toast.success(t('toast.highlightUnlinked'));
+
+        // Refresh the modal
+        closeCustomSectionModal();
+        openCustomSectionModal(sectionId);
+    } catch (error) {
+        handleFirebaseError(error, t('toast.errorUpdating'));
+    }
 }
 
 function toggleTopicStatus(topicId) {
@@ -1173,9 +1384,8 @@ function openCustomSectionModal(sectionId) {
     const section = topic.customSections?.find(s => s.id === sectionId);
     if (!section) return;
 
-    // Get linked insights
-    const linkedInsightIds = section.linkedInsightIds || [];
-    const linkedInsights = state.insights.filter(i => linkedInsightIds.includes(i.id));
+    // Get linked highlights
+    const linkedHighlights = section.linkedHighlights || [];
 
     const iconHtml = getSectionIconSvg(section.icon || 'document', 22);
 
@@ -1183,7 +1393,7 @@ function openCustomSectionModal(sectionId) {
     modal.className = 'section-detail-modal';
     modal.id = 'customSectionModal';
     modal.innerHTML = `
-        <div class="section-detail-content">
+        <div class="section-detail-content ${linkedHighlights.length > 0 ? 'has-sidebar' : ''}">
             <div class="section-detail-header">
                 <div class="section-detail-title">
                     <span class="section-card-icon" style="font-size: 2rem;">${iconHtml}</span>
@@ -1205,46 +1415,63 @@ function openCustomSectionModal(sectionId) {
                 </div>
             </div>
             <div class="section-detail-body">
-                <div id="sectionViewMode">
-                    ${section.content ? renderMarkdown(section.content) : `
-                        <div style="text-align: center; padding: 80px 40px; color: var(--text-muted);">
-                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity: 0.3; margin-bottom: 24px;">
-                                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                            <h3 style="margin: 0 0 8px 0; color: var(--text);">Esta sección está vacía</h3>
-                            <p>Haz clic en <strong>Editar</strong> para comenzar a escribir</p>
-                        </div>
-                    `}
-                </div>
-                <div id="sectionEditMode" style="display: none;">
-                    <textarea id="sectionContentEdit" rows="20" style="width: 100%; font-family: 'DM Sans', monospace; font-size: 0.95rem; padding: 16px; border: 1px solid var(--border); border-radius: 8px; resize: vertical;">${escapeHtml(section.content || '')}</textarea>
-                    <div style="margin-top: 16px; display: flex; gap: 12px; justify-content: flex-end;">
-                        <button class="btn btn-secondary" onclick="toggleSectionEditMode('${sectionId}')">Cancelar</button>
-                        <button class="btn btn-primary" onclick="saveCustomSectionContent('${sectionId}')">Guardar cambios</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Insights Sidebar -->
-            <div class="section-detail-sidebar">
-                <h3>Insights vinculados</h3>
-                ${linkedInsights.length > 0 ? `
-                    <div class="insights-sidebar-list">
-                        ${linkedInsights.map(insight => `
-                            <div class="insight-sidebar-card" onclick="openInsightView('${insight.id}'); closeCustomSectionModal();">
-                                <div class="insight-card-title">${escapeHtml(insight.sourceTitle || 'Sin título')}</div>
-                                <div class="insight-card-meta">
-                                    <span class="insight-card-status ${insight.status}">${insight.status}</span>
-                                    ${insight.sourceType ? `<span>• ${insight.sourceType}</span>` : ''}
-                                </div>
+                <div class="section-main-content">
+                    <div id="sectionViewMode">
+                        ${section.content ? renderMarkdown(section.content) : `
+                            <div class="section-detail-empty">
+                                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                <h3>${t('topics.emptySection')}</h3>
+                                <p>${t('topics.clickToEdit')}</p>
                             </div>
-                        `).join('')}
+                        `}
                     </div>
-                ` : `
-                    <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6;">
-                        No hay insights vinculados a esta sección todavía.
-                    </p>
-                `}
+                    <div id="sectionEditMode" style="display: none;">
+                        <textarea id="sectionContentEdit" rows="20">${escapeHtml(section.content || '')}</textarea>
+                        <div class="section-edit-actions">
+                            <button class="btn btn-secondary" onclick="toggleSectionEditMode('${sectionId}')">${t('cancel')}</button>
+                            <button class="btn btn-primary" onclick="saveCustomSectionContent('${sectionId}')">${t('save')}</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Linked Highlights Sidebar -->
+                ${linkedHighlights.length > 0 ? `
+                    <div class="section-highlights-sidebar">
+                        <div class="section-highlights-header">
+                            <h4>📎 ${t('topics.linkedHighlights')} (${linkedHighlights.length})</h4>
+                        </div>
+                        <div class="section-highlights-list">
+                            ${linkedHighlights.map(lh => {
+                                const insight = state.insights.find(i => i.id === lh.insightId);
+                                return `
+                                    <div class="linked-highlight-item">
+                                        <div class="linked-highlight-color" style="background: ${getHighlightColor(lh.color)}"></div>
+                                        <div class="linked-highlight-content">
+                                            <p class="linked-highlight-text">"${escapeHtml(lh.text)}"</p>
+                                            ${insight ? `<span class="linked-highlight-source">${escapeHtml(insight.sourceTitle || t('insights.untitled'))}</span>` : ''}
+                                        </div>
+                                        <div class="linked-highlight-actions">
+                                            <button class="btn-icon-tiny" onclick="copyHighlightToClipboard('${escapeHtml(lh.text)}')" data-tooltip="${t('tooltips.copy')}">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                                </svg>
+                                            </button>
+                                            <button class="btn-icon-tiny btn-danger" onclick="unlinkHighlightFromSection('${sectionId}', '${lh.highlightId}')" data-tooltip="${t('tooltips.unlink')}">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                ` : ''}
             </div>
         </div>
     `;
@@ -1711,7 +1938,27 @@ function openInsightView(insightId) {
                                 `).join('')}
                             </div>
                         </div>
-                        ${linkedTopic ? `<span class="insight-linked-topic">${getTopicIconSvg(linkedTopic.icon || 'folder', 14)} ${escapeHtml(linkedTopic.name)}</span>` : ''}
+                        <div class="insight-topic-selector">
+                            <button class="insight-linked-topic-btn" onclick="toggleTopicSelector('${insight.id}')">
+                                ${linkedTopic
+                                    ? `${getTopicIconSvg(linkedTopic.icon || 'folder', 14)} <span>${escapeHtml(linkedTopic.name)}</span>`
+                                    : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> <span>${t('insights.linkToTopic')}</span>`
+                                }
+                                <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="topic-selector-dropdown hidden" id="topicSelectorDropdown">
+                                <div class="topic-selector-option" onclick="linkInsightToTopic('${insight.id}', null)">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                    ${t('insights.noTopic')}
+                                </div>
+                                ${state.topics.map(topic => `
+                                    <div class="topic-selector-option ${topic.id === insight.linkedTopicId ? 'active' : ''}" onclick="linkInsightToTopic('${insight.id}', '${topic.id}')">
+                                        ${getTopicIconSvg(topic.icon || 'folder', 14)}
+                                        ${escapeHtml(topic.name)}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="insight-detail-actions">
@@ -3108,6 +3355,57 @@ function toggleStatusDropdown() {
     }, 0);
 }
 
+function toggleTopicSelector(insightId) {
+    const dropdown = document.getElementById('topicSelectorDropdown');
+    if (!dropdown) return;
+
+    if (!dropdown.classList.contains('hidden')) {
+        dropdown.classList.add('hidden');
+        return;
+    }
+
+    dropdown.classList.remove('hidden');
+
+    // Close on outside click
+    setTimeout(() => {
+        document.addEventListener('click', function closeDropdown(e) {
+            const wrapper = document.querySelector('.insight-topic-selector');
+            if (!wrapper || !wrapper.contains(e.target)) {
+                dropdown.classList.add('hidden');
+                document.removeEventListener('click', closeDropdown);
+            }
+        });
+    }, 0);
+}
+
+async function linkInsightToTopic(insightId, topicId) {
+    const dropdown = document.getElementById('topicSelectorDropdown');
+    if (dropdown) dropdown.classList.add('hidden');
+
+    try {
+        await insightService.linkToTopic(insightId, topicId);
+
+        // Update local state
+        const insight = state.insights.find(i => i.id === insightId);
+        if (insight) {
+            insight.linkedTopicId = topicId;
+        }
+
+        // Update the button in-place
+        const btn = document.querySelector('.insight-linked-topic-btn');
+        if (btn) {
+            const topic = topicId ? state.topics.find(t => t.id === topicId) : null;
+            btn.innerHTML = topic
+                ? `${getTopicIconSvg(topic.icon || 'folder', 14)} <span>${escapeHtml(topic.name)}</span><svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>`
+                : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> <span>${t('insights.linkToTopic')}</span><svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+        }
+
+        toast.success(topicId ? t('toast.insightLinked') : t('toast.insightUnlinked'));
+    } catch (error) {
+        handleFirebaseError(error, t('toast.errorUpdating'));
+    }
+}
+
 async function changeInsightStatus(insightId, newStatus) {
     const dropdown = document.getElementById('statusDropdown');
     if (dropdown) dropdown.classList.add('hidden');
@@ -4420,6 +4718,9 @@ window.deleteTimestampedNote = deleteTimestampedNote;
 window.toggleTodoNote = toggleTodoNote;
 window.toggleStatusDropdown = toggleStatusDropdown;
 window.changeInsightStatus = changeInsightStatus;
+window.toggleTopicSelector = toggleTopicSelector;
+window.linkInsightToTopic = linkInsightToTopic;
+window.toggleInsightExpand = toggleInsightExpand;
 
 // Custom Sections
 window.openNewSectionModal = openNewSectionModal;
@@ -4427,6 +4728,8 @@ window.closeNewSectionModal = closeNewSectionModal;
 window.createCustomSection = createCustomSection;
 window.openCustomSectionModal = openCustomSectionModal;
 window.closeCustomSectionModal = closeCustomSectionModal;
+window.copyHighlightToClipboard = copyHighlightToClipboard;
+window.unlinkHighlightFromSection = unlinkHighlightFromSection;
 window.toggleSectionEditMode = toggleSectionEditMode;
 window.saveCustomSectionContent = saveCustomSectionContent;
 window.deleteCustomSection = deleteCustomSection;
