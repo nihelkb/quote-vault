@@ -1558,9 +1558,14 @@ function openCustomSectionModal(sectionId) {
 
                 <!-- Linked Highlights Sidebar -->
                 ${linkedHighlights.length > 0 ? `
-                    <div class="section-highlights-sidebar">
+                    <div class="section-highlights-sidebar" id="sectionHighlightsSidebar">
                         <div class="section-highlights-header">
                             <h4>📎 ${t('topics.linkedHighlights')} (${linkedHighlights.length})</h4>
+                            <button class="btn-icon-tiny" onclick="toggleSectionHighlightsSidebar()" data-tooltip="${t('tooltips.hideLinkedInsights')}">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </button>
                         </div>
                         <div class="section-highlights-list">
                             ${linkedHighlights.map(lh => {
@@ -1838,6 +1843,12 @@ function insertHeading(level) {
 
 function toggleHeadingDropdown() {
     document.getElementById('headingDropdown')?.classList.toggle('open');
+}
+
+function toggleSectionHighlightsSidebar() {
+    const sidebar = document.getElementById('sectionHighlightsSidebar');
+    if (!sidebar) return;
+    sidebar.classList.toggle('collapsed');
 }
 
 function handleMarkdownShortcuts(e) {
@@ -5165,6 +5176,7 @@ window.insertMarkdown = insertMarkdown;
 window.insertLink = insertLink;
 window.insertHeading = insertHeading;
 window.toggleHeadingDropdown = toggleHeadingDropdown;
+window.toggleSectionHighlightsSidebar = toggleSectionHighlightsSidebar;
 
 // ============================================================================
 // Mobile Handlers

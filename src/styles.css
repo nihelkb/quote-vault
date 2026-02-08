@@ -5063,7 +5063,7 @@ header {
 /* Section Highlights Sidebar */
 .section-detail-content.has-sidebar .section-detail-body {
     display: grid;
-    grid-template-columns: 1fr 280px;
+    grid-template-columns: 1fr auto;
     gap: 0;
     padding: 0;
 }
@@ -5074,14 +5074,43 @@ header {
 }
 
 .section-highlights-sidebar {
+    width: 280px;
     border-left: 1px solid var(--border);
     background: #fafafa;
     padding: 20px;
     overflow-y: auto;
+    transition: width 0.25s ease, padding 0.25s ease;
+}
+
+.section-highlights-sidebar.collapsed {
+    width: 44px;
+    padding: 14px 0;
+    overflow: hidden;
+}
+
+.section-highlights-sidebar.collapsed .section-highlights-list {
+    display: none;
+}
+
+.section-highlights-sidebar.collapsed .section-highlights-header h4 {
+    display: none;
+}
+
+.section-highlights-sidebar.collapsed .section-highlights-header {
+    margin-bottom: 0;
+    justify-content: center;
+}
+
+.section-highlights-sidebar.collapsed .section-highlights-header .btn-icon-tiny svg {
+    transform: rotate(180deg);
 }
 
 .section-highlights-header {
     margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
 }
 
 .section-highlights-header h4 {
@@ -5089,6 +5118,11 @@ header {
     font-weight: 600;
     color: var(--text);
     margin: 0;
+    white-space: nowrap;
+}
+
+.section-highlights-header .btn-icon-tiny svg {
+    transition: transform 0.2s ease;
 }
 
 .section-highlights-list {
