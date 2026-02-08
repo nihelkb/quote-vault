@@ -4520,15 +4520,20 @@ header {
 
 /* Drag & Drop styles */
 .section-card.drop-target {
-    border-style: dashed;
-    border-color: var(--accent);
+    outline: 2px dashed var(--border);
+    outline-offset: -2px;
 }
 
 .section-card.drag-over {
-    border-color: var(--accent);
-    background: rgba(45, 45, 45, 0.03);
-    transform: scale(1.02);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    outline: 2px solid var(--card-accent, var(--accent));
+    outline-offset: -2px;
+    background: color-mix(in srgb, var(--card-accent, var(--accent)) 6%, white);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--card-accent, var(--accent)) 12%, transparent),
+                0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.section-card.drag-over::before {
+    opacity: 1;
 }
 
 .linked-highlights-badge {
@@ -4846,7 +4851,7 @@ header {
 
 .draggable-highlight {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
     padding: 8px 10px;
     background: var(--tag-bg);
@@ -4872,24 +4877,28 @@ header {
     color: var(--text-muted);
     opacity: 0.5;
     flex-shrink: 0;
+    margin-top: 2px;
 }
 
 .highlight-drag-color {
-    width: 4px;
-    height: 24px;
+    width: 3px;
+    min-height: 20px;
+    align-self: stretch;
     border-radius: 2px;
     flex-shrink: 0;
 }
 
 .highlight-drag-text {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     color: var(--text);
     font-style: italic;
     flex: 1;
     min-width: 0;
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .insight-card-title {
