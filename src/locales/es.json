@@ -354,7 +354,8 @@
     "todo":"Pendiente",
     "addTimestampNote": "Añadir nota con timestamp",
     "reloadTranscript": "Recargar transcripción",
-    "changeStatus": "Cambiar estado"
+    "changeStatus": "Cambiar estado",
+    "preview": "Vista previa"
   },
   "highlightColors": {
     "yellow": "Amarillo",

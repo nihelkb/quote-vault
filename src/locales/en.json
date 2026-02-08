@@ -354,7 +354,8 @@
     "todo":"To-do",
     "addTimestampNote": "Add note with timestamp",
     "reloadTranscript": "Reload transcript",
-    "changeStatus": "Change status"
+    "changeStatus": "Change status",
+    "preview": "Preview"
   },
   "highlightColors": {
     "yellow": "Yellow",

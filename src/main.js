@@ -1400,13 +1400,13 @@ function openCustomSectionModal(sectionId) {
                     <h2>${escapeHtml(section.name)}</h2>
                 </div>
                 <div class="section-detail-actions">
-                    <button class="btn-icon-small" id="editSectionBtn" onclick="toggleSectionEditMode('${sectionId}')" data-tooltip="Editar">
+                    <button class="btn-icon-small" id="editSectionBtn" onclick="toggleSectionEditMode('${sectionId}')" data-tooltip="${t('tooltips.edit')}">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                         </svg>
                     </button>
-                    <button class="btn-icon-small" onclick="closeCustomSectionModal()" data-tooltip="Cerrar">
+                    <button class="btn-icon-small" onclick="closeCustomSectionModal()" data-tooltip="${t('tooltips.close')}">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="18" y1="6" x2="6" y2="18"></line>
                             <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -1672,24 +1672,24 @@ function toggleSectionEditMode(sectionId) {
             viewMode.style.display = 'block';
             editMode.style.display = 'none';
             if (editBtn) {
+                editBtn.setAttribute('data-tooltip', t('tooltips.edit'));
                 editBtn.innerHTML = `
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                     </svg>
-                    Editar
                 `;
             }
         } else {
             viewMode.style.display = 'none';
             editMode.style.display = 'block';
             if (editBtn) {
+                editBtn.setAttribute('data-tooltip', t('tooltips.preview'));
                 editBtn.innerHTML = `
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                         <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                     </svg>
-                    Vista previa
                 `;
             }
             // Focus textarea
@@ -1713,10 +1713,26 @@ async function saveCustomSectionContent(sectionId) {
         );
 
         toast.success('Contenido guardado');
-        closeCustomSectionModal();
 
-        // Reload topic view
-        await openTopicView(state.currentTopicId);
+        // Update the view mode with the new rendered content
+        const viewMode = document.getElementById('sectionViewMode');
+        if (viewMode) {
+            viewMode.innerHTML = content ? renderMarkdown(content) : `
+                <div class="section-detail-empty">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <h3>${t('topics.emptySection')}</h3>
+                    <p>${t('topics.clickToEdit')}</p>
+                </div>
+            `;
+        }
+
+        // Switch back to view mode
+        toggleSectionEditMode(sectionId);
+
+        // Reload topic view in background to update cards
+        openTopicView(state.currentTopicId);
     } catch (error) {
         handleFirebaseError(error, 'Error al guardar');
     }
