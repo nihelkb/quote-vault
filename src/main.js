@@ -1384,8 +1384,10 @@ function openCustomSectionModal(sectionId) {
     const section = topic.customSections?.find(s => s.id === sectionId);
     if (!section) return;
 
-    // Get linked highlights
+    // Get linked highlights and headings
     const linkedHighlights = section.linkedHighlights || [];
+    const headings = extractHeadingsFromMarkdown(section.content || '');
+    const hasSidebar = linkedHighlights.length > 0 || headings.length > 0;
 
     const iconHtml = getSectionIconSvg(section.icon || 'document', 22);
 
@@ -1393,7 +1395,7 @@ function openCustomSectionModal(sectionId) {
     modal.className = 'section-detail-modal';
     modal.id = 'customSectionModal';
     modal.innerHTML = `
-        <div class="section-detail-content ${linkedHighlights.length > 0 ? 'has-sidebar' : ''}">
+        <div class="section-detail-content ${hasSidebar ? 'has-sidebar' : ''}">
             <div class="section-detail-header">
                 <div class="section-detail-title">
                     <span class="section-card-icon" style="font-size: 2rem;">${iconHtml}</span>
@@ -1571,45 +1573,79 @@ function openCustomSectionModal(sectionId) {
                     </div>
                 </div>
 
-                <!-- Linked Highlights Sidebar -->
-                ${linkedHighlights.length > 0 ? `
+                <!-- Sidebar: TOC + Linked Highlights -->
+                ${hasSidebar ? `
                     <div class="section-highlights-sidebar" id="sectionHighlightsSidebar">
                         <div class="section-highlights-header">
-                            <h4>📎 ${t('topics.linkedHighlights')} (${linkedHighlights.length})</h4>
                             <button class="btn-icon-tiny" onclick="toggleSectionHighlightsSidebar()" data-tooltip="${t('tooltips.hideLinkedInsights')}">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
                             </button>
                         </div>
-                        <div class="section-highlights-list">
-                            ${linkedHighlights.map(lh => {
-                                const insight = state.insights.find(i => i.id === lh.insightId);
-                                return `
-                                    <div class="linked-highlight-item">
-                                        <div class="linked-highlight-color" style="background: ${getHighlightColor(lh.color)}"></div>
-                                        <div class="linked-highlight-content">
-                                            <p class="linked-highlight-text">"${escapeHtml(lh.text)}"</p>
-                                            ${insight ? `<span class="linked-highlight-source">${escapeHtml(insight.sourceTitle || t('insights.untitled'))}</span>` : ''}
-                                        </div>
-                                        <div class="linked-highlight-actions">
-                                            <button class="btn-icon-tiny" onclick="copyHighlightToClipboard('${escapeHtml(lh.text)}')" data-tooltip="${t('tooltips.copy')}">
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                                                </svg>
-                                            </button>
-                                            <button class="btn-icon-tiny btn-danger" onclick="unlinkHighlightFromSection('${sectionId}', '${lh.highlightId}')" data-tooltip="${t('tooltips.unlink')}">
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                                                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                                                </svg>
-                                            </button>
-                                        </div>
+
+                        ${headings.length > 0 ? `
+                            <details class="sidebar-accordion sidebar-accordion-toc" open>
+                                <summary>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="9 18 15 12 9 6"></polyline>
+                                    </svg>
+                                    <span>${t('topics.tableOfContents')}</span>
+                                    <span class="sidebar-accordion-badge">${headings.length}</span>
+                                </summary>
+                                <div class="sidebar-accordion-content">
+                                    <nav class="sidebar-toc">
+                                        ${headings.map(h => `
+                                            <a class="sidebar-toc-item sidebar-toc-h${h.level}" href="javascript:void(0)" onclick="scrollToHeading('${h.id}')">
+                                                ${escapeHtml(h.text)}
+                                            </a>
+                                        `).join('')}
+                                    </nav>
+                                </div>
+                            </details>
+                        ` : ''}
+
+                        ${linkedHighlights.length > 0 ? `
+                            <details class="sidebar-accordion" open>
+                                <summary>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="9 18 15 12 9 6"></polyline>
+                                    </svg>
+                                    <span>${t('topics.linkedHighlights')}</span>
+                                    <span class="sidebar-accordion-badge">${linkedHighlights.length}</span>
+                                </summary>
+                                <div class="sidebar-accordion-content">
+                                    <div class="section-highlights-list">
+                                        ${linkedHighlights.map(lh => {
+                                            const insight = state.insights.find(i => i.id === lh.insightId);
+                                            return `
+                                                <div class="linked-highlight-item">
+                                                    <div class="linked-highlight-color" style="background: ${getHighlightColor(lh.color)}"></div>
+                                                    <div class="linked-highlight-content">
+                                                        <p class="linked-highlight-text">"${escapeHtml(lh.text)}"</p>
+                                                        ${insight ? `<span class="linked-highlight-source">${escapeHtml(insight.sourceTitle || t('insights.untitled'))}</span>` : ''}
+                                                    </div>
+                                                    <div class="linked-highlight-actions">
+                                                        <button class="btn-icon-tiny" onclick="copyHighlightToClipboard('${escapeHtml(lh.text)}')" data-tooltip="${t('tooltips.copy')}">
+                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                                            </svg>
+                                                        </button>
+                                                        <button class="btn-icon-tiny btn-danger" onclick="unlinkHighlightFromSection('${sectionId}', '${lh.highlightId}')" data-tooltip="${t('tooltips.unlink')}">
+                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            `;
+                                        }).join('')}
                                     </div>
-                                `;
-                            }).join('')}
-                        </div>
+                                </div>
+                            </details>
+                        ` : ''}
                     </div>
                 ` : ''}
             </div>
@@ -1762,6 +1798,9 @@ async function saveCustomSectionContent(sectionId) {
             `;
         }
 
+        // Update the TOC in the sidebar
+        updateSidebarTOC(content);
+
         // Switch back to view mode
         toggleSectionEditMode(sectionId);
 
@@ -1878,6 +1917,89 @@ function toggleSectionHighlightsSidebar() {
     const sidebar = document.getElementById('sectionHighlightsSidebar');
     if (!sidebar) return;
     sidebar.classList.toggle('collapsed');
+}
+
+function updateSidebarTOC(content) {
+    const headings = extractHeadingsFromMarkdown(content || '');
+    const sidebar = document.getElementById('sectionHighlightsSidebar');
+    const detailContent = document.querySelector('.section-detail-content');
+
+    // Find or create the TOC accordion
+    let tocAccordion = sidebar?.querySelector('.sidebar-accordion-toc');
+
+    if (headings.length === 0) {
+        // Remove TOC accordion if no headings
+        if (tocAccordion) tocAccordion.remove();
+        // If no highlights either, remove sidebar entirely
+        if (sidebar && !sidebar.querySelector('.sidebar-accordion')) {
+            sidebar.remove();
+            if (detailContent) detailContent.classList.remove('has-sidebar');
+        }
+        return;
+    }
+
+    const tocHtml = `
+        <details class="sidebar-accordion sidebar-accordion-toc" open>
+            <summary>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+                <span>${t('topics.tableOfContents')}</span>
+                <span class="sidebar-accordion-badge">${headings.length}</span>
+            </summary>
+            <div class="sidebar-accordion-content">
+                <nav class="sidebar-toc">
+                    ${headings.map(h => `
+                        <a class="sidebar-toc-item sidebar-toc-h${h.level}" href="javascript:void(0)" onclick="scrollToHeading('${h.id}')">
+                            ${escapeHtml(h.text)}
+                        </a>
+                    `).join('')}
+                </nav>
+            </div>
+        </details>
+    `;
+
+    if (tocAccordion) {
+        // Update existing
+        tocAccordion.outerHTML = tocHtml;
+    } else if (sidebar) {
+        // Insert after header, before highlights accordion
+        const header = sidebar.querySelector('.section-highlights-header');
+        if (header) {
+            header.insertAdjacentHTML('afterend', tocHtml);
+        }
+    } else {
+        // No sidebar exists yet — create one
+        if (detailContent) detailContent.classList.add('has-sidebar');
+        const body = document.querySelector('.section-detail-body');
+        if (body) {
+            const sidebarHtml = `
+                <div class="section-highlights-sidebar" id="sectionHighlightsSidebar">
+                    <div class="section-highlights-header">
+                        <button class="btn-icon-tiny" onclick="toggleSectionHighlightsSidebar()" data-tooltip="${t('tooltips.hideLinkedInsights')}">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                    ${tocHtml}
+                </div>
+            `;
+            body.insertAdjacentHTML('beforeend', sidebarHtml);
+        }
+    }
+}
+
+function scrollToHeading(headingId) {
+    const heading = document.getElementById(headingId);
+    if (!heading) return;
+
+    // Find the scrollable ancestor
+    const scrollable = heading.closest('.section-main-content') || heading.closest('.section-detail-body');
+    if (scrollable) {
+        const offset = heading.offsetTop - scrollable.offsetTop;
+        scrollable.scrollTo({ top: offset, behavior: 'smooth' });
+    }
 }
 
 function toggleSplitPreview() {
@@ -2266,6 +2388,28 @@ async function deleteCustomSection(sectionId) {
     }
 }
 
+function slugify(text) {
+    return text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').trim();
+}
+
+function extractHeadingsFromMarkdown(markdown) {
+    if (!markdown) return [];
+    const headings = [];
+    const lines = markdown.split('\n');
+    for (const line of lines) {
+        const match = line.match(/^(#{1,3})\s+(.+)$/);
+        if (match) {
+            const text = match[2].trim();
+            headings.push({
+                level: match[1].length,
+                text: text,
+                id: 'heading-' + slugify(escapeHtml(text))
+            });
+        }
+    }
+    return headings;
+}
+
 // Simple markdown renderer (basic support)
 function renderMarkdown(markdown) {
     let html = escapeHtml(markdown);
@@ -2273,10 +2417,10 @@ function renderMarkdown(markdown) {
     // Fenced code blocks (must be before inline code)
     html = html.replace(/```\n?([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
 
-    // Headers
-    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+    // Headers (with IDs for TOC linking)
+    html = html.replace(/^### (.+)$/gm, (_, text) => `<h3 id="heading-${slugify(text)}">${text}</h3>`);
+    html = html.replace(/^## (.+)$/gm, (_, text) => `<h2 id="heading-${slugify(text)}">${text}</h2>`);
+    html = html.replace(/^# (.+)$/gm, (_, text) => `<h1 id="heading-${slugify(text)}">${text}</h1>`);
 
     // Horizontal rules (before bold/italic to avoid conflicts with ***)
     html = html.replace(/^---$/gm, '<hr>');
@@ -5228,6 +5372,7 @@ window.insertLink = insertLink;
 window.insertHeading = insertHeading;
 window.toggleHeadingDropdown = toggleHeadingDropdown;
 window.toggleSectionHighlightsSidebar = toggleSectionHighlightsSidebar;
+window.scrollToHeading = scrollToHeading;
 
 // ============================================================================
 // Mobile Handlers

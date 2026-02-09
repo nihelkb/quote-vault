@@ -296,6 +296,7 @@
     "sectionCountPlural": "{count} secciones",
     "searchPlaceholder": "Buscar en secciones...",
     "linkedHighlights": "Destacados vinculados",
+    "tableOfContents": "Índice",
     "emptySection": "Esta sección está vacía",
     "clickToEdit": "Haz clic en Editar para comenzar a escribir",
     "sections": {

@@ -296,6 +296,7 @@
     "sectionCountPlural": "{count} sections",
     "searchPlaceholder": "Search sections...",
     "linkedHighlights": "Linked highlights",
+    "tableOfContents": "Table of contents",
     "emptySection": "This section is empty",
     "clickToEdit": "Click Edit to start writing",
     "sections": {
