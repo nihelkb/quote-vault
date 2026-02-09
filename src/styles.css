@@ -4964,7 +4964,7 @@ header {
     align-items: center;
     justify-content: center;
     z-index: 1000;
-    padding: 40px;
+    padding: 20px;
     animation: fadeIn 0.2s ease;
 }
 
@@ -4979,10 +4979,11 @@ header {
 
 .section-detail-content {
     background: white;
-    border-radius: 20px;
-    width: 80%;
-    max-width: 1000px;
-    max-height: 90vh;
+    border-radius: 16px;
+    width: 95%;
+    max-width: 1700px;
+    height: 92vh;
+    max-height: 92vh;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -4991,7 +4992,7 @@ header {
 }
 
 .section-detail-content.has-sidebar {
-    max-width: 1400px;
+    max-width: 1700px;
 }
 
 @keyframes slideUp {
@@ -5200,11 +5201,46 @@ header {
     color: #dc2626;
 }
 
+/* Edit mode: fill all available height, scroll inside textarea */
+.section-detail-body.editing-mode {
+    overflow-y: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+}
+
+.section-detail-content.has-sidebar .section-detail-body.editing-mode {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    overflow-y: hidden;
+    padding: 0;
+}
+
+.section-main-content.editing-mode {
+    display: flex;
+    flex-direction: column;
+    overflow-y: hidden !important;
+    flex: 1;
+    min-height: 0;
+}
+
+.section-detail-content.has-sidebar .section-main-content.editing-mode {
+    padding: 24px;
+}
+
+#sectionEditMode {
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
 .section-edit-actions {
-    margin-top: 16px;
+    margin-top: 0;
+    padding: 12px 0;
     display: flex;
     gap: 12px;
     justify-content: flex-end;
+    flex-shrink: 0;
 }
 
 /* Split editor layout */
@@ -5226,7 +5262,8 @@ header {
     border: none;
     border-radius: 0;
     resize: none;
-    min-height: 300px;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 .md-preview-pane {

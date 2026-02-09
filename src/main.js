@@ -1695,10 +1695,14 @@ function toggleSectionEditMode(sectionId) {
 
     if (viewMode && editMode) {
         const isEditing = editMode.style.display !== 'none';
+        const detailBody = document.querySelector('.section-detail-body');
+        const mainContent = document.querySelector('.section-main-content');
 
         if (isEditing) {
             viewMode.style.display = 'block';
             editMode.style.display = 'none';
+            if (detailBody) detailBody.classList.remove('editing-mode');
+            if (mainContent) mainContent.classList.remove('editing-mode');
             if (editBtn) {
                 editBtn.setAttribute('data-tooltip', t('tooltips.edit'));
                 editBtn.innerHTML = `
@@ -1710,7 +1714,9 @@ function toggleSectionEditMode(sectionId) {
             }
         } else {
             viewMode.style.display = 'none';
-            editMode.style.display = 'block';
+            editMode.style.display = 'flex';
+            if (detailBody) detailBody.classList.add('editing-mode');
+            if (mainContent) mainContent.classList.add('editing-mode');
             if (editBtn) {
                 editBtn.setAttribute('data-tooltip', t('tooltips.preview'));
                 editBtn.innerHTML = `
