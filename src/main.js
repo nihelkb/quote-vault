@@ -173,6 +173,8 @@ const elements = {
     wikiSearchInput: document.getElementById('wikiSearchInput'),
     wikiFilterStatus: document.getElementById('wikiFilterStatus'),
     wikiStatusSelect: document.getElementById('wikiStatusSelect'),
+    topicSortBy: document.getElementById('topicSortBy'),
+    topicSortSelect: document.getElementById('topicSortSelect'),
     newTopicBtnHeader: document.getElementById('newTopicBtnHeader'),
 
     // Filters - Insights
@@ -225,6 +227,7 @@ const elements = {
     topicId: document.getElementById('topicId'),
     topicName: document.getElementById('topicName'),
     topicDescription: document.getElementById('topicDescription'),
+    topicTags: document.getElementById('topicTags'),
     topicIconValue: document.getElementById('topicIconValue'),
     iconPicker: document.getElementById('iconPicker'),
     cancelTopicBtn: document.getElementById('cancelTopicBtn'),
@@ -4419,6 +4422,8 @@ function renderTopicsList() {
 
     // Get filter values
     const searchTerm = elements.wikiSearchInput?.value?.toLowerCase() || '';
+    const sortBy = elements.topicSortBy?.value || 'recent';
+
     // Filter topics
     let filteredTopics = state.topics.filter(topic => {
         // Search filter
@@ -4434,6 +4439,28 @@ function renderTopicsList() {
     state.quotes.forEach(quote => {
         if (quote.topicId) {
             quoteCounts[quote.topicId] = (quoteCounts[quote.topicId] || 0) + 1;
+        }
+    });
+
+    // Sort topics based on selected option
+    filteredTopics.sort((a, b) => {
+        switch (sortBy) {
+            case 'az':
+                // Alphabetical A-Z
+                return a.name.localeCompare(b.name);
+
+            case 'mostVisited':
+                // Most visited (by number of knowledge entries/sections)
+                const aStats = getTopicStats(a);
+                const bStats = getTopicStats(b);
+                return bStats.sectionCount - aStats.sectionCount;
+
+            case 'recent':
+            default:
+                // Most recent (by updatedAt or createdAt)
+                const aDate = new Date(a.updatedAt || a.createdAt);
+                const bDate = new Date(b.updatedAt || b.createdAt);
+                return bDate - aDate;
         }
     });
 
@@ -4453,9 +4480,20 @@ function renderTopicsList() {
         const lastEdited = getRelativeTime(topic.updatedAt || topic.createdAt);
         const description = topic.description ? escapeHtml(topic.description) : '';
         const truncatedDesc = description.length > 80 ? description.substring(0, 80) + '...' : description;
+        const hasDescription = truncatedDesc.length > 0;
+        const emptyStateClass = !hasDescription ? 'topic-card-empty' : '';
+
+        // Render tags pills
+        const tags = topic.tags || [];
+        const tagsHtml = tags.length > 0 ? `
+            <div class="topic-tags">
+                ${tags.slice(0, 3).map(tag => `<span class="topic-tag">${escapeHtml(tag)}</span>`).join('')}
+                ${tags.length > 3 ? `<span class="topic-tag-more">+${tags.length - 3}</span>` : ''}
+            </div>
+        ` : '';
 
         return `
-        <div class="topic-card" data-topic-id="${topic.id}">
+        <div class="topic-card ${emptyStateClass}" data-topic-id="${topic.id}">
             <div class="topic-card-header">
                 <div class="topic-icon" data-icon="${topic.icon || 'folder'}">${getTopicIconSvg(topic.icon || 'folder', 22)}</div>
                 <div class="topic-actions">
@@ -4480,6 +4518,7 @@ function renderTopicsList() {
                     <span class="topic-stats-dot">·</span>
                     <span>${stats.wordCount.toLocaleString()} ${t('wiki.words')}</span>
                 </div>
+                ${tagsHtml}
                 ${truncatedDesc ? `<p class="topic-preview">"${truncatedDesc}"</p>` : ''}
             </div>
             ${lastEdited ? `<div class="topic-card-footer">${t('wiki.edited')} ${lastEdited}</div>` : ''}
@@ -4714,6 +4753,7 @@ function openTopicModal(topicToEdit = null) {
         elements.topicId.value = topicToEdit.id;
         elements.topicName.value = topicToEdit.name;
         elements.topicDescription.value = topicToEdit.description || '';
+        elements.topicTags.value = (topicToEdit.tags || []).join(', ');
         elements.topicIconValue.value = topicToEdit.icon || 'folder';
 
         // Update icon picker
@@ -4980,10 +5020,16 @@ async function handleTopicSubmit() {
     }
 
     const topicId = elements.topicId.value;
+
+    // Parse tags
+    const tagsInput = elements.topicTags.value.trim();
+    const tags = tagsInput ? tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) : [];
+
     const data = {
         name: name,
         description: elements.topicDescription.value.trim(),
-        icon: elements.topicIconValue.value || '📁'
+        icon: elements.topicIconValue.value || '📁',
+        tags: tags
     };
 
     try {
@@ -5076,6 +5122,8 @@ function setupFilterListeners() {
     // Collection filter is now controlled by sidebar navigation
 
     // Setup custom selects - Wiki
+    setupCustomSelect(elements.topicSortSelect, elements.topicSortBy, renderWikiView);
+
     // Setup custom selects - Insights
     setupCustomSelect(elements.insightsStatusSelect, elements.insightsFilterStatus, renderInsightsView);
     setupCustomSelect(elements.insightsSourceSelect, elements.insightsFilterSource, renderInsightsView);

@@ -489,6 +489,41 @@
             <div class="content-filters">
                 <input type="text" class="search-box" id="wikiSearchInput" data-i18n-placeholder="wiki.searchPlaceholder" placeholder="Buscar temas...">
 
+                <!-- Sort Dropdown -->
+                <div class="custom-select" id="topicSortSelect">
+                    <button type="button" class="custom-select-btn">
+                        <span class="selected-text" data-i18n="wiki.sortRecent">Más recientes</span>
+                        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="custom-select-dropdown">
+                        <button type="button" class="custom-select-option active" data-value="recent">
+                            <span data-i18n="wiki.sortRecent">Más recientes</span>
+                            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </button>
+                        <button type="button" class="custom-select-option" data-value="az">
+                            <span data-i18n="wiki.sortAZ">A-Z</span>
+                            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </button>
+                        <button type="button" class="custom-select-option" data-value="mostVisited">
+                            <span data-i18n="wiki.sortMostVisited">Más visitados</span>
+                            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                    <select id="topicSortBy" hidden>
+                        <option value="recent">Más recientes</option>
+                        <option value="az">A-Z</option>
+                        <option value="mostVisited">Más visitados</option>
+                    </select>
+                </div>
+
                 <button class="btn btn-primary btn-icon-text" id="newTopicBtnHeader">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                         <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -869,6 +904,11 @@
                 <div class="form-group">
                     <label for="topicDescription" data-i18n="topics.description">Descripción</label>
                     <textarea id="topicDescription" rows="3" data-i18n-placeholder="topics.descriptionPlaceholder" placeholder="Describe brevemente el tema..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="topicTags" data-i18n="form.tagsLabel">Etiquetas</label>
+                    <input type="text" id="topicTags" data-i18n-placeholder="topics.tagsPlaceholder" placeholder="Separadas por coma: religión, política, economía...">
                 </div>
 
                 <div class="modal-actions">

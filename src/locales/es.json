@@ -266,7 +266,10 @@
     "section": "sección",
     "sections": "secciones",
     "words": "palabras",
-    "edited": "Editado"
+    "edited": "Editado",
+    "sortRecent": "Más recientes",
+    "sortAZ": "A-Z",
+    "sortMostVisited": "Más visitados"
   },
   "time": {
     "today": "hoy",
@@ -281,6 +284,7 @@
     "namePlaceholder": "Ej: Conflicto palestino-israelí",
     "description": "Descripción",
     "descriptionPlaceholder": "Describe brevemente el tema...",
+    "tagsPlaceholder": "Separadas por coma: religión, política, economía...",
     "icon": "Icono",
     "status": "Estado",
     "inProgress": "En progreso",

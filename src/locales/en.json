@@ -266,7 +266,10 @@
     "section": "section",
     "sections": "sections",
     "words": "words",
-    "edited": "Edited"
+    "edited": "Edited",
+    "sortRecent": "Most recent",
+    "sortAZ": "A-Z",
+    "sortMostVisited": "Most visited"
   },
   "time": {
     "today": "today",
@@ -281,6 +284,7 @@
     "namePlaceholder": "E.g.: Israeli-Palestinian conflict",
     "description": "Description",
     "descriptionPlaceholder": "Briefly describe the topic...",
+    "tagsPlaceholder": "Comma separated: religion, politics, economy...",
     "icon": "Icon",
     "status": "Status",
     "inProgress": "In progress",
