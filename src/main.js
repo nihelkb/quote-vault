@@ -1654,6 +1654,9 @@ function openCustomSectionModal(sectionId) {
 
     document.body.appendChild(modal);
 
+    // Init TOC scroll spy
+    if (hasSidebar) initTocScrollSpy();
+
     // Markdown toolbar: wire up button clicks via data-md-action
     modal.querySelectorAll('[data-md-action]').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -1990,14 +1993,17 @@ function updateSidebarTOC(content) {
     }
 }
 
+let _tocScrollSpyPaused = false;
+
 function scrollToHeading(headingId) {
     const heading = document.getElementById(headingId);
     if (!heading) return;
 
     // Update active state in TOC
-    document.querySelectorAll('.sidebar-toc-item').forEach(item => item.classList.remove('active'));
-    const tocLink = document.querySelector(`.sidebar-toc-item[onclick*="${headingId}"]`);
-    if (tocLink) tocLink.classList.add('active');
+    setActiveTocItem(headingId);
+
+    // Pause scroll spy while programmatic scroll happens
+    _tocScrollSpyPaused = true;
 
     // Scroll to heading
     const scrollable = heading.closest('.section-main-content') || heading.closest('.section-detail-body');
@@ -2005,6 +2011,44 @@ function scrollToHeading(headingId) {
         const offset = heading.offsetTop - scrollable.offsetTop;
         scrollable.scrollTo({ top: offset, behavior: 'smooth' });
     }
+
+    setTimeout(() => { _tocScrollSpyPaused = false; }, 600);
+}
+
+function setActiveTocItem(headingId) {
+    document.querySelectorAll('.sidebar-toc-item').forEach(item => item.classList.remove('active'));
+    const tocLink = document.querySelector(`.sidebar-toc-item[onclick*="${headingId}"]`);
+    if (tocLink) tocLink.classList.add('active');
+}
+
+function initTocScrollSpy() {
+    const scrollable = document.querySelector('.section-main-content') || document.querySelector('.section-detail-body');
+    if (!scrollable) return;
+
+    const onScroll = () => {
+        if (_tocScrollSpyPaused) return;
+
+        const headings = scrollable.querySelectorAll('h1[id^="heading-"], h2[id^="heading-"], h3[id^="heading-"]');
+        if (!headings.length) return;
+
+        let activeId = headings[0].id;
+        const scrollTop = scrollable.scrollTop;
+        const offset = scrollable.offsetTop + 40;
+
+        for (const heading of headings) {
+            if (heading.offsetTop - offset <= scrollTop) {
+                activeId = heading.id;
+            } else {
+                break;
+            }
+        }
+
+        setActiveTocItem(activeId);
+    };
+
+    scrollable.addEventListener('scroll', onScroll, { passive: true });
+    // Run once to set initial state
+    onScroll();
 }
 
 function toggleSplitPreview() {
