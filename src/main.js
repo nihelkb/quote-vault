@@ -1994,7 +1994,12 @@ function scrollToHeading(headingId) {
     const heading = document.getElementById(headingId);
     if (!heading) return;
 
-    // Find the scrollable ancestor
+    // Update active state in TOC
+    document.querySelectorAll('.sidebar-toc-item').forEach(item => item.classList.remove('active'));
+    const tocLink = document.querySelector(`.sidebar-toc-item[onclick*="${headingId}"]`);
+    if (tocLink) tocLink.classList.add('active');
+
+    // Scroll to heading
     const scrollable = heading.closest('.section-main-content') || heading.closest('.section-detail-body');
     if (scrollable) {
         const offset = heading.offsetTop - scrollable.offsetTop;
