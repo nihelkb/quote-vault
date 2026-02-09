@@ -5225,9 +5225,9 @@ header {
 
 /* Active state */
 .sidebar-toc a.sidebar-toc-item.active {
-    background: #F3F4F6;
-    border-left-color: #3B82F6;
-    color: #111827;
+    background: var(--tag-bg);
+    border-left-color: #a8b5a0;
+    color: var(--text);
     font-weight: 500;
 }
 
