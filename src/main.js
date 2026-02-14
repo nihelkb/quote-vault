@@ -101,11 +101,7 @@ const elements = {
     passwordHint: document.getElementById('passwordHint'),
     resendVerification: document.getElementById('resendVerification'),
     verifyEmail: document.getElementById('verifyEmail'),
-    userEmail: document.getElementById('userEmail'),
-    userName: document.getElementById('userName'),
-    userAvatar: document.getElementById('userAvatar'),
     useAnotherAccount: document.getElementById('useAnotherAccount'),
-    logoutBtn: document.getElementById('logoutBtn'),
     headerUsername: document.getElementById('headerUsername'),
     headerProfileBtns: document.querySelectorAll('.header-profile-btn'),
     headerProfileMenus: document.querySelectorAll('.header-profile-menu'),
@@ -472,17 +468,12 @@ function showMainApp(user) {
         ? `<img src="${photoURL}" alt="" referrerpolicy="no-referrer">`
         : `<span>${initials}</span>`;
 
-    // Sidebar avatar
-    if (elements.userAvatar) elements.userAvatar.innerHTML = avatarHtml;
-
     // Header avatar (main + clones in wiki/insights headers)
     const headerAvatar = document.getElementById('headerAvatar');
     if (headerAvatar) headerAvatar.innerHTML = avatarHtml;
     document.querySelectorAll('.header-avatar-clone').forEach(el => { el.innerHTML = avatarHtml; });
 
-    // Profile card: name + email
-    if (elements.userName) elements.userName.textContent = displayName;
-    if (elements.userEmail) elements.userEmail.textContent = email;
+    // Mobile display name
     elements.userEmailMobile.textContent = displayName;
 
     // Header username (main + clones in wiki/insights headers)
@@ -568,10 +559,14 @@ function setupAuthListeners() {
     });
 
     // Use another account
-    elements.useAnotherAccount.addEventListener('click', logout);
+    if (elements.useAnotherAccount) {
+        elements.useAnotherAccount.addEventListener('click', logout);
+    }
 
-    // Logout button
-    elements.logoutBtn.addEventListener('click', logout);
+    // Logout button (removed from navbar)
+    if (elements.logoutBtn) {
+        elements.logoutBtn.addEventListener('click', logout);
+    }
 }
 
 function setupHeaderProfileMenu() {
