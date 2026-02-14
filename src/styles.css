@@ -1423,43 +1423,113 @@ header {
 
 .nav-sidebar-footer {
     border-top: 1px solid var(--border);
-    padding: 16px;
+    padding: 14px 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: linear-gradient(180deg, rgba(250, 249, 247, 0) 0%, rgba(250, 249, 247, 0.9) 60%, #faf9f7 100%);
+    box-shadow: 0 -12px 24px rgba(0, 0, 0, 0.04);
 }
 
-.nav-user-info {
-    margin-bottom: 12px;
+/* Profile Card */
+.nav-profile-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
 }
 
-.nav-user-email {
-    font-size: 0.8rem;
-    color: var(--text-muted);
+.nav-profile-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: var(--tag-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.nav-profile-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
     display: block;
+}
+
+.nav-profile-avatar span {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    line-height: 1;
+    letter-spacing: 0.02em;
+}
+
+.nav-profile-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    gap: 1px;
+}
+
+.nav-profile-name {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.3;
 }
 
+.nav-profile-email {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}
+
+/* Footer Actions */
 .nav-footer-actions {
     display: flex;
     align-items: center;
-    justify-content: space-between;
 }
 
 .nav-logout-btn {
-    background: none;
+    background: white;
     border: 1px solid var(--border);
-    padding: 6px 12px;
-    border-radius: 4px;
+    padding: 8px 12px;
+    border-radius: 10px;
     font-family: inherit;
     font-size: 0.8rem;
+    font-weight: 500;
     color: var(--text-muted);
     cursor: pointer;
     transition: all 0.2s;
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
 }
 
 .nav-logout-btn:hover {
-    border-color: var(--accent);
-    color: var(--text);
+    border-color: var(--against);
+    color: var(--against);
+    background: rgba(139, 64, 73, 0.08);
+}
+
+.nav-logout-btn:focus-visible {
+    outline: 2px solid rgba(139, 64, 73, 0.35);
+    outline-offset: 2px;
 }
 
 /* Main Content Area */
@@ -1474,12 +1544,15 @@ header {
 }
 
 .content-header {
-    padding: 20px 32px;
+    padding: 16px 32px;
     border-bottom: 1px solid var(--border);
     background: white;
     position: sticky;
     top: 0;
     z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 16px;
 }
 
 .content-header.wiki-header,
@@ -1497,6 +1570,167 @@ header {
     gap: 12px;
     align-items: center;
     flex-wrap: wrap;
+    flex: 1;
+    min-width: 0;
+}
+
+/* Header User Area */
+.header-user-area {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+/* Header Profile Menu */
+.header-profile-menu {
+    position: relative;
+}
+
+.header-profile-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 10px 4px 4px;
+    border: 1px solid transparent;
+    border-radius: 24px;
+    background: none;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    font-family: inherit;
+}
+
+.header-profile-btn:hover {
+    background: var(--tag-bg);
+    border-color: var(--border);
+}
+
+.header-profile-menu.open .header-profile-btn {
+    background: var(--tag-bg);
+    border-color: var(--border);
+}
+
+.header-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--tag-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.header-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.header-avatar span {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    line-height: 1;
+}
+
+.header-username {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.header-profile-chevron {
+    color: var(--text-muted);
+    flex-shrink: 0;
+    transition: transform 0.2s;
+}
+
+.header-profile-menu.open .header-profile-chevron {
+    transform: rotate(180deg);
+}
+
+.header-profile-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 160px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    padding: 4px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px);
+    transition: opacity 0.15s, visibility 0.15s, transform 0.15s;
+    z-index: 100;
+}
+
+.header-profile-menu.open .header-profile-dropdown {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.header-profile-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.82rem;
+    color: var(--text);
+    transition: background 0.15s;
+}
+
+.header-profile-option:hover {
+    background: var(--tag-bg);
+}
+
+.header-profile-option.header-profile-logout {
+    color: var(--against);
+}
+
+.header-profile-option.header-profile-logout:hover {
+    background: rgba(139, 64, 73, 0.12);
+}
+
+.header-profile-option.header-profile-logout svg {
+    color: currentColor;
+}
+
+.header-profile-option svg {
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.header-user-area .language-btn {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: var(--text-muted);
+}
+
+.header-user-area .language-btn:hover {
+    background: var(--tag-bg);
+    color: var(--text);
 }
 
 .content-filters .search-box {
@@ -3740,7 +3974,8 @@ header {
 
 .language-dropdown {
     position: absolute;
-    top: calc(100% - 116px);
+    top: calc(100% + 6px);
+    right: 0;
     background: white;
     border: 1px solid var(--border);
     border-radius: 8px;

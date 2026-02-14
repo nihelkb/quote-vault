@@ -126,6 +126,13 @@ class AuthService {
     }
 
     /**
+     * Get user photo URL (available from Google auth)
+     */
+    getPhotoURL(user = this.currentUser) {
+        return user?.photoURL || null;
+    }
+
+    /**
      * Translate Firebase error codes to localized messages
      */
     getErrorMessage(errorCode) {

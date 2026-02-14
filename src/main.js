@@ -102,8 +102,15 @@ const elements = {
     resendVerification: document.getElementById('resendVerification'),
     verifyEmail: document.getElementById('verifyEmail'),
     userEmail: document.getElementById('userEmail'),
+    userName: document.getElementById('userName'),
+    userAvatar: document.getElementById('userAvatar'),
     useAnotherAccount: document.getElementById('useAnotherAccount'),
     logoutBtn: document.getElementById('logoutBtn'),
+    headerUsername: document.getElementById('headerUsername'),
+    headerProfileBtns: document.querySelectorAll('.header-profile-btn'),
+    headerProfileMenus: document.querySelectorAll('.header-profile-menu'),
+    headerProfileLogoutBtns: document.querySelectorAll('.header-profile-logout'),
+    headerLogoutBtn: document.getElementById('headerLogoutBtn'),
 
     // Quotes
     quotesList: document.getElementById('quotesList'),
@@ -275,6 +282,7 @@ function init() {
     setupViewListeners();
     setupModalListeners();
     setupLanguageListener();
+    setupHeaderProfileMenu();
     setupMobileListeners();
     initMobileFiltersPanel();
     setupInsightModalListeners();
@@ -336,6 +344,7 @@ function setupLanguageListener() {
     // Toggle dropdown
     elements.languageBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        closeAllLanguageSelectors();
         elements.languageSelector.classList.toggle('open');
     });
 
@@ -349,17 +358,48 @@ function setupLanguageListener() {
         });
     });
 
+    // Setup header language selectors (wiki & insights)
+    document.querySelectorAll('.header-language-selector').forEach(selector => {
+        const btn = selector.querySelector('.language-btn');
+        const dropdown = selector.querySelector('.language-dropdown');
+
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeAllLanguageSelectors();
+            selector.classList.toggle('open');
+        });
+
+        dropdown.querySelectorAll('.language-option').forEach(option => {
+            option.addEventListener('click', () => {
+                const lang = option.dataset.lang;
+                i18n.setLocale(lang);
+                updateLanguageSelector(lang);
+                selector.classList.remove('open');
+            });
+        });
+    });
+
     // Close dropdown when clicking outside
     document.addEventListener('click', (e) => {
         if (!elements.languageSelector.contains(e.target)) {
             elements.languageSelector.classList.remove('open');
         }
+        document.querySelectorAll('.header-language-selector').forEach(selector => {
+            if (!selector.contains(e.target)) {
+                selector.classList.remove('open');
+            }
+        });
     });
+}
+
+function closeAllLanguageSelectors() {
+    elements.languageSelector.classList.remove('open');
+    document.querySelectorAll('.header-language-selector').forEach(s => s.classList.remove('open'));
 }
 
 function updateLanguageSelector(locale) {
     const config = languageConfig[locale] || languageConfig.es;
-    elements.currentLang.textContent = config.label;
+    if (elements.currentLang) elements.currentLang.textContent = config.label;
     if (elements.currentLangMobile) {
         elements.currentLangMobile.textContent = config.label;
     }
@@ -375,6 +415,13 @@ function updateLanguageSelector(locale) {
             option.classList.toggle('active', option.dataset.lang === locale);
         });
     }
+
+    // Update active state in header language selectors (wiki & insights)
+    document.querySelectorAll('.header-language-selector .language-dropdown').forEach(dropdown => {
+        dropdown.querySelectorAll('.language-option').forEach(option => {
+            option.classList.toggle('active', option.dataset.lang === locale);
+        });
+    });
 }
 
 // ============================================================================
@@ -414,9 +461,34 @@ function showMainApp(user) {
     elements.authScreen.classList.add('hidden');
     elements.verifyScreen.classList.add('hidden');
     elements.mainApp.classList.remove('hidden');
+
     const displayName = authService.getDisplayName(user);
-    elements.userEmail.textContent = displayName;
+    const photoURL = authService.getPhotoURL(user);
+    const email = user.email || '';
+
+    // Avatar: Google photo or initials fallback
+    const initials = displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    const avatarHtml = photoURL
+        ? `<img src="${photoURL}" alt="" referrerpolicy="no-referrer">`
+        : `<span>${initials}</span>`;
+
+    // Sidebar avatar
+    if (elements.userAvatar) elements.userAvatar.innerHTML = avatarHtml;
+
+    // Header avatar (main + clones in wiki/insights headers)
+    const headerAvatar = document.getElementById('headerAvatar');
+    if (headerAvatar) headerAvatar.innerHTML = avatarHtml;
+    document.querySelectorAll('.header-avatar-clone').forEach(el => { el.innerHTML = avatarHtml; });
+
+    // Profile card: name + email
+    if (elements.userName) elements.userName.textContent = displayName;
+    if (elements.userEmail) elements.userEmail.textContent = email;
     elements.userEmailMobile.textContent = displayName;
+
+    // Header username (main + clones in wiki/insights headers)
+    if (elements.headerUsername) elements.headerUsername.textContent = displayName;
+    document.querySelectorAll('.header-username-clone').forEach(el => { el.textContent = displayName; });
+
     switchSection(state.currentSection);
 }
 
@@ -500,6 +572,39 @@ function setupAuthListeners() {
 
     // Logout button
     elements.logoutBtn.addEventListener('click', logout);
+}
+
+function setupHeaderProfileMenu() {
+    if (!elements.headerProfileMenus.length) return;
+
+    const closeAllMenus = () => {
+        elements.headerProfileMenus.forEach(menu => menu.classList.remove('open'));
+    };
+
+    elements.headerProfileMenus.forEach(menu => {
+        const btn = menu.querySelector('.header-profile-btn');
+        if (!btn) return;
+
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const wasOpen = menu.classList.contains('open');
+            closeAllMenus();
+            if (!wasOpen) menu.classList.add('open');
+        });
+    });
+
+    elements.headerProfileLogoutBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            closeAllMenus();
+            logout();
+        });
+    });
+
+    document.addEventListener('click', (e) => {
+        elements.headerProfileMenus.forEach(menu => {
+            if (!menu.contains(e.target)) menu.classList.remove('open');
+        });
+    });
 }
 
 function showAuthError(errorCode) {
