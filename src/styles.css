@@ -2770,13 +2770,13 @@ header {
     width: 2px;
     height: 100%;
     min-height: 200px;
-    background: var(--border);
+    background: linear-gradient(to bottom, transparent, var(--border) 10%, var(--border) 90%, transparent);
     border-radius: 2px;
     transition: all 0.15s ease;
 }
 
 .resize-handle:hover {
-    background: linear-gradient(to right, transparent, rgba(0,0,0,0.03), transparent);
+    background: linear-gradient(to right, transparent, rgba(0,0,0,0.02), transparent);
 }
 
 /* When resizing, prevent iframe from capturing mouse events */
@@ -2807,11 +2807,18 @@ header {
 
 /* Video Notes Section - Below video */
 .video-notes-section {
-    margin-top: 16px;
+    margin-top: 20px;
+    margin-bottom: 20px;
     background: white;
     border: 1px solid var(--border);
     border-radius: 12px;
     overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+    transition: box-shadow 0.2s ease;
+}
+
+.video-notes-section:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.03);
 }
 
 .video-notes-header {
