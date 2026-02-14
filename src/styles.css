@@ -1441,7 +1441,7 @@ header {
     z-index: 10;
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 30px;
 }
 
 .content-header.wiki-header,
