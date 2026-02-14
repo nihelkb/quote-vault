@@ -2709,7 +2709,7 @@ function openInsightView(insightId) {
                     <h1>${escapeHtml(insight.sourceTitle || t('insights.untitled'))}</h1>
                     <div class="insight-detail-meta">
                         <div class="status-dropdown-wrapper">
-                            <button class="insight-status-badge ${insight.status}" onclick="toggleStatusDropdown()" data-tooltip="${t('tooltips.changeStatus')}" data-tooltip-position="right">
+                            <button class="insight-meta-pill insight-status-badge ${insight.status}" onclick="toggleStatusDropdown()" data-tooltip="${t('tooltips.changeStatus')}" data-tooltip-position="right">
                                 ${t('insights.' + insight.status)}
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </button>
@@ -2722,7 +2722,7 @@ function openInsightView(insightId) {
                             </div>
                         </div>
                         <div class="insight-topic-selector">
-                            <button class="insight-linked-topic-btn" onclick="toggleTopicSelector('${insight.id}')">
+                            <button class="insight-meta-pill insight-linked-topic-btn" onclick="toggleTopicSelector('${insight.id}')">
                                 ${linkedTopic
                                     ? `${getTopicIconSvg(linkedTopic.icon || 'folder', 14)} <span>${escapeHtml(linkedTopic.name)}</span>`
                                     : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> <span>${t('insights.linkToTopic')}</span>`
