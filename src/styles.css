@@ -3369,7 +3369,9 @@ header {
 .transcript-article {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding-right: 8px;
+    width: 100%;
 }
 
 .transcript-article::-webkit-scrollbar {
