@@ -1139,7 +1139,7 @@ function renderInsightSidebarCard(insight) {
                                 </svg>
                             </div>
                             <div class="highlight-drag-color" style="background: ${getHighlightColor(h.color)}"></div>
-                            <div class="highlight-drag-text">"${escapeHtml(h.text.length > 60 ? h.text.substring(0, 60) + '...' : h.text)}"</div>
+                            <div class="highlight-drag-text">"${escapeHtml(h.text)}"</div>
                         </div>
                     `).join('')}
                 </div>
