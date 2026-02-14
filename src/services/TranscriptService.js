@@ -1,6 +1,6 @@
 /**
  * TranscriptService - Fetches YouTube video transcripts
- * Uses Supadata API with language selection support
+ * Uses Netlify Functions + youtube-transcript for language support
  */
 
 class TranscriptService {
@@ -33,66 +33,58 @@ class TranscriptService {
      * @param {string} language - Language code (es, en, auto, etc.)
      */
     async fetchTranscript(videoId, language = 'auto') {
-        const apiKey = import.meta.env.VITE_SUPADATA_API_KEY;
-        
-        if (!apiKey) {
-            throw new Error('API de transcripción no configurada. Contacta al administrador.');
-        }
-
         try {
             console.log(`Fetching transcript for ${videoId} in language: ${language}`);
-            const result = await this.fetchFromSupadata(videoId, language);
-            if (result && result.length > 0) {
-                return this.formatTranscript(result);
+            const params = new URLSearchParams({ videoId });
+            if (language && language !== 'auto') {
+                params.set('lang', language);
             }
-            throw new Error('No se encontró transcripción para este video');
+            const endpoints = import.meta.env.DEV
+                ? ['/.netlify/functions/transcript', '/api/transcript']
+                : ['/api/transcript', '/.netlify/functions/transcript'];
+
+            let lastError;
+            for (const endpoint of endpoints) {
+                const response = await fetch(`${endpoint}?${params.toString()}`);
+                const contentType = response.headers.get('content-type') || '';
+
+                if (!response.ok) {
+                    const errorData = contentType.includes('application/json')
+                        ? await response.json().catch(() => ({}))
+                        : {};
+                    lastError = new Error(errorData.message || `Error al obtener transcripción (${response.status})`);
+                    continue;
+                }
+
+                if (!contentType.includes('application/json')) {
+                    lastError = new Error('La respuesta no es JSON. Asegura que la Netlify Function esta corriendo (usa netlify dev).');
+                    continue;
+                }
+
+                const data = await response.json();
+                if (!data.content || data.content.length === 0) {
+                    throw new Error('No hay transcripción disponible para este video en el idioma seleccionado');
+                }
+
+                const segments = data.content.map(item => ({
+                    text: item.text,
+                    start: (Number(item.offset) || 0) / 1000, // Convert milliseconds to seconds
+                    duration: (Number(item.duration) || 0) / 1000 // Convert milliseconds to seconds
+                }));
+
+                const formatted = this.formatTranscript(segments);
+                return {
+                    ...formatted,
+                    language: data.language || (language || 'auto'),
+                    isOriginal: Boolean(data.isOriginal)
+                };
+            }
+
+            throw lastError || new Error('No se pudo obtener la transcripción');
         } catch (error) {
             console.error('Transcript fetch failed:', error.message);
             throw error;
         }
-    }
-
-    /**
-     * Fetch transcript from Supadata API
-     * @param {string} videoId - YouTube video ID
-     * @param {string} language - Language code
-     */
-    async fetchFromSupadata(videoId, language = 'auto') {
-        const apiKey = import.meta.env.VITE_SUPADATA_API_KEY;
-        if (!apiKey) {
-            throw new Error('VITE_SUPADATA_API_KEY not configured');
-        }
-
-        // Build URL with language parameter
-        let url = `https://api.supadata.ai/v1/transcript?mode=auto&url=https://youtu.be/${videoId}`;
-        if (language && language !== 'auto') {
-            url += `&lang=${language}`;
-        }
-
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'x-api-key': apiKey
-            }
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || `Error al obtener transcripción (${response.status})`);
-        }
-
-        const data = await response.json();        
-
-        if (!data.content || data.content.length === 0) {
-            throw new Error('No hay transcripción disponible para este video en el idioma seleccionado');
-        }
-
-        // Supadata returns: [{text: "...", offset: 0, duration: 1000}, ...]
-        return data.content.map(item => ({
-            text: item.text,
-            start: item.offset / 1000, // Convert ms to seconds
-            duration: item.duration / 1000
-        }));
     }
 
     /**

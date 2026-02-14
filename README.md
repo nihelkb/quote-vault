@@ -17,6 +17,7 @@ A modern web application to manage your personal knowledge. Capture quotes, orga
 - 🌍 **Multi-language** - Spanish and English interface
 - 🔒 **Secure** - Email + Google authentication with Firebase
 - 📱 **Responsive** - Works seamlessly on mobile, tablet and desktop
+- 🎬 **YouTube Transcripts** - Automatic transcript extraction with multi-language support
 
 ---
 
@@ -24,6 +25,7 @@ A modern web application to manage your personal knowledge. Capture quotes, orga
 
 - [Node.js](https://nodejs.org/) v16 or higher
 - [Firebase account](https://console.firebase.google.com/)
+- [Netlify CLI](https://docs.netlify.com/cli/get-started/) (for YouTube transcript functionality)
 
 ---
 
@@ -37,7 +39,15 @@ cd quote-vault
 npm install
 ```
 
-### 2. Firebase Setup
+### 2. Install Netlify CLI (for YouTube transcripts)
+
+```bash
+npm install -g netlify-cli
+```
+
+This enables the serverless function that fetches YouTube transcripts using `yt-dlp`.
+
+### 3. Firebase Setup
 
 #### Create Firebase Project
 1. Go to [Firebase Console](https://console.firebase.google.com/)
@@ -123,7 +133,7 @@ Wait a few minutes for indexes to build.
 3. Register app (name: `knowledge-vault-web`)
 4. Copy the `firebaseConfig` values
 
-### 3. Configure Environment Variables
+### 4. Configure Environment Variables
 
 Create a `.env` file from the example:
 
@@ -143,13 +153,21 @@ VITE_FIREBASE_APP_ID=your_app_id
 VITE_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX
 ```
 
-> **Optional:** Set `VITE_SUPADATA_API_KEY` if you want YouTube transcript extraction (get API key at [supadata.ai](https://supadata.ai))
-
 ---
 
 ## Run
 
 ### Development
+
+**Option 1: With YouTube transcript support (recommended)**
+
+```bash
+netlify dev
+```
+
+This runs Vite dev server + Netlify Functions. Open [http://localhost:8888](http://localhost:8888)
+
+**Option 2: Frontend only (no transcript functionality)**
 
 ```bash
 npm run dev
@@ -168,13 +186,44 @@ npm run preview
 
 ## Deployment
 
-### Netlify
+### Netlify (Recommended - includes YouTube transcripts)
+
+**Via Netlify CLI:**
+
+```bash
+# Login to Netlify
+netlify login
+
+# Initialize Netlify site
+netlify init
+
+# Deploy
+netlify deploy --prod
+```
+
+The deployment includes:
+- Static frontend (Vite build)
+- Netlify Function for YouTube transcripts
+- Automatic yt-dlp binary download on first function execution
+
+**Via Git Integration:**
+
+1. Push your code to GitHub/GitLab
+2. Connect repository in [Netlify Dashboard](https://app.netlify.com)
+3. Build settings:
+   - Build command: `npm run build`
+   - Publish directory: `dist`
+   - Functions directory: `netlify/functions` (auto-detected)
+
+**Via Drag & Drop (Frontend only - no transcripts):**
 
 ```bash
 npm run build
 ```
 
 Drag the `dist` folder to [Netlify Drop](https://app.netlify.com/drop)
+
+⚠️ This method doesn't include serverless functions, so YouTube transcript feature won't work.
 
 ### Vercel
 
@@ -192,6 +241,34 @@ firebase init hosting
 npm run build
 firebase deploy
 ```
+
+---
+
+## Technologies & APIs
+
+### Core Stack
+- **Frontend**: Vite + Vanilla JavaScript
+- **Database**: Firebase Firestore (NoSQL)
+- **Authentication**: Firebase Auth (Email/Password + Google)
+- **Hosting**: Netlify (with serverless functions)
+
+### YouTube Transcript Extraction
+- **Backend**: Netlify Functions (Node.js serverless)
+- **Tool**: [yt-dlp](https://github.com/yt-dlp/yt-dlp) via [yt-dlp-wrap](https://github.com/foxesdocode/yt-dlp-wrap)
+- **Features**:
+  - Automatic download of yt-dlp binary on first run
+  - Support for manual subtitles and auto-generated captions
+  - Multi-language support (100+ languages)
+  - Formats: VTT and JSON3
+
+### How it works
+1. User provides YouTube video URL
+2. Frontend sends video ID to Netlify Function (`/api/transcript`)
+3. Function uses `yt-dlp` to fetch available subtitle tracks
+4. Returns parsed subtitles with timestamps
+5. Frontend displays interactive transcript with clickable timestamps
+
+**Note**: No external API keys needed for YouTube transcripts. Everything runs on your Netlify instance.
 
 ---
 

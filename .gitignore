@@ -28,3 +28,10 @@ dist/
 build/
 
 .claude/
+# Local Netlify folder
+.netlify
+
+# yt-dlp binary
+yt-dlp
+yt-dlp.exe
+deno.lock
