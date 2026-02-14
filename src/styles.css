@@ -318,6 +318,19 @@ header {
     to { transform: rotate(360deg); }
 }
 
+/* Fetch Metadata Button Icons */
+#fetchMetadataBtn {
+    position: relative;
+}
+
+#fetchMetadataBtn .icon-loading {
+    animation: spin 1s linear infinite;
+}
+
+#fetchMetadataBtn .icon-success {
+    color: #10b981;
+}
+
 /* Filters */
 .filters {
     display: flex;
@@ -2010,6 +2023,21 @@ header {
     width: 48px;
     height: 48px;
     opacity: 0.3;
+}
+
+/* Duration Badge on Thumbnail */
+.insight-card-duration {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: rgba(0, 0, 0, 0.85);
+    color: white;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.5px;
 }
 
 /* Source Badge on Thumbnail */

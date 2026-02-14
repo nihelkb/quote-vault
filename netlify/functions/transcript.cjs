@@ -233,7 +233,12 @@ exports.handler = async (event) => {
         return jsonResponse(200, {
             content: segments,
             language: usedLanguage,
-            isOriginal
+            isOriginal,
+            videoInfo: {
+                title: videoInfo.title || null,
+                duration: videoInfo.duration || null, // in seconds
+                thumbnail: videoInfo.thumbnail || null
+            }
         });
     } catch (error) {
         console.error('[Transcript Function] Error:', error.message);

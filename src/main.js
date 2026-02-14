@@ -3986,19 +3986,36 @@ async function fetchYouTubeTranscript(insightId, videoId) {
         const result = await transcriptService.fetchTranscript(videoId, selectedLang);
 
         if (result && result.raw) {
-            // Save the formatted transcript
-            await insightService.update(insightId, {
+            // Prepare update object
+            const updateData = {
                 transcript: result.raw,
                 transcriptFormatted: result.formatted,
                 transcriptParagraphs: result.paragraphs
-            });
+            };
+
+            // If video info is available, save it
+            if (result.videoInfo) {
+                if (result.videoInfo.duration) {
+                    updateData.sourceDuration = result.videoInfo.duration;
+                }
+                // Update title if not already set
+                const currentInsight = state.insights.find(i => i.id === insightId);
+                if (result.videoInfo.title && (!currentInsight?.sourceTitle || currentInsight.sourceTitle === 'Untitled')) {
+                    updateData.sourceTitle = result.videoInfo.title;
+                }
+                // Update thumbnail if not already set
+                if (result.videoInfo.thumbnail && !currentInsight?.sourceThumbnail) {
+                    updateData.sourceThumbnail = result.videoInfo.thumbnail;
+                }
+            }
+
+            // Save the formatted transcript
+            await insightService.update(insightId, updateData);
 
             // Update local state
             const insight = state.insights.find(i => i.id === insightId);
             if (insight) {
-                insight.transcript = result.raw;
-                insight.transcriptFormatted = result.formatted;
-                insight.transcriptParagraphs = result.paragraphs;
+                Object.assign(insight, updateData);
             }
 
             toast.success(t('toast.transcriptFetched'));
@@ -4748,6 +4765,9 @@ function renderInsightsList() {
                              ${sourceIcon}
                            </div>`
                     }
+                    ${insight.sourceDuration ? `
+                        <div class="insight-card-duration">${formatTimestamp(insight.sourceDuration)}</div>
+                    ` : ''}
                     <div class="insight-card-source-badge ${insight.sourceType}">
                         ${sourceIcon}
                         <span>${insight.sourceType || 'other'}</span>
@@ -4934,7 +4954,23 @@ function showSourcePreview(data) {
     elements.sourceTitle.textContent = data.title;
     elements.sourceTypeBadge.textContent = data.type || 'article';
     elements.sourceTypeBadge.className = `source-type-badge ${data.type || 'article'}`;
-    elements.sourceChannel.textContent = data.channel || '';
+
+    // Update channel/duration line
+    const channelText = data.channel || '';
+    const durationText = data.duration ? formatTimestamp(data.duration) : '';
+
+    if (channelText && durationText) {
+        elements.sourceChannel.textContent = `${channelText} • ${durationText}`;
+    } else if (channelText) {
+        elements.sourceChannel.textContent = channelText;
+    } else if (durationText) {
+        elements.sourceChannel.textContent = durationText;
+    } else {
+        elements.sourceChannel.textContent = '';
+    }
+
+    // Store duration in a data attribute for later retrieval
+    elements.sourcePreview.dataset.duration = data.duration || '';
 
     if (data.thumbnail) {
         elements.sourceThumbnail.src = data.thumbnail;
@@ -4951,11 +4987,38 @@ async function fetchUrlMetadata(url) {
 
     const sourceType = insightService.detectSourceType(url);
 
-    // For YouTube, extract video info using oEmbed
+    // For YouTube, extract video info using Netlify Function (yt-dlp)
     if (sourceType === 'youtube') {
         const videoId = insightService.extractYouTubeVideoId(url);
         if (videoId) {
             try {
+                // Use our Netlify function to get video metadata (it uses yt-dlp which is very reliable)
+                const endpoints = import.meta.env.DEV
+                    ? ['/.netlify/functions/transcript', '/api/transcript']
+                    : ['/api/transcript', '/.netlify/functions/transcript'];
+
+                for (const endpoint of endpoints) {
+                    try {
+                        const response = await fetch(`${endpoint}?videoId=${videoId}&lang=en`);
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.videoInfo) {
+                                return {
+                                    title: data.videoInfo.title,
+                                    channel: null,
+                                    thumbnail: data.videoInfo.thumbnail || `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+                                    duration: data.videoInfo.duration,
+                                    type: 'youtube'
+                                };
+                            }
+                        }
+                    } catch (err) {
+                        console.warn(`Error with ${endpoint}:`, err);
+                        continue;
+                    }
+                }
+
+                // Fallback to oEmbed if Netlify function fails
                 const response = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
                 if (response.ok) {
                     const data = await response.json();
@@ -4963,6 +5026,7 @@ async function fetchUrlMetadata(url) {
                         title: data.title,
                         channel: data.author_name,
                         thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+                        duration: null,
                         type: 'youtube'
                     };
                 }
@@ -4977,7 +5041,8 @@ async function fetchUrlMetadata(url) {
         title: url,
         type: sourceType,
         thumbnail: null,
-        channel: null
+        channel: null,
+        duration: null
     };
 }
 
@@ -5006,16 +5071,43 @@ function setupInsightModalListeners() {
                 return;
             }
 
+            // Get button icons
+            const iconSearch = elements.fetchMetadataBtn.querySelector('.icon-search');
+            const iconLoading = elements.fetchMetadataBtn.querySelector('.icon-loading');
+            const iconSuccess = elements.fetchMetadataBtn.querySelector('.icon-success');
+            const saveBtn = document.getElementById('saveInsightBtn');
+
+            // Change to loading state
+            iconSearch.classList.add('hidden');
+            iconLoading.classList.remove('hidden');
+            iconSuccess.classList.add('hidden');
             elements.fetchMetadataBtn.disabled = true;
+            if (saveBtn) saveBtn.disabled = true;
+
             try {
                 const metadata = await fetchUrlMetadata(url);
                 if (metadata) {
                     showSourcePreview(metadata);
+
+                    // Change to success state
+                    iconSearch.classList.add('hidden');
+                    iconLoading.classList.add('hidden');
+                    iconSuccess.classList.remove('hidden');
+                } else {
+                    // Back to search state if failed
+                    iconSearch.classList.remove('hidden');
+                    iconLoading.classList.add('hidden');
+                    iconSuccess.classList.add('hidden');
                 }
             } catch (err) {
                 toast.error(t('toast.errorFetchingMetadata'));
+                // Back to search state on error
+                iconSearch.classList.remove('hidden');
+                iconLoading.classList.add('hidden');
+                iconSuccess.classList.add('hidden');
             } finally {
                 elements.fetchMetadataBtn.disabled = false;
+                if (saveBtn) saveBtn.disabled = false;
             }
         };
     }
@@ -5045,6 +5137,7 @@ async function handleInsightSubmit() {
     const sourceTitle = elements.sourceTitle.textContent || url || t('insights.untitled');
     const sourceChannel = elements.sourceChannel.textContent || null;
     const sourceThumbnail = elements.sourceThumbnail.src || null;
+    const sourceDuration = elements.sourcePreview.dataset.duration ? parseInt(elements.sourcePreview.dataset.duration) : null;
 
     const data = {
         sourceUrl: url,
@@ -5052,6 +5145,7 @@ async function handleInsightSubmit() {
         sourceType: sourceType,
         sourceChannel: sourceChannel,
         sourceThumbnail: sourceThumbnail && !sourceThumbnail.includes('data:') ? sourceThumbnail : null,
+        sourceDuration: sourceDuration,
         rawNotes: notes,
         tags: elements.insightTags.value.split(',').map(t => t.trim().toLowerCase()).filter(Boolean),
         linkedTopicId: elements.insightLinkedTopic.value || null
