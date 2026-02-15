@@ -4799,40 +4799,44 @@ function renderInsightsList() {
                     ${insight.sourceChannel ? `
                         <p class="insight-card-author">${escapeHtml(insight.sourceChannel)}</p>
                     ` : ''}
-                    ${linkedTopic ? `
-                        <div class="insight-card-topic">
-                            ${getTopicIconSvg(linkedTopic.icon || 'folder', 14)}
-                            <span>${escapeHtml(linkedTopic.name)}</span>
-                        </div>
-                    ` : ''}
-                    ${(notesCount > 0 || highlightsCount > 0 || insight.transcript) ? `
-                        <div class="insight-card-stats">
-                            ${notesCount > 0 ? `
-                                <span class="insight-stat" data-tooltip="${t('insights.notesCount', { count: notesCount })}">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                        <polyline points="14 2 14 8 20 8"></polyline>
-                                    </svg>
-                                    ${notesCount}
-                                </span>
+                    ${(linkedTopic || notesCount > 0 || highlightsCount > 0 || insight.transcript) ? `
+                        <div class="insight-card-footer">
+                            ${linkedTopic ? `
+                                <div class="insight-card-topic">
+                                    ${getTopicIconSvg(linkedTopic.icon || 'folder', 14)}
+                                    <span>${escapeHtml(linkedTopic.name)}</span>
+                                </div>
                             ` : ''}
-                            ${highlightsCount > 0 ? `
-                                <span class="insight-stat" data-tooltip="${t('insights.highlightsCount', { count: highlightsCount })}">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-                                        <path d="M2 17l10 5 10-5"></path>
-                                    </svg>
-                                    ${highlightsCount}
-                                </span>
-                            ` : ''}
-                            ${insight.transcript ? `
-                                <span class="insight-stat" data-tooltip="${t('insights.hasTranscript')}">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                                        <line x1="9" y1="9" x2="15" y2="9"></line>
-                                        <line x1="9" y1="13" x2="15" y2="13"></line>
-                                    </svg>
-                                </span>
+                            ${(notesCount > 0 || highlightsCount > 0 || insight.transcript) ? `
+                                <div class="insight-card-stats">
+                                    ${notesCount > 0 ? `
+                                        <span class="insight-stat" data-tooltip="${t('insights.notesCount', { count: notesCount })}">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                <polyline points="14 2 14 8 20 8"></polyline>
+                                            </svg>
+                                            ${notesCount}
+                                        </span>
+                                    ` : ''}
+                                    ${highlightsCount > 0 ? `
+                                        <span class="insight-stat" data-tooltip="${t('insights.highlightsCount', { count: highlightsCount })}">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                                                <path d="M2 17l10 5 10-5"></path>
+                                            </svg>
+                                            ${highlightsCount}
+                                        </span>
+                                    ` : ''}
+                                    ${insight.transcript ? `
+                                        <span class="insight-stat" data-tooltip="${t('insights.hasTranscript')}">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                                <line x1="9" y1="9" x2="15" y2="9"></line>
+                                                <line x1="9" y1="13" x2="15" y2="13"></line>
+                                            </svg>
+                                        </span>
+                                    ` : ''}
+                                </div>
                             ` : ''}
                         </div>
                     ` : ''}

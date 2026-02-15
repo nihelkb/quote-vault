@@ -1971,12 +1971,23 @@ header {
 .topic-icon[data-icon="heart"], .topic-icon-small[data-icon="heart"] { color: #c07080; }
 .topic-icon[data-icon="star"], .topic-icon-small[data-icon="star"] { color: #c0a050; }
 
-/* Insights Grid */
+/* Insights Grid - Masonry Layout */
 .insights-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 24px;
+    column-count: 2;
+    column-gap: 24px;
     margin-left: 0;
+}
+
+@media (min-width: 1400px) {
+    .insights-grid {
+        column-count: 3;
+    }
+}
+
+@media (max-width: 1000px) {
+    .insights-grid {
+        column-count: 1;
+    }
 }
 
 .app-layout.sidebar-collapsed .insights-grid {
@@ -1992,7 +2003,6 @@ header {
 }
 
 .insights-empty {
-    grid-column: 1 / -1;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -2024,6 +2034,8 @@ header {
     cursor: pointer;
     transition: all 0.2s ease;
     border: 1px solid var(--border);
+    break-inside: avoid;
+    margin-bottom: 24px;
 }
 
 .insight-card:hover {
@@ -2251,6 +2263,18 @@ header {
     text-overflow: ellipsis;
 }
 
+/* Card Footer - Topic + Stats on same line */
+.insight-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e5e7eb;
+    flex-wrap: wrap;
+}
+
 /* Linked Topic */
 .insight-card-topic {
     display: inline-flex;
@@ -2261,7 +2285,7 @@ header {
     border-radius: 6px;
     font-size: 0.75rem;
     color: #4b5563;
-    margin: 12px 0 0;
+    margin: 0;
     font-weight: 500;
 }
 
@@ -2269,9 +2293,9 @@ header {
 .insight-card-stats {
     display: flex;
     gap: 14px;
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid #e5e7eb;
+    margin: 0;
+    padding: 0;
+    border: none;
 }
 
 .insight-stat {
