@@ -2030,14 +2030,18 @@ header {
     position: absolute;
     bottom: 10px;
     right: 10px;
-    padding: 4px 8px;
-    border-radius: 4px;
+    padding: 5px 9px;
+    border-radius: 6px;
     font-size: 0.75rem;
-    font-weight: 600;
-    background: rgba(0, 0, 0, 0.85);
+    font-weight: 500;
+    background: rgba(0, 0, 0, 0.54);
+    backdrop-filter: blur(3px);
     color: white;
-    font-family: 'Courier New', monospace;
-    letter-spacing: 0.5px;
+    font-family: 'DM Sans', sans-serif;
+    letter-spacing: 1.2px;
+    line-height: 1;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Source Badge on Thumbnail */
@@ -2123,21 +2127,28 @@ header {
 
 /* Card Body */
 .insight-card-body {
-    padding: 16px;
+    padding: 18px;
 }
 
-/* Status Line */
+/* Status Line - Full Width */
 .insight-card-status-line {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 10px;
-    font-size: 0.75rem;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    font-size: 0.7rem;
+    letter-spacing: 0.02em;
+}
+
+.insight-status-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .insight-status-dot {
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     flex-shrink: 0;
 }
@@ -2159,23 +2170,25 @@ header {
 }
 
 .insight-status-text {
-    color: var(--text-muted);
+    color: #9ca3af;
     text-transform: capitalize;
+    font-weight: 500;
 }
 
 .insight-card-date {
-    margin-left: auto;
-    color: var(--text-muted);
+    color: #9ca3af;
+    font-size: 0.7rem;
+    font-weight: 500;
 }
 
 /* Card Title */
 .insight-card-title {
     font-family: 'Cormorant Garamond', serif;
-    font-size: 1.1rem;
+    font-size: 1.125rem;
     font-weight: 600;
-    line-height: 1.4;
-    margin: 0 0 8px;
-    color: var(--text);
+    line-height: 1.45;
+    margin: 0 0 4px;
+    color: #1f2937;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
@@ -2183,37 +2196,53 @@ header {
     overflow: hidden;
 }
 
+/* Card Author/Channel - Subtitle */
+.insight-card-author {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: #9ca3af;
+    margin: 0 0 16px;
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* Linked Topic */
 .insight-card-topic {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 8px;
-    background: var(--tag-bg);
-    border-radius: 4px;
-    font-size: 0.8rem;
-    color: var(--text-muted);
+    gap: 5px;
+    padding: 5px 10px;
+    background: #f3f4f6;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    color: #4b5563;
     margin-bottom: 12px;
+    font-weight: 500;
 }
 
 /* Stats */
 .insight-card-stats {
     display: flex;
-    gap: 12px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border);
+    gap: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #e5e7eb;
 }
 
 .insight-stat {
     display: flex;
     align-items: center;
-    gap: 4px;
-    font-size: 0.8rem;
-    color: var(--text-muted);
+    gap: 5px;
+    font-size: 0.8125rem;
+    color: #6b7280;
+    font-weight: 500;
 }
 
 .insight-stat svg {
-    opacity: 0.7;
+    opacity: 0.65;
+    stroke-width: 2;
 }
 
 .btn-icon {
@@ -5131,7 +5160,8 @@ header {
     white-space: normal;
 }
 
-.insight-card-title {
+/* Sidebar Card Specific Styles */
+.insight-sidebar-card .insight-card-title {
     font-size: 0.9rem;
     font-weight: 500;
     margin-bottom: 6px;
@@ -5142,7 +5172,7 @@ header {
     overflow: hidden;
 }
 
-.insight-card-meta {
+.insight-sidebar-card .insight-card-meta {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -5150,24 +5180,24 @@ header {
     color: var(--text-muted);
 }
 
-.insight-card-status {
+.insight-sidebar-card .insight-card-status {
     padding: 2px 6px;
     border-radius: 4px;
     font-size: 0.7rem;
     font-weight: 500;
 }
 
-.insight-card-status.draft {
+.insight-sidebar-card .insight-card-status.draft {
     background: #fef3c7;
     color: #92400e;
 }
 
-.insight-card-status.reviewed {
+.insight-sidebar-card .insight-card-status.reviewed {
     background: #dbeafe;
     color: #1e40af;
 }
 
-.insight-card-status.integrated {
+.insight-sidebar-card .insight-card-status.integrated {
     background: #d1fae5;
     color: #065f46;
 }
@@ -5919,7 +5949,7 @@ header {
     gap: 16px;
 }
 
-.entry-item {
+.entry-list .entry-item {
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -6334,7 +6364,7 @@ header {
     gap: 16px;
 }
 
-.entry-item {
+.entries-list .entry-item {
     background: var(--bg-light);
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -6346,7 +6376,7 @@ header {
     transition: all 0.2s;
 }
 
-.entry-item:hover {
+.entries-list .entry-item:hover {
     background: white;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }

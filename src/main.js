@@ -4789,11 +4789,16 @@ function renderInsightsList() {
                 </div>
                 <div class="insight-card-body">
                     <div class="insight-card-status-line">
-                        <span class="insight-status-dot ${insight.status}"></span>
-                        <span class="insight-status-text">${t('insights.' + insight.status)}</span>
+                        <div class="insight-status-group">
+                            <span class="insight-status-dot ${insight.status}"></span>
+                            <span class="insight-status-text">${t('insights.' + insight.status)}</span>
+                        </div>
                         <span class="insight-card-date">${new Date(insight.createdAt).toLocaleDateString()}</span>
                     </div>
                     <h3 class="insight-card-title">${escapeHtml(insight.sourceTitle || t('insights.untitled'))}</h3>
+                    ${insight.sourceChannel ? `
+                        <p class="insight-card-author">${escapeHtml(insight.sourceChannel)}</p>
+                    ` : ''}
                     ${linkedTopic ? `
                         <div class="insight-card-topic">
                             ${getTopicIconSvg(linkedTopic.icon || 'folder', 14)}
