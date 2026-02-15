@@ -4935,7 +4935,8 @@ function openInsightModal(insightToEdit = null) {
                 title: insightToEdit.sourceTitle,
                 type: insightToEdit.sourceType,
                 thumbnail: insightToEdit.sourceThumbnail,
-                channel: insightToEdit.sourceChannel
+                channel: insightToEdit.sourceChannel,
+                duration: insightToEdit.sourceDuration
             });
             // Set button to success state since metadata is already fetched
             setFetchButtonState('success');
