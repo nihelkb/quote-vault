@@ -2244,7 +2244,7 @@ header {
     font-size: 0.75rem;
     font-weight: 400;
     color: #9ca3af;
-    margin: 0 0 16px;
+    margin: 0;
     line-height: 1.4;
     white-space: nowrap;
     overflow: hidden;
@@ -2261,7 +2261,7 @@ header {
     border-radius: 6px;
     font-size: 0.75rem;
     color: #4b5563;
-    margin-bottom: 12px;
+    margin: 12px 0 0;
     font-weight: 500;
 }
 
@@ -2269,7 +2269,8 @@ header {
 .insight-card-stats {
     display: flex;
     gap: 14px;
-    padding-top: 14px;
+    margin-top: 12px;
+    padding-top: 12px;
     border-top: 1px solid #e5e7eb;
 }
 
