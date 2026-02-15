@@ -4937,9 +4937,29 @@ function openInsightModal(insightToEdit = null) {
                 thumbnail: insightToEdit.sourceThumbnail,
                 channel: insightToEdit.sourceChannel
             });
+            // Set button to success state since metadata is already fetched
+            setFetchButtonState('success');
+        } else {
+            // Editing but no metadata yet
+            setFetchButtonState('search');
         }
     } else {
         elements.insightModalTitle.textContent = t('insights.capture');
+        // New insight - show search icon
+        setFetchButtonState('search');
+
+        // Reset custom select to default "Sin vincular"
+        const selectedText = elements.insightTopicSelect?.querySelector('.selected-text');
+        if (selectedText) {
+            selectedText.textContent = t('insights.noTopic');
+        }
+        const dropdown = document.getElementById('insightTopicDropdown');
+        if (dropdown) {
+            dropdown.querySelectorAll('.custom-select-option').forEach(opt => {
+                opt.classList.toggle('active', opt.dataset.value === '');
+            });
+        }
+        elements.insightLinkedTopic.value = '';
     }
 
     elements.insightModal.classList.add('active');
@@ -4950,6 +4970,37 @@ function closeInsightModal() {
     elements.insightModal.classList.remove('active');
     elements.insightForm.reset();
     elements.sourcePreview.classList.add('hidden');
+    // Reset fetch button to search state
+    setFetchButtonState('search');
+}
+
+function setFetchButtonState(state) {
+    if (!elements.fetchMetadataBtn) return;
+
+    const iconSearch = elements.fetchMetadataBtn.querySelector('.icon-search');
+    const iconLoading = elements.fetchMetadataBtn.querySelector('.icon-loading');
+    const iconSuccess = elements.fetchMetadataBtn.querySelector('.icon-success');
+
+    // Hide all icons first
+    iconSearch?.classList.add('hidden');
+    iconLoading?.classList.add('hidden');
+    iconSuccess?.classList.add('hidden');
+
+    // Show the appropriate icon
+    switch (state) {
+        case 'search':
+            iconSearch?.classList.remove('hidden');
+            elements.fetchMetadataBtn.disabled = false;
+            break;
+        case 'loading':
+            iconLoading?.classList.remove('hidden');
+            elements.fetchMetadataBtn.disabled = true;
+            break;
+        case 'success':
+            iconSuccess?.classList.remove('hidden');
+            elements.fetchMetadataBtn.disabled = false;
+            break;
+    }
 }
 
 function updateInsightTopicsDropdown() {
@@ -5001,26 +5052,34 @@ function updateInsightTopicsDropdown() {
 function showSourcePreview(data) {
     if (!data.title) return;
 
+    console.log('🎬 showSourcePreview received:', data);
+
     elements.sourceTitle.textContent = data.title;
     elements.sourceTypeBadge.textContent = data.type || 'article';
     elements.sourceTypeBadge.className = `source-type-badge ${data.type || 'article'}`;
 
-    // Update channel/duration line
+    // Display channel and duration for visual reference
     const channelText = data.channel || '';
     const durationText = data.duration ? formatTimestamp(data.duration) : '';
+
+    console.log('👤 Channel text:', channelText);
+    console.log('⏱️ Duration text:', durationText);
 
     if (channelText && durationText) {
         elements.sourceChannel.textContent = `${channelText} • ${durationText}`;
     } else if (channelText) {
         elements.sourceChannel.textContent = channelText;
     } else if (durationText) {
-        elements.sourceChannel.textContent = durationText;
+        elements.sourceChannel.textContent = `Duración: ${durationText}`;
     } else {
         elements.sourceChannel.textContent = '';
     }
 
-    // Store duration in a data attribute for later retrieval
+    console.log('📝 sourceChannel.textContent set to:', elements.sourceChannel.textContent);
+
+    // Store duration and channel separately in data attributes for saving
     elements.sourcePreview.dataset.duration = data.duration || '';
+    elements.sourcePreview.dataset.channel = data.channel || '';
 
     if (data.thumbnail) {
         elements.sourceThumbnail.src = data.thumbnail;
@@ -5052,14 +5111,20 @@ async function fetchUrlMetadata(url) {
                         const response = await fetch(`${endpoint}?videoId=${videoId}&lang=en`);
                         if (response.ok) {
                             const data = await response.json();
+                            console.log('🔍 Netlify function response:', data);
                             if (data.videoInfo) {
-                                return {
+                                console.log('📺 videoInfo object:', data.videoInfo);
+                                const channelValue = data.videoInfo.uploader || data.videoInfo.channel || data.videoInfo.author;
+                                console.log('👤 Extracted channel:', channelValue);
+                                const metadata = {
                                     title: data.videoInfo.title,
-                                    channel: null,
+                                    channel: channelValue,
                                     thumbnail: data.videoInfo.thumbnail || `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
                                     duration: data.videoInfo.duration,
                                     type: 'youtube'
                                 };
+                                console.log('✅ Returning metadata:', metadata);
+                                return metadata;
                             }
                         }
                     } catch (err) {
@@ -5121,42 +5186,27 @@ function setupInsightModalListeners() {
                 return;
             }
 
-            // Get button icons
-            const iconSearch = elements.fetchMetadataBtn.querySelector('.icon-search');
-            const iconLoading = elements.fetchMetadataBtn.querySelector('.icon-loading');
-            const iconSuccess = elements.fetchMetadataBtn.querySelector('.icon-success');
             const saveBtn = document.getElementById('saveInsightBtn');
 
             // Change to loading state
-            iconSearch.classList.add('hidden');
-            iconLoading.classList.remove('hidden');
-            iconSuccess.classList.add('hidden');
-            elements.fetchMetadataBtn.disabled = true;
+            setFetchButtonState('loading');
             if (saveBtn) saveBtn.disabled = true;
 
             try {
                 const metadata = await fetchUrlMetadata(url);
                 if (metadata) {
                     showSourcePreview(metadata);
-
                     // Change to success state
-                    iconSearch.classList.add('hidden');
-                    iconLoading.classList.add('hidden');
-                    iconSuccess.classList.remove('hidden');
+                    setFetchButtonState('success');
                 } else {
                     // Back to search state if failed
-                    iconSearch.classList.remove('hidden');
-                    iconLoading.classList.add('hidden');
-                    iconSuccess.classList.add('hidden');
+                    setFetchButtonState('search');
                 }
             } catch (err) {
                 toast.error(t('toast.errorFetchingMetadata'));
                 // Back to search state on error
-                iconSearch.classList.remove('hidden');
-                iconLoading.classList.add('hidden');
-                iconSuccess.classList.add('hidden');
+                setFetchButtonState('search');
             } finally {
-                elements.fetchMetadataBtn.disabled = false;
                 if (saveBtn) saveBtn.disabled = false;
             }
         };
@@ -5184,7 +5234,7 @@ async function handleInsightSubmit() {
 
     // Get metadata from preview if available
     const sourceTitle = elements.sourceTitle.textContent || url || t('insights.untitled');
-    const sourceChannel = elements.sourceChannel.textContent || null;
+    const sourceChannel = elements.sourcePreview.dataset.channel || null;
     const sourceThumbnail = elements.sourceThumbnail.src || null;
     const sourceDuration = elements.sourcePreview.dataset.duration ? parseInt(elements.sourcePreview.dataset.duration) : null;
 

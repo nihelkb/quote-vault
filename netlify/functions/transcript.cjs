@@ -237,7 +237,8 @@ exports.handler = async (event) => {
             videoInfo: {
                 title: videoInfo.title || null,
                 duration: videoInfo.duration || null, // in seconds
-                thumbnail: videoInfo.thumbnail || null
+                thumbnail: videoInfo.thumbnail || null,
+                uploader: videoInfo.uploader || videoInfo.channel || videoInfo.uploader_id || null
             }
         });
     } catch (error) {
