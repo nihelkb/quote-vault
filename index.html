@@ -901,7 +901,7 @@
 
     <!-- Insight Capture Modal -->
     <div class="modal-overlay" id="insightModal">
-        <div class="modal modal-large">
+        <div class="modal">
             <h2 id="insightModalTitle" data-i18n="insights.capture">Capturar insight</h2>
             <form id="insightForm">
                 <input type="hidden" id="insightId">
@@ -938,21 +938,33 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="insightNotes" data-i18n="insights.notes">Apuntes</label>
-                    <textarea id="insightNotes" rows="8" data-i18n-placeholder="insights.notesPlaceholder" placeholder="Escribe tus apuntes mientras consumes el contenido..."></textarea>
-                </div>
-
-                <div class="form-group">
                     <label for="insightTags" data-i18n="form.tagsLabel">Etiquetas</label>
                     <input type="text" id="insightTags" data-i18n-placeholder="form.tagsPlaceholder" placeholder="Separadas por coma: política, historia, economía">
                 </div>
 
                 <div class="form-group">
                     <label for="insightLinkedTopic" data-i18n="insights.linkToTopic">Vincular a tema (opcional)</label>
-                    <select id="insightLinkedTopic">
-                        <option value="">Sin vincular</option>
-                        <!-- Topics will be populated here -->
-                    </select>
+                    <div class="custom-select" id="insightTopicSelect">
+                        <button type="button" class="custom-select-btn">
+                            <span class="selected-text" data-i18n="insights.noTopic">Sin vincular</span>
+                            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
+                        <div class="custom-select-dropdown" id="insightTopicDropdown">
+                            <button type="button" class="custom-select-option active" data-value="">
+                                <span data-i18n="insights.noTopic">Sin vincular</span>
+                                <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                            </button>
+                            <!-- Topics will be populated here -->
+                        </div>
+                        <select id="insightLinkedTopic" hidden>
+                            <option value="">Sin vincular</option>
+                            <!-- Topics will be populated here -->
+                        </select>
+                    </div>
                 </div>
 
                 <div class="modal-actions">

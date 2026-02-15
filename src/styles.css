@@ -800,6 +800,23 @@ header {
     padding: 32px;
 }
 
+/* Insight Modal - More compact, no scroll issues */
+#insightModal .modal {
+    max-height: 85vh;
+    overflow: visible;
+}
+
+#insightModal .modal form {
+    overflow: visible;
+}
+
+/* Custom select dropdown inside modals - use fixed positioning */
+.modal .custom-select-dropdown {
+    position: fixed;
+    z-index: 110;
+    min-width: 200px;
+}
+
 .modal h2 {
     font-family: 'Cormorant Garamond', serif;
     font-size: 1.8rem;

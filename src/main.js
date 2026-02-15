@@ -212,9 +212,9 @@ const elements = {
     insightForm: document.getElementById('insightForm'),
     insightId: document.getElementById('insightId'),
     insightSourceUrl: document.getElementById('insightSourceUrl'),
-    insightNotes: document.getElementById('insightNotes'),
     insightTags: document.getElementById('insightTags'),
     insightLinkedTopic: document.getElementById('insightLinkedTopic'),
+    insightTopicSelect: document.getElementById('insightTopicSelect'),
     fetchMetadataBtn: document.getElementById('fetchMetadataBtn'),
     sourcePreview: document.getElementById('sourcePreview'),
     sourceThumbnail: document.getElementById('sourceThumbnail'),
@@ -4911,9 +4911,23 @@ function openInsightModal(insightToEdit = null) {
         elements.insightModalTitle.textContent = t('insights.editInsight');
         elements.insightId.value = insightToEdit.id;
         elements.insightSourceUrl.value = insightToEdit.sourceUrl || '';
-        elements.insightNotes.value = insightToEdit.rawNotes || '';
         elements.insightTags.value = (insightToEdit.tags || []).join(', ');
         elements.insightLinkedTopic.value = insightToEdit.linkedTopicId || '';
+
+        // Update custom select text
+        const selectedTopic = state.topics.find(t => t.id === insightToEdit.linkedTopicId);
+        const selectedText = elements.insightTopicSelect?.querySelector('.selected-text');
+        if (selectedText) {
+            selectedText.textContent = selectedTopic ? selectedTopic.name : t('insights.noTopic');
+        }
+
+        // Update active state in dropdown
+        const dropdown = document.getElementById('insightTopicDropdown');
+        if (dropdown) {
+            dropdown.querySelectorAll('.custom-select-option').forEach(opt => {
+                opt.classList.toggle('active', opt.dataset.value === (insightToEdit.linkedTopicId || ''));
+            });
+        }
 
         // Show preview if we have source info
         if (insightToEdit.sourceTitle) {
@@ -4940,16 +4954,47 @@ function closeInsightModal() {
 
 function updateInsightTopicsDropdown() {
     const select = elements.insightLinkedTopic;
-    if (!select) return;
+    const dropdown = document.getElementById('insightTopicDropdown');
+    if (!select || !dropdown) return;
 
-    // Keep the first "no link" option
+    // Update hidden select
     select.innerHTML = '<option value="">Sin vincular</option>';
 
+    // Update custom dropdown - keep first "no link" option
+    const firstOption = dropdown.querySelector('.custom-select-option[data-value=""]');
+    dropdown.innerHTML = '';
+    if (firstOption) {
+        dropdown.appendChild(firstOption);
+    } else {
+        dropdown.innerHTML = `
+            <button type="button" class="custom-select-option active" data-value="">
+                <span>${t('insights.noTopic')}</span>
+                <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            </button>
+        `;
+    }
+
     state.topics.forEach(topic => {
+        // Add to hidden select
         const option = document.createElement('option');
         option.value = topic.id;
         option.textContent = topic.name;
         select.appendChild(option);
+
+        // Add to custom dropdown
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'custom-select-option';
+        btn.dataset.value = topic.id;
+        btn.innerHTML = `
+            <span>${escapeHtml(topic.name)}</span>
+            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+        `;
+        dropdown.appendChild(btn);
     });
 }
 
@@ -5128,10 +5173,9 @@ function setupInsightModalListeners() {
 
 async function handleInsightSubmit() {
     const url = elements.insightSourceUrl.value.trim();
-    const notes = elements.insightNotes.value.trim();
 
-    if (!notes && !url) {
-        toast.warning(t('toast.addUrlOrNotes'));
+    if (!url) {
+        toast.warning(t('toast.addUrl'));
         return;
     }
 
@@ -5151,7 +5195,6 @@ async function handleInsightSubmit() {
         sourceChannel: sourceChannel,
         sourceThumbnail: sourceThumbnail && !sourceThumbnail.includes('data:') ? sourceThumbnail : null,
         sourceDuration: sourceDuration,
-        rawNotes: notes,
         tags: elements.insightTags.value.split(',').map(t => t.trim().toLowerCase()).filter(Boolean),
         linkedTopicId: elements.insightLinkedTopic.value || null
     };
@@ -5327,6 +5370,9 @@ function setupFilterListeners() {
     setupCustomSelect(elements.insightsStatusSelect, elements.insightsFilterStatus, renderInsightsView);
     setupCustomSelect(elements.insightsSourceSelect, elements.insightsFilterSource, renderInsightsView);
 
+    // Setup custom select - Insight Modal
+    setupCustomSelect(elements.insightTopicSelect, elements.insightLinkedTopic, null);
+
     // Wiki search listener
     if (elements.wikiSearchInput) {
         elements.wikiSearchInput.addEventListener('input', debounce(() => {
@@ -5360,6 +5406,18 @@ function setupFilterListeners() {
         document.querySelectorAll('.custom-select.open').forEach(select => {
             if (!select.contains(e.target)) {
                 select.classList.remove('open');
+                // Reset inline styles AFTER transition (for modals)
+                const dropdown = select.querySelector('.custom-select-dropdown');
+                if (dropdown && dropdown.style.position === 'fixed') {
+                    setTimeout(() => {
+                        if (!select.classList.contains('open')) {
+                            dropdown.style.position = '';
+                            dropdown.style.top = '';
+                            dropdown.style.left = '';
+                            dropdown.style.width = '';
+                        }
+                    }, 200); // Match the CSS transition duration
+                }
             }
         });
     });
@@ -5379,39 +5437,73 @@ function setupCustomSelect(customSelect, hiddenSelect, onChangeCallback = null) 
         document.querySelectorAll('.custom-select.open').forEach(s => {
             if (s !== customSelect) s.classList.remove('open');
         });
+
+        const isOpening = !customSelect.classList.contains('open');
+        const isInModal = customSelect.closest('.modal');
+
+        // If inside a modal and opening, set position BEFORE opening to avoid transition glitch
+        if (isInModal && isOpening) {
+            const rect = btn.getBoundingClientRect();
+            dropdown.style.transition = 'none';
+            dropdown.style.position = 'fixed';
+            dropdown.style.top = `${rect.bottom + 4}px`;
+            dropdown.style.left = `${rect.left}px`;
+            dropdown.style.width = `${rect.width}px`;
+
+            // Force reflow to apply styles immediately
+            dropdown.offsetHeight;
+
+            // Re-enable transition
+            dropdown.style.transition = '';
+        }
+
         customSelect.classList.toggle('open');
     });
 
-    // Handle option selection
-    dropdown.querySelectorAll('.custom-select-option').forEach(option => {
-        option.addEventListener('click', () => {
-            const value = option.dataset.value;
-            const text = option.querySelector('span').textContent;
+    // Handle option selection using event delegation
+    dropdown.addEventListener('click', (e) => {
+        const option = e.target.closest('.custom-select-option');
+        if (!option) return;
 
-            // Update hidden select
-            hiddenSelect.value = value;
+        const value = option.dataset.value;
+        const text = option.querySelector('span').textContent;
 
-            // Update button text
-            selectedText.textContent = text;
+        // Update hidden select
+        hiddenSelect.value = value;
 
-            // Update active state
-            dropdown.querySelectorAll('.custom-select-option').forEach(opt => {
-                opt.classList.toggle('active', opt === option);
-            });
+        // Update button text
+        selectedText.textContent = text;
 
-            // Close dropdown
-            customSelect.classList.remove('open');
-
-            // Trigger change event
-            hiddenSelect.dispatchEvent(new Event('change'));
-
-            // Call the appropriate callback
-            if (onChangeCallback) {
-                onChangeCallback();
-            } else {
-                renderQuotes();
-            }
+        // Update active state
+        dropdown.querySelectorAll('.custom-select-option').forEach(opt => {
+            opt.classList.toggle('active', opt === option);
         });
+
+        // Close dropdown
+        customSelect.classList.remove('open');
+
+        // Reset inline styles AFTER transition ends (for modals)
+        if (dropdown.style.position === 'fixed') {
+            // Wait for the close animation to complete
+            setTimeout(() => {
+                if (!customSelect.classList.contains('open')) {
+                    dropdown.style.position = '';
+                    dropdown.style.top = '';
+                    dropdown.style.left = '';
+                    dropdown.style.width = '';
+                }
+            }, 200); // Match the CSS transition duration
+        }
+
+        // Trigger change event
+        hiddenSelect.dispatchEvent(new Event('change'));
+
+        // Call the appropriate callback
+        if (onChangeCallback) {
+            onChangeCallback();
+        } else {
+            renderQuotes();
+        }
     });
 }
 
