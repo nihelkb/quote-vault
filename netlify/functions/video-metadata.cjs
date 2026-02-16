@@ -56,26 +56,52 @@ async function extractDescriptionSummary(description) {
                 messages: [
                     {
                         role: 'system',
-                        content: 'You are a helpful assistant that extracts the main descriptive content from YouTube video descriptions. Your task is to identify and return ONLY the 2-3 sentences that describe what the video is about, ignoring promotional content, social media links, timestamps, credits, and other metadata.'
+                        content: 'You are an expert at summarizing YouTube video descriptions. Your task is to read the ENTIRE description and create a concise 2-3 sentence summary that captures the main topic and key points of the video. Ignore promotional content, links, timestamps, and credits. Focus on WHAT the video is about and WHY it matters.'
                     },
                     {
                         role: 'user',
-                        content: `Extract the main description (2-3 sentences) from this YouTube video description. Return ONLY the descriptive sentences, nothing else. Do not include promotional content, links, timestamps, credits, or social media information.\n\nDescription:\n${description}\n\nExtracted description:`
+                        content: `Read this YouTube video description and write a clear, informative 2-3 sentence summary. The summary should capture the video's main topic and key points. Do NOT just copy the beginning - read the whole description first, then summarize.\n\nDescription:\n${description}\n\nWrite a 2-3 sentence summary of what this video is about:`
                     }
                 ],
-                temperature: 0.1, // Low temperature for consistent extraction
-                max_tokens: 150,
+                temperature: 0.3, // Slightly higher for better summarization
+                max_tokens: 200,
                 top_p: 1
             });
 
             const extracted = completion.choices[0]?.message?.content?.trim();
 
-            if (extracted && extracted.length > 20 && extracted.length <= 400) {
-                console.log('[Video Metadata] AI extraction successful:', extracted.substring(0, 100) + '...');
+            if (!extracted) {
+                console.log('[Video Metadata] Groq returned null/empty, falling back to regex');
+                return extractDescriptionFallback(description);
+            }
+
+            // Count words instead of characters for better control
+            const wordCount = extracted.split(/\s+/).filter(w => w.length > 0).length;
+            const charCount = extracted.length;
+
+            console.log('[Video Metadata] Groq returned:', wordCount, 'words,', charCount, 'chars');
+            console.log('[Video Metadata] Content preview:', extracted.substring(0, 150) + '...');
+
+            // Validate: between 20 and 150 words (roughly 2-4 sentences)
+            if (wordCount >= 20 && wordCount <= 150) {
+                console.log('[Video Metadata] AI extraction successful!');
                 return extracted;
             }
 
-            console.log('[Video Metadata] AI extraction failed or invalid, falling back to regex');
+            // If too long, try to truncate at last sentence before 150 words
+            if (wordCount > 150) {
+                const words = extracted.split(/\s+/);
+                const truncated = words.slice(0, 150).join(' ');
+                const lastPeriod = truncated.lastIndexOf('.');
+
+                if (lastPeriod > 0) {
+                    const result = truncated.substring(0, lastPeriod + 1);
+                    console.log('[Video Metadata] Truncated from', wordCount, 'to', result.split(/\s+/).length, 'words');
+                    return result;
+                }
+            }
+
+            console.log('[Video Metadata] AI extraction failed validation (', wordCount, 'words), falling back to regex');
         } catch (error) {
             console.error('[Video Metadata] Groq API error:', error.message);
             // Continue to fallback
