@@ -238,7 +238,8 @@ exports.handler = async (event) => {
                 title: videoInfo.title || null,
                 duration: videoInfo.duration || null, // in seconds
                 thumbnail: videoInfo.thumbnail || null,
-                uploader: videoInfo.uploader || videoInfo.channel || videoInfo.uploader_id || null
+                uploader: videoInfo.uploader || videoInfo.channel || videoInfo.uploader_id || null,
+                description: videoInfo.description || null
             }
         });
     } catch (error) {

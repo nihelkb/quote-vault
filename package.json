@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "firebase": "^10.8.0",
+    "groq-sdk": "^0.37.0",
     "yt-dlp-wrap": "^2.3.12"
   }
 }

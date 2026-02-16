@@ -5,6 +5,7 @@ A modern web application to manage your personal knowledge. Capture quotes, orga
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
 ![Firebase](https://img.shields.io/badge/firebase-10.8.0-orange)
 ![Vite](https://img.shields.io/badge/vite-5.0.0-646cff)
+![Groq](https://img.shields.io/badge/groq-AI%20powered-f55036)
 
 ---
 
@@ -18,6 +19,7 @@ A modern web application to manage your personal knowledge. Capture quotes, orga
 - 🔒 **Secure** - Email + Google authentication with Firebase
 - 📱 **Responsive** - Works seamlessly on mobile, tablet and desktop
 - 🎬 **YouTube Transcripts** - Automatic transcript extraction with multi-language support
+- 🤖 **AI-Powered Descriptions** - Intelligent video description extraction using Groq AI
 
 ---
 
@@ -151,7 +153,39 @@ VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 VITE_FIREBASE_APP_ID=your_app_id
 VITE_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX
+GROQ_API_KEY=your_groq_api_key_here
 ```
+
+### 5. Configure Groq AI (Optional - Recommended)
+
+Groq AI powers intelligent video description extraction for insights. While optional, it significantly improves the quality of auto-extracted descriptions from YouTube videos.
+
+**Free tier:** 14,400 requests/day
+
+#### Get Groq API Key
+
+1. Go to [console.groq.com](https://console.groq.com)
+2. Sign up for a free account
+3. Navigate to **API Keys** → **Create API Key**
+4. Copy your API key
+
+#### Add to Environment Variables
+
+Add to your `.env` file:
+
+```bash
+GROQ_API_KEY=your_groq_api_key_here
+```
+
+**For Netlify deployment:**
+1. Go to your Netlify project
+2. **Site settings** → **Environment variables**
+3. Add variable: `GROQ_API_KEY` = `your_api_key`
+4. Redeploy
+
+**How it works:**
+- ✅ With Groq: AI extracts clean 2-3 sentence descriptions from videos
+- ❌ Without Groq: Fallback to regex-based extraction (less accurate)
 
 ---
 

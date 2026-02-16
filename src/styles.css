@@ -2312,6 +2312,36 @@ header {
     stroke-width: 2;
 }
 
+/* Video Description Expandable Section */
+.insight-card-description {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                margin-top 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0;
+    margin-top: 0;
+}
+
+.insight-card:hover .insight-card-description {
+    max-height: 200px;
+    opacity: 1;
+    margin-top: 12px;
+}
+
+.insight-card-description-text {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    color: #6b7280;
+    margin: 0;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+    border-radius: 8px;
+    border-left: 3px solid var(--accent);
+    font-style: italic;
+}
+
 .btn-icon {
     width: 32px;
     height: 32px;

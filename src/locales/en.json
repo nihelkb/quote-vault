@@ -253,6 +253,7 @@
     "noNotesHint": "Use the field above to add notes while watching the video",
     "untitled": "Untitled",
     "hasTranscript": "Has transcript",
+    "about": "Description",
     "clearTranscriptTitle": "Delete transcript?",
     "clearTranscriptWarning": "All associated highlights will also be deleted.",
     "seekTo": "Go to {time}",

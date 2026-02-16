@@ -4799,6 +4799,11 @@ function renderInsightsList() {
                     ${insight.sourceChannel ? `
                         <p class="insight-card-author">${escapeHtml(insight.sourceChannel)}</p>
                     ` : ''}
+                    ${insight.videoDescription ? `
+                        <div class="insight-card-description">
+                            <p class="insight-card-description-text">${escapeHtml(insight.videoDescription)}</p>
+                        </div>
+                    ` : ''}
                     ${(linkedTopic || notesCount > 0 || highlightsCount > 0 || insight.transcript) ? `
                         <div class="insight-card-footer">
                             ${linkedTopic ? `
@@ -5077,9 +5082,10 @@ function showSourcePreview(data) {
         elements.sourceChannel.textContent = '';
     }
 
-    // Store duration and channel separately in data attributes for saving
+    // Store duration, channel, and description separately in data attributes for saving
     elements.sourcePreview.dataset.duration = data.duration || '';
     elements.sourcePreview.dataset.channel = data.channel || '';
+    elements.sourcePreview.dataset.description = data.description || '';
 
     if (data.thumbnail) {
         elements.sourceThumbnail.src = data.thumbnail;
@@ -5101,12 +5107,37 @@ async function fetchUrlMetadata(url) {
         const videoId = insightService.extractYouTubeVideoId(url);
         if (videoId) {
             try {
-                // Use our Netlify function to get video metadata (it uses yt-dlp which is very reliable)
-                const endpoints = import.meta.env.DEV
+                // Try video-metadata function first (faster, just metadata)
+                const metadataEndpoints = import.meta.env.DEV
+                    ? ['/.netlify/functions/video-metadata', '/api/video-metadata']
+                    : ['/api/video-metadata', '/.netlify/functions/video-metadata'];
+
+                for (const endpoint of metadataEndpoints) {
+                    try {
+                        const response = await fetch(`${endpoint}?videoId=${videoId}`);
+                        if (response.ok) {
+                            const data = await response.json();
+                            return {
+                                title: data.title,
+                                channel: data.channel,
+                                thumbnail: data.thumbnail || `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+                                duration: data.duration,
+                                description: data.description,
+                                type: 'youtube'
+                            };
+                        }
+                    } catch (err) {
+                        console.warn(`Error with ${endpoint}:`, err);
+                        continue;
+                    }
+                }
+
+                // Fallback to transcript function if video-metadata fails
+                const transcriptEndpoints = import.meta.env.DEV
                     ? ['/.netlify/functions/transcript', '/api/transcript']
                     : ['/api/transcript', '/.netlify/functions/transcript'];
 
-                for (const endpoint of endpoints) {
+                for (const endpoint of transcriptEndpoints) {
                     try {
                         const response = await fetch(`${endpoint}?videoId=${videoId}&lang=en`);
                         if (response.ok) {
@@ -5118,6 +5149,7 @@ async function fetchUrlMetadata(url) {
                                     channel: channelValue,
                                     thumbnail: data.videoInfo.thumbnail || `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
                                     duration: data.videoInfo.duration,
+                                    description: data.videoInfo.description,
                                     type: 'youtube'
                                 };
                             }
@@ -5232,6 +5264,7 @@ async function handleInsightSubmit() {
     const sourceChannel = elements.sourcePreview.dataset.channel || null;
     const sourceThumbnail = elements.sourceThumbnail.src || null;
     const sourceDuration = elements.sourcePreview.dataset.duration ? parseInt(elements.sourcePreview.dataset.duration) : null;
+    const videoDescription = elements.sourcePreview.dataset.description || null;
 
     const data = {
         sourceUrl: url,
@@ -5240,6 +5273,7 @@ async function handleInsightSubmit() {
         sourceChannel: sourceChannel,
         sourceThumbnail: sourceThumbnail && !sourceThumbnail.includes('data:') ? sourceThumbnail : null,
         sourceDuration: sourceDuration,
+        videoDescription: videoDescription,
         tags: elements.insightTags.value.split(',').map(t => t.trim().toLowerCase()).filter(Boolean),
         linkedTopicId: elements.insightLinkedTopic.value || null
     };

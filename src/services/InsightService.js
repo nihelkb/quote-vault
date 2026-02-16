@@ -85,6 +85,7 @@ class InsightService {
             sourceThumbnail: data.sourceThumbnail || null,
             sourceDuration: data.sourceDuration || null,
             sourceChannel: data.sourceChannel || null,
+            videoDescription: data.videoDescription || null, // Brief description (2-3 sentences)
 
             // Captured content
             rawNotes: data.rawNotes || '',

@@ -253,6 +253,7 @@
     "noNotesHint": "Usa el campo de arriba para añadir notas mientras ves el video",
     "untitled": "Sin título",
     "hasTranscript": "Tiene transcripción",
+    "about": "Descripción",
     "clearTranscriptTitle": "¿Borrar transcripción?",
     "clearTranscriptWarning": "Se eliminarán también todos los destacados asociados.",
     "seekTo": "Ir a {time}",
