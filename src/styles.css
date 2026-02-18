@@ -2480,7 +2480,7 @@ header {
     border-radius: 8px;
     font-family: inherit;
     font-size: 0.78rem;
-    font-weight: 500;
+    font-weight: 400;
     cursor: pointer;
     transition: background 0.12s ease;
     text-align: left;
@@ -2498,7 +2498,7 @@ header {
 
 .topic-selector-option.active {
     background: var(--tag-bg);
-    font-weight: 600;
+    font-weight: 500;
 }
 
 .topic-selector-option.active::after {
@@ -2749,7 +2749,7 @@ header {
     border-radius: 8px;
     font-family: inherit;
     font-size: 0.78rem;
-    font-weight: 500;
+    font-weight: 400;
     cursor: pointer;
     transition: background 0.12s ease;
     text-align: left;
@@ -2778,7 +2778,7 @@ header {
 
 .status-option.active {
     background: var(--tag-bg);
-    font-weight: 600;
+    font-weight: 500;
 }
 
 .status-option.active::after {
