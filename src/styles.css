@@ -22,6 +22,10 @@
     box-sizing: border-box;
 }
 
+button, input, select, textarea {
+    font-family: inherit;
+}
+
 body {
     font-family: 'DM Sans', sans-serif;
     background: var(--bg);
@@ -840,9 +844,9 @@ header {
 .form-group textarea,
 .form-group select {
     width: 100%;
-    padding: 12px 14px;
+    padding: 10px 14px;
     border: 1px solid var(--border);
-    border-radius: 4px;
+    border-radius: 8px;
     font-family: inherit;
     font-size: 0.95rem;
     transition: border-color 0.2s;
@@ -851,6 +855,7 @@ header {
 .form-group textarea {
     min-height: 100px;
     resize: vertical;
+    line-height: 1.6;
 }
 
 .form-group input:focus,
@@ -1130,26 +1135,28 @@ header {
 }
 
 .icon-option {
-    width: 40px;
-    height: 40px;
+    background: #f8f6f2;
+    border: 1px solid #e5e0d8;
+    border-radius: 10px;
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
-    border: 2px solid var(--border);
-    border-radius: 8px;
-    background: white;
-    cursor: pointer;
-    transition: all 0.2s;
+    color: #6b6458;
 }
 
 .icon-option:hover {
     border-color: var(--accent);
+    background: white;
+    color: var(--accent);
 }
 
 .icon-option.selected {
     border-color: var(--accent);
-    background: rgba(193, 154, 107, 0.1);
+    background: var(--accent);
+    color: white;
 }
 
 /* Navigation Sidebar (Left) */
@@ -2362,22 +2369,23 @@ header {
 }
 
 .btn-icon {
-    width: 32px;
-    height: 32px;
+    width: 42px;
+    height: 42px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: none;
-    background: var(--tag-bg);
-    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: white;
+    border-radius: 4px;
     cursor: pointer;
+    font-size: 1.2rem;
     color: var(--text-muted);
     transition: all 0.2s;
 }
 
 .btn-icon:hover {
-    background: var(--border);
-    color: var(--text);
+    border-color: var(--accent);
+    color: var(--accent);
 }
 
 .btn-icon.btn-danger:hover {
@@ -2518,17 +2526,23 @@ header {
 
 /* Topic Detail View */
 .topic-detail-view {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 24px;
+    padding: 0;
+    max-width: 100%;
 }
 
 .topic-detail-header {
+    padding: 18px 32px;
+    border-bottom: 1px solid var(--border);
+    background: #fbfaf7;
+    position: sticky;
+    top: 0;
+    z-index: 10;
     display: flex;
-    align-items: flex-start;
-    gap: 16px;
-    margin-bottom: 24px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
     flex-wrap: wrap;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
 }
 
 .btn-back {
@@ -2538,17 +2552,19 @@ header {
 }
 
 .topic-detail-title {
-    flex: 1;
     display: flex;
-    align-items: center;
-    gap: 16px;
-    min-width: 200px;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
 }
 
 .topic-detail-title h1 {
     font-family: 'Cormorant Garamond', serif;
-    font-size: 2rem;
+    font-size: 1.55rem;
+    font-weight: 500;
     margin: 0;
+    line-height: 1.2;
+    letter-spacing: -0.005em;
 }
 
 .topic-icon-large {
@@ -2558,13 +2574,14 @@ header {
 .topic-detail-actions {
     display: flex;
     gap: 8px;
+    flex-shrink: 0;
 }
 
 .topic-detail-description {
-    font-size: 1.1rem;
     color: var(--text-muted);
-    margin-bottom: 32px;
-    line-height: 1.6;
+    font-size: 0.85rem;
+    margin: 0;
+    max-width: 48ch;
 }
 
 .topic-sections {
@@ -2667,6 +2684,8 @@ header {
 
 .insight-status-badge {
     font-weight: 500;
+    cursor: pointer;
+    transition: filter 0.15s ease;
 }
 
 .insight-status-badge::before {
@@ -2714,11 +2733,6 @@ header {
 .status-dropdown-wrapper {
     position: relative;
     display: inline-block;
-}
-
-.insight-status-badge {
-    cursor: pointer;
-    transition: filter 0.15s ease;
 }
 
 .insight-status-badge:hover {
@@ -3212,21 +3226,22 @@ header {
     gap: 7px;
     font-size: 0.82rem;
     font-weight: 500;
-    color: #92600a;
-    background: #fdf8ee;
-    border-left: 3px solid #e8ab40;
+    color: #4a6860;
+    background: #f0f4f2;
+    border-left: 3px solid #a8c4bc;
     list-style: none;
     user-select: none;
     transition: color 0.15s, background 0.15s;
 }
 
 .insight-source-description summary:hover {
-    background: #faf1da;
-    color: #7a4f08;
+    background: #e6edeb;
+    color: #344f48;
 }
 
 .insight-source-description[open] summary {
-    border-bottom: 1px solid #f0dfa0;
+    color: #344f48;
+    border-bottom: 1px solid #cdddd8;
 }
 
 .insight-source-description summary::-webkit-details-marker {
@@ -3235,7 +3250,6 @@ header {
 
 .insight-source-description summary .desc-chevron {
     flex-shrink: 0;
-    color: #c98d1a;
     transition: transform 0.2s ease;
 }
 
@@ -3245,8 +3259,8 @@ header {
 
 .insight-source-description-body {
     padding: 16px 20px 20px 23px;
-    background: #fffdf7;
-    border-left: 3px solid #e8ab40;
+    background: #f7faf9;
+    border-left: 3px solid #5a7a70;
 }
 
 .insight-source-description-body p {
@@ -3405,7 +3419,6 @@ header {
     border: none;
     background: transparent;
     cursor: pointer;
-    font-size: 0.9rem;
     color: var(--text-muted);
     transition: all 0.2s;
     border-bottom: 2px solid transparent;
@@ -3418,9 +3431,9 @@ header {
 }
 
 .insight-tab.active {
-    color: var(--status-reviewed);
+    color: #344f48;
     background: white;
-    border-bottom-color: var(--status-reviewed);
+    border-bottom-color: #5a7a70;
 }
 
 .insight-tab svg {
@@ -4058,23 +4071,6 @@ header {
 
 .collection-input select {
     flex: 1;
-}
-
-.btn-icon {
-    width: 42px;
-    height: 42px;
-    border: 1px solid var(--border);
-    background: white;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1.2rem;
-    color: var(--text-muted);
-    transition: all 0.2s;
-}
-
-.btn-icon:hover {
-    border-color: var(--accent);
-    color: var(--accent);
 }
 
 .collection-name-input {
@@ -4752,26 +4748,6 @@ header {
    TOPIC DETAIL VIEW - MASONRY LAYOUT
    ============================================================================ */
 
-.topic-detail-view {
-    padding: 0;
-    max-width: 100%;
-}
-
-.topic-detail-header {
-    padding: 18px 32px;
-    border-bottom: 1px solid var(--border);
-    background: #fbfaf7;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-    flex-wrap: wrap;
-    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
-}
-
 .topic-detail-header .btn-back {
     flex-shrink: 0;
     padding: 6px 12px;
@@ -4811,29 +4787,6 @@ header {
     flex-shrink: 0;
 }
 
-.topic-detail-title {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-}
-
-.topic-detail-title h1 {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.55rem;
-    font-weight: 500;
-    margin: 0;
-    line-height: 1.2;
-    letter-spacing: -0.005em;
-}
-
-.topic-detail-description {
-    color: var(--text-muted);
-    font-size: 0.85rem;
-    margin: 0;
-    max-width: 48ch;
-}
-
 .topic-detail-meta {
     display: flex;
     align-items: center;
@@ -4845,12 +4798,6 @@ header {
     font-size: 0.78rem;
     color: var(--text-muted);
     letter-spacing: 0.02em;
-}
-
-.topic-detail-actions {
-    display: flex;
-    gap: 8px;
-    flex-shrink: 0;
 }
 
 .topic-detail-actions .btn {
@@ -6660,39 +6607,6 @@ header {
     margin-bottom: 0;
 }
 
-/* Icon picker in forms */
-.icon-picker {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 8px;
-}
-
-.icon-option {
-    background: #f8f6f2;
-    border: 1px solid #e5e0d8;
-    border-radius: 10px;
-    padding: 10px;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #6b6458;
-}
-
-.icon-option:hover {
-    border-color: var(--accent);
-    background: white;
-    color: var(--accent);
-}
-
-.icon-option.selected {
-    border-color: var(--accent);
-    background: var(--accent);
-    color: white;
-}
-
 .icon-option svg {
     width: 20px;
     height: 20px;
@@ -6776,7 +6690,7 @@ header {
     margin-top: 10px;
 }
 
-.icon-btn {
+.icon-picker-grid .icon-btn {
     background: #f9fafb;
     border: 2px solid transparent;
     border-radius: 8px;
@@ -6789,53 +6703,20 @@ header {
     color: #6b7280;
 }
 
-.icon-btn svg {
+.icon-picker-grid .icon-btn svg {
     width: 20px;
     height: 20px;
 }
 
-.icon-btn:hover {
+.icon-picker-grid .icon-btn:hover {
     background: white;
     border-color: #e5e7eb;
     color: var(--text);
 }
 
-.icon-btn.selected {
+.icon-picker-grid .icon-btn.selected {
     background: var(--accent);
     border-color: var(--accent);
     color: white;
 }
 
-/* Form groups */
-.form-group {
-    margin-bottom: 20px;
-}
-
-.form-group label {
-    display: block;
-    font-weight: 500;
-    margin-bottom: 8px;
-    color: var(--text);
-}
-
-.form-group input[type="text"],
-.form-group textarea {
-    width: 100%;
-    padding: 10px 14px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 0.95rem;
-    transition: border-color 0.2s;
-}
-
-.form-group input[type="text"]:focus,
-.form-group textarea:focus {
-    outline: none;
-    border-color: var(--accent);
-}
-
-.form-group textarea {
-    resize: vertical;
-    line-height: 1.6;
-}
