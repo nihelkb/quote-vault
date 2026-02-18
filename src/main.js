@@ -2741,7 +2741,7 @@ function openInsightView(insightId) {
                 </div>
                 <div class="insight-detail-actions">
                     ${insight.sourceUrl ? `
-                        <a href="${escapeHtml(insight.sourceUrl)}" target="_blank" rel="noopener" class="btn btn-secondary">
+                        <a href="${escapeHtml(insight.sourceUrl)}" target="_blank" rel="noopener" class="btn btn-secondary${isYouTube ? ' btn-open-youtube' : ''}">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
                                 <polyline points="15 3 21 3 21 9"></polyline>
@@ -2858,6 +2858,19 @@ function openInsightView(insightId) {
                 ` : ''}
 
                 <div class="insight-workspace" id="insightWorkspace">
+                    ${insight.videoDescription ? `
+                        <details class="insight-source-description">
+                            <summary>
+                                <svg class="desc-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                                <span>${t('insights.sourceDescription')}</span>
+                            </summary>
+                            <div class="insight-source-description-body">
+                                <p>${escapeHtml(insight.videoDescription)}</p>
+                            </div>
+                        </details>
+                    ` : ''}
                     <div class="insight-tabs">
                         <button class="insight-tab active" data-tab="transcript">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

@@ -2323,33 +2323,42 @@ header {
 
 /* Video Description Expandable Section */
 .insight-card-description {
+    position: relative;
     max-height: 0;
     overflow: hidden;
-    /* Slower, smoother transitions to reduce jarring reflows */
-    transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-                margin-top 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-                opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.3s ease,
+                margin-top 0.45s cubic-bezier(0.4, 0, 0.2, 1);
     opacity: 0;
     margin-top: 0;
 }
 
 .insight-card:hover .insight-card-description {
-    max-height: 200px;
+    max-height: 160px;
     opacity: 1;
-    margin-top: 12px;
+    margin-top: 10px;
+}
+
+/* Fade-out gradient to signal truncated content */
+.insight-card-description::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 44px;
+    background: linear-gradient(to bottom, transparent, white);
+    pointer-events: none;
 }
 
 .insight-card-description-text {
     font-family: 'DM Sans', sans-serif;
-    font-size: 0.8125rem;
-    line-height: 1.6;
-    color: #6b7280;
+    font-size: 0.79rem;
+    line-height: 1.7;
+    color: #4b5563;
     margin: 0;
-    padding: 12px 14px;
-    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
-    border-radius: 8px;
-    border-left: 3px solid var(--accent);
-    font-style: italic;
+    padding: 10px 0 20px;
+    border-top: 1px solid #e5e7eb;
 }
 
 .btn-icon {
@@ -2629,8 +2638,11 @@ header {
     display: flex;
     align-items: flex-start;
     gap: 30px;
-    margin-bottom: 20px;
+    margin: -24px -24px 24px;
+    padding: 20px 24px;
     flex-wrap: wrap;
+    background: #f9f8f6;
+    border-bottom: 1px solid var(--border);
 }
 
 .insight-detail-title {
@@ -2789,6 +2801,18 @@ header {
     display: flex;
     align-items: center;
     gap: 6px;
+}
+
+.btn-open-youtube {
+    background: transparent;
+    border-color: var(--border);
+    color: #e05252;
+}
+
+.btn-open-youtube:hover {
+    background: #fff5f5;
+    border-color: #fca5a5;
+    color: #dc2626;
 }
 
 /* Video Section - Left side */
@@ -3175,6 +3199,65 @@ header {
     border-left: 3px solid #3b82f6;
 }
 
+/* Source Description (collapsible, inside detail view workspace) */
+.insight-source-description {
+    border-bottom: 1px solid var(--border);
+}
+
+.insight-source-description summary {
+    padding: 12px 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: #92600a;
+    background: #fdf8ee;
+    border-left: 3px solid #e8ab40;
+    list-style: none;
+    user-select: none;
+    transition: color 0.15s, background 0.15s;
+}
+
+.insight-source-description summary:hover {
+    background: #faf1da;
+    color: #7a4f08;
+}
+
+.insight-source-description[open] summary {
+    border-bottom: 1px solid #f0dfa0;
+}
+
+.insight-source-description summary::-webkit-details-marker {
+    display: none;
+}
+
+.insight-source-description summary .desc-chevron {
+    flex-shrink: 0;
+    color: #c98d1a;
+    transition: transform 0.2s ease;
+}
+
+.insight-source-description[open] summary .desc-chevron {
+    transform: rotate(90deg);
+}
+
+.insight-source-description-body {
+    padding: 16px 20px 20px 23px;
+    background: #fffdf7;
+    border-left: 3px solid #e8ab40;
+}
+
+.insight-source-description-body p {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    line-height: 1.8;
+    color: #374151;
+    margin: 0;
+    white-space: pre-line;
+}
+
 /* Free Notes Section (collapsible) */
 .free-notes-section {
     border-top: 1px solid var(--border);
@@ -3335,9 +3418,9 @@ header {
 }
 
 .insight-tab.active {
-    color: var(--text);
+    color: var(--status-reviewed);
     background: white;
-    border-bottom-color: var(--accent);
+    border-bottom-color: var(--status-reviewed);
 }
 
 .insight-tab svg {

@@ -235,6 +235,7 @@
     "notesCount": "{count} notes",
     "highlightsCount": "{count} highlights",
     "quickNotePlaceholder": "Add a note... (Enter to save)",
+    "sourceDescription": "Description",
     "freeNotesLabel": "Free notes",
     "freeNotesPlaceholder": "Space for longer notes, summaries or reflections...",
     "saveFreeNotes": "Save free notes",
