@@ -4848,11 +4848,18 @@ function renderInsightsList() {
                 </div>
             </div>
         `;
-    }).join('');
+    });
+
+    const colCount = window.innerWidth >= 1400 ? 3 : window.innerWidth >= 1000 ? 2 : 1;
+    const columns = Array.from({ length: colCount }, () => []);
+    filteredInsights.forEach((_, i) => columns[i % colCount].push(html[i]));
+    const columnsHtml = columns
+        .map(col => `<div class="insights-column">${col.join('')}</div>`)
+        .join('');
 
     contentBody.innerHTML = `
         <div class="insights-grid">
-            ${filteredInsights.length > 0 ? html : `
+            ${filteredInsights.length > 0 ? columnsHtml : `
                 <div class="insights-empty">
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                         <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
@@ -6118,3 +6125,17 @@ function updateFilterBadge() {
 // Start Application
 // ============================================================================
 init();
+
+// Re-render insights grid when viewport crosses column-count breakpoints
+let _insightsResizeTimer;
+let _lastInsightColCount = null;
+window.addEventListener('resize', () => {
+    clearTimeout(_insightsResizeTimer);
+    _insightsResizeTimer = setTimeout(() => {
+        const newColCount = window.innerWidth >= 1400 ? 3 : window.innerWidth >= 1000 ? 2 : 1;
+        if (newColCount !== _lastInsightColCount && state.currentSection === 'insights' && !state.currentInsightId) {
+            _lastInsightColCount = newColCount;
+            renderInsightsList();
+        }
+    }, 200);
+});
