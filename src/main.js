@@ -242,6 +242,7 @@ const elements = {
     languageBtn: document.getElementById('languageBtn'),
     languageDropdown: document.getElementById('languageDropdown'),
     currentLang: document.getElementById('currentLang'),
+    themeToggleBtn: document.getElementById('themeToggleBtn'),
 
     // Mobile elements
     mobileSearchInput: document.getElementById('mobileSearchInput'),
@@ -261,13 +262,18 @@ const elements = {
     languageSelectorMobile: document.getElementById('languageSelectorMobile'),
     languageBtnMobile: document.getElementById('languageBtnMobile'),
     languageDropdownMobile: document.getElementById('languageDropdownMobile'),
-    currentLangMobile: document.getElementById('currentLangMobile')
+    currentLangMobile: document.getElementById('currentLangMobile'),
+    themeToggleBtnMobile: document.getElementById('themeToggleBtnMobile')
 };
+
+const THEME_STORAGE_KEY = 'quotevault-theme';
 
 // ============================================================================
 // Initialization
 // ============================================================================
 function init() {
+    applyTheme(getInitialTheme());
+
     // Initialize i18n first
     i18n.init();
     updateLanguageSelector(i18n.getLocale());
@@ -280,6 +286,7 @@ function init() {
     setupViewListeners();
     setupModalListeners();
     setupLanguageListener();
+    setupThemeListener();
     setupHeaderProfileMenu();
     setupMobileListeners();
     initMobileFiltersPanel();
@@ -321,6 +328,59 @@ function init() {
         // Update filters and selects
         updateCollectionSelects();
         updateMobileFiltersPanel();
+    });
+}
+
+function getInitialTheme() {
+    try {
+        const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+        if (storedTheme === 'light' || storedTheme === 'dark') {
+            return storedTheme;
+        }
+    } catch (error) {
+        console.warn('Unable to read saved theme preference:', error);
+    }
+
+    return globalThis.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function getCurrentTheme() {
+    return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+}
+
+function updateThemeToggleState(theme) {
+    const isDarkTheme = theme === 'dark';
+    const nextThemeLabel = isDarkTheme ? 'claro' : 'oscuro';
+    const tooltip = `Cambiar a modo ${nextThemeLabel}`;
+
+    document.querySelectorAll('.theme-toggle-btn').forEach((button) => {
+        button.setAttribute('aria-label', tooltip);
+        button.dataset.tooltip = tooltip;
+    });
+}
+
+function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    updateThemeToggleState(theme);
+}
+
+function setTheme(theme) {
+    applyTheme(theme);
+    try {
+        localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch (error) {
+        console.warn('Unable to save theme preference:', error);
+    }
+}
+
+function toggleTheme() {
+    const currentTheme = getCurrentTheme();
+    setTheme(currentTheme === 'dark' ? 'light' : 'dark');
+}
+
+function setupThemeListener() {
+    document.querySelectorAll('.theme-toggle-btn').forEach((button) => {
+        button.addEventListener('click', toggleTheme);
     });
 }
 
