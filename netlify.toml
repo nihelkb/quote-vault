@@ -6,3 +6,8 @@
   from = "/api/transcript"
   to = "/.netlify/functions/transcript"
   status = 200
+
+[[redirects]]
+  from = "/api/video-metadata"
+  to = "/.netlify/functions/video-metadata"
+  status = 200

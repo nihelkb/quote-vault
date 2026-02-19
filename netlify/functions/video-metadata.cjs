@@ -1,8 +1,104 @@
-const YTDlpWrap = require('yt-dlp-wrap').default;
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
+const https = require('https');
 const Groq = require('groq-sdk');
+
+function fetchURL(url, redirects = 0) {
+    return new Promise((resolve, reject) => {
+        const request = https.get(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                'Accept-Language': 'en-US,en;q=0.9'
+            }
+        }, (res) => {
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                if (redirects >= 5) {
+                    reject(new Error('Too many redirects'));
+                    return;
+                }
+                resolve(fetchURL(res.headers.location, redirects + 1));
+                return;
+            }
+
+            if (res.statusCode < 200 || res.statusCode >= 300) {
+                reject(new Error(`Request failed with status ${res.statusCode}`));
+                return;
+            }
+
+            let data = '';
+            res.on('data', (chunk) => data += chunk);
+            res.on('end', () => resolve(data));
+        });
+
+        request.on('error', reject);
+    });
+}
+
+function extractJsonObject(source, startIndex) {
+    let index = startIndex;
+    let depth = 0;
+    let inString = false;
+    let isEscaped = false;
+
+    while (index < source.length) {
+        const char = source[index];
+
+        if (inString) {
+            if (isEscaped) {
+                isEscaped = false;
+            } else if (char === '\\') {
+                isEscaped = true;
+            } else if (char === '"') {
+                inString = false;
+            }
+            index += 1;
+            continue;
+        }
+
+        if (char === '"') {
+            inString = true;
+            index += 1;
+            continue;
+        }
+
+        if (char === '{') depth += 1;
+        if (char === '}') {
+            depth -= 1;
+            if (depth === 0) {
+                return source.slice(startIndex, index + 1);
+            }
+        }
+
+        index += 1;
+    }
+
+    return null;
+}
+
+function extractPlayerResponse(html) {
+    const markers = [
+        'var ytInitialPlayerResponse = ',
+        'ytInitialPlayerResponse = ',
+        'window["ytInitialPlayerResponse"] = '
+    ];
+
+    for (const marker of markers) {
+        const markerIndex = html.indexOf(marker);
+        if (markerIndex === -1) continue;
+
+        const jsonStart = html.indexOf('{', markerIndex + marker.length);
+        if (jsonStart === -1) continue;
+
+        const jsonText = extractJsonObject(html, jsonStart);
+        if (!jsonText) continue;
+
+        try {
+            return JSON.parse(jsonText);
+        } catch {
+            continue;
+        }
+    }
+
+    throw new Error('Could not parse ytInitialPlayerResponse');
+}
 
 const jsonResponse = (statusCode, body) => ({
     statusCode,
@@ -20,33 +116,6 @@ if (process.env.GROQ_API_KEY) {
     groqClient = new Groq({
         apiKey: process.env.GROQ_API_KEY
     });
-}
-
-// Initialize yt-dlp wrapper (singleton)
-let ytDlpWrap = null;
-const ytDlpBinaryName = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
-const ytDlpBinaryPath = path.join(os.tmpdir(), ytDlpBinaryName);
-
-async function getYTDlpWrap() {
-    if (!ytDlpWrap) {
-        if (!fs.existsSync(ytDlpBinaryPath)) {
-            try {
-                await YTDlpWrap.downloadFromGithub(ytDlpBinaryPath);
-                if (process.platform !== 'win32') {
-                    await fs.promises.chmod(ytDlpBinaryPath, 0o755).catch(() => {});
-                }
-                console.log('[Video Metadata Function] Downloaded yt-dlp binary');
-            } catch (error) {
-                console.error('[Video Metadata Function] Failed to download yt-dlp binary:', error.message);
-                throw error;
-            }
-        } else {
-            console.log('[Video Metadata Function] Using cached yt-dlp binary');
-        }
-
-        ytDlpWrap = new YTDlpWrap(ytDlpBinaryPath);
-    }
-    return ytDlpWrap;
 }
 
 /**
@@ -177,26 +246,27 @@ exports.handler = async (event) => {
         }
 
         const videoURL = `https://www.youtube.com/watch?v=${videoId}`;
+        console.log('[Video Metadata Function] Fetching watch page...');
+        const watchHtml = await fetchURL(videoURL);
+        const playerResponse = extractPlayerResponse(watchHtml);
+        const videoInfo = playerResponse?.videoDetails;
 
-        // Get yt-dlp wrapper
-        const ytDlp = await getYTDlpWrap();
-
-        // Get video info (metadata only, no subtitles)
-        console.log('[Video Metadata Function] Fetching video metadata...');
-        const videoInfo = await ytDlp.getVideoInfo(videoURL);
+        if (!videoInfo) {
+            return jsonResponse(404, { message: 'Video details not found' });
+        }
 
         console.log('[Video Metadata Function] Success! Got metadata for:', videoInfo.title);
 
         // Extract description summary using AI
-        const descriptionSummary = await extractDescriptionSummary(videoInfo.description);
+        const descriptionSummary = await extractDescriptionSummary(videoInfo.shortDescription);
 
         return jsonResponse(200, {
             title: videoInfo.title || null,
-            duration: videoInfo.duration || null, // in seconds
-            thumbnail: videoInfo.thumbnail || null,
-            channel: videoInfo.uploader || videoInfo.channel || videoInfo.uploader_id || null,
+            duration: Number.parseInt(videoInfo.lengthSeconds, 10) || null,
+            thumbnail: videoInfo.thumbnail?.thumbnails?.slice(-1)[0]?.url || null,
+            channel: videoInfo.author || null,
             description: descriptionSummary,
-            fullDescription: videoInfo.description || null
+            fullDescription: videoInfo.shortDescription || null
         });
     } catch (error) {
         console.error('[Video Metadata Function] Error:', error.message);

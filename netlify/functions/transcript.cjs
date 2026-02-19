@@ -15,14 +15,283 @@ const jsonResponse = (statusCode, body) => ({
 /**
  * Fetch content from URL
  */
-function fetchURL(url) {
+function fetchURL(url, redirects = 0) {
     return new Promise((resolve, reject) => {
-        https.get(url, (res) => {
+        const request = https.get(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                'Accept-Language': 'en-US,en;q=0.9'
+            }
+        }, (res) => {
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                if (redirects >= 5) {
+                    reject(new Error('Too many redirects'));
+                    return;
+                }
+                resolve(fetchURL(res.headers.location, redirects + 1));
+                return;
+            }
+
+            if (res.statusCode < 200 || res.statusCode >= 300) {
+                reject(new Error(`Request failed with status ${res.statusCode}`));
+                return;
+            }
+
             let data = '';
             res.on('data', (chunk) => data += chunk);
             res.on('end', () => resolve(data));
-        }).on('error', reject);
+        });
+
+        request.on('error', reject);
     });
+}
+
+function extractJsonObject(source, startIndex) {
+    let index = startIndex;
+    let depth = 0;
+    let inString = false;
+    let isEscaped = false;
+
+    while (index < source.length) {
+        const char = source[index];
+
+        if (inString) {
+            if (isEscaped) {
+                isEscaped = false;
+            } else if (char === '\\') {
+                isEscaped = true;
+            } else if (char === '"') {
+                inString = false;
+            }
+            index += 1;
+            continue;
+        }
+
+        if (char === '"') {
+            inString = true;
+            index += 1;
+            continue;
+        }
+
+        if (char === '{') depth += 1;
+        if (char === '}') {
+            depth -= 1;
+            if (depth === 0) {
+                return source.slice(startIndex, index + 1);
+            }
+        }
+
+        index += 1;
+    }
+
+    return null;
+}
+
+function extractPlayerResponse(html) {
+    const markers = [
+        'var ytInitialPlayerResponse = ',
+        'ytInitialPlayerResponse = ',
+        'window["ytInitialPlayerResponse"] = '
+    ];
+
+    for (const marker of markers) {
+        const markerIndex = html.indexOf(marker);
+        if (markerIndex === -1) continue;
+
+        const jsonStart = html.indexOf('{', markerIndex + marker.length);
+        if (jsonStart === -1) continue;
+
+        const jsonText = extractJsonObject(html, jsonStart);
+        if (!jsonText) continue;
+
+        try {
+            return JSON.parse(jsonText);
+        } catch {
+            continue;
+        }
+    }
+
+    throw new Error('Could not parse ytInitialPlayerResponse');
+}
+
+let ytDlpWrap = null;
+const ytDlpBinaryName = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
+const ytDlpBinaryPath = path.join(os.tmpdir(), ytDlpBinaryName);
+
+function getYtDlpDownloadUrl() {
+    if (process.platform === 'win32') {
+        return 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe';
+    }
+    if (process.platform === 'linux') {
+        return 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux';
+    }
+    if (process.platform === 'darwin') {
+        return 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos';
+    }
+    return 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
+}
+
+function downloadBinary(url, destinationPath, redirects = 0) {
+    return new Promise((resolve, reject) => {
+        const request = https.get(url, {
+            headers: {
+                'User-Agent': 'quote-vault-netlify-function'
+            }
+        }, (response) => {
+            if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+                if (redirects >= 5) {
+                    reject(new Error('Too many redirects while downloading yt-dlp'));
+                    return;
+                }
+                resolve(downloadBinary(response.headers.location, destinationPath, redirects + 1));
+                return;
+            }
+
+            if (response.statusCode < 200 || response.statusCode >= 300) {
+                reject(new Error(`Failed to download yt-dlp (status ${response.statusCode})`));
+                return;
+            }
+
+            const fileStream = fs.createWriteStream(destinationPath);
+            response.pipe(fileStream);
+
+            fileStream.on('finish', () => {
+                fileStream.close(() => resolve());
+            });
+
+            fileStream.on('error', (error) => {
+                fs.unlink(destinationPath, () => reject(error));
+            });
+        });
+
+        request.on('error', reject);
+    });
+}
+
+async function isValidCachedBinary(binaryPath) {
+    if (!fs.existsSync(binaryPath)) return false;
+    if (process.platform === 'win32') return true;
+
+    try {
+        const descriptor = await fs.promises.open(binaryPath, 'r');
+        const buffer = Buffer.alloc(4);
+        await descriptor.read(buffer, 0, 4, 0);
+        await descriptor.close();
+
+        const isElf = buffer[0] === 0x7f && buffer[1] === 0x45 && buffer[2] === 0x4c && buffer[3] === 0x46;
+        return isElf;
+    } catch {
+        return false;
+    }
+}
+
+async function getYTDlpWrap() {
+    if (ytDlpWrap) return ytDlpWrap;
+
+    const hasValidBinary = await isValidCachedBinary(ytDlpBinaryPath);
+    if (!hasValidBinary) {
+        const downloadUrl = getYtDlpDownloadUrl();
+        console.log('[Transcript Function] Downloading yt-dlp from:', downloadUrl);
+        await downloadBinary(downloadUrl, ytDlpBinaryPath);
+    }
+
+    if (process.platform !== 'win32') {
+        await fs.promises.chmod(ytDlpBinaryPath, 0o755).catch(() => {});
+    }
+
+    ytDlpWrap = new YTDlpWrap(ytDlpBinaryPath);
+    return ytDlpWrap;
+}
+
+function pickSubtitleTrackFromYtDlp(subtitlesSource, requestedLang) {
+    const availableLangs = Object.keys(subtitlesSource || {});
+    if (!availableLangs.length) {
+        return null;
+    }
+
+    let usedLanguage = requestedLang;
+    let isOriginal = false;
+    let subtitleFormats = null;
+
+    if (requestedLang && requestedLang !== 'auto') {
+        if (availableLangs.includes(requestedLang)) {
+            subtitleFormats = subtitlesSource[requestedLang];
+            usedLanguage = requestedLang;
+        } else {
+            const matchedLang = availableLangs.find((language) => language.startsWith(`${requestedLang}-`));
+            if (matchedLang) {
+                subtitleFormats = subtitlesSource[matchedLang];
+                usedLanguage = matchedLang;
+            }
+        }
+    }
+
+    if (!subtitleFormats) {
+        const preferredLang = availableLangs.includes('en')
+            ? 'en'
+            : (availableLangs.includes('en-orig') ? 'en-orig' : availableLangs[0]);
+        subtitleFormats = subtitlesSource[preferredLang];
+        usedLanguage = preferredLang;
+        isOriginal = true;
+    }
+
+    const preferredFormat =
+        subtitleFormats.find((format) => format.ext === 'json3') ||
+        subtitleFormats.find((format) => format.ext === 'vtt') ||
+        subtitleFormats[0];
+
+    return {
+        preferredFormat,
+        usedLanguage,
+        isOriginal
+    };
+}
+
+async function fetchTranscriptWithYtDlp(videoId, lang) {
+    const videoURL = `https://www.youtube.com/watch?v=${videoId}`;
+    const ytDlp = await getYTDlpWrap();
+    const videoInfo = await ytDlp.getVideoInfo(videoURL);
+
+    let subtitlesSource = videoInfo.subtitles;
+    if (!subtitlesSource || Object.keys(subtitlesSource).length === 0) {
+        subtitlesSource = videoInfo.automatic_captions;
+    }
+
+    const track = pickSubtitleTrackFromYtDlp(subtitlesSource, lang);
+    if (!track) {
+        return null;
+    }
+
+    const subtitleContent = await fetchURL(track.preferredFormat.url);
+    if (!subtitleContent || subtitleContent.length === 0) {
+        return null;
+    }
+
+    let segments;
+    if (track.preferredFormat.ext === 'json3') {
+        segments = parseJSON3Subtitles(subtitleContent);
+    } else if (track.preferredFormat.ext === 'vtt') {
+        segments = parseVTTSubtitles(subtitleContent);
+    } else {
+        return null;
+    }
+
+    if (!segments.length) {
+        return null;
+    }
+
+    return {
+        content: segments,
+        language: track.usedLanguage,
+        isOriginal: track.isOriginal,
+        videoInfo: {
+            title: videoInfo.title || null,
+            duration: videoInfo.duration || null,
+            thumbnail: videoInfo.thumbnail || null,
+            uploader: videoInfo.uploader || videoInfo.channel || videoInfo.uploader_id || null,
+            description: videoInfo.description || null
+        }
+    };
 }
 
 /**
@@ -104,33 +373,6 @@ function parseVTTSubtitles(vttText) {
     return segments;
 }
 
-// Initialize yt-dlp wrapper (singleton)
-let ytDlpWrap = null;
-const ytDlpBinaryName = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
-const ytDlpBinaryPath = path.join(os.tmpdir(), ytDlpBinaryName);
-
-async function getYTDlpWrap() {
-    if (!ytDlpWrap) {
-        if (!fs.existsSync(ytDlpBinaryPath)) {
-            try {
-                await YTDlpWrap.downloadFromGithub(ytDlpBinaryPath);
-                if (process.platform !== 'win32') {
-                    await fs.promises.chmod(ytDlpBinaryPath, 0o755).catch(() => {});
-                }
-                console.log('[Transcript Function] Downloaded yt-dlp binary');
-            } catch (error) {
-                console.error('[Transcript Function] Failed to download yt-dlp binary:', error.message);
-                throw error;
-            }
-        } else {
-            console.log('[Transcript Function] Using cached yt-dlp binary');
-        }
-
-        ytDlpWrap = new YTDlpWrap(ytDlpBinaryPath);
-    }
-    return ytDlpWrap;
-}
-
 exports.handler = async (event) => {
     try {
         const params = event.queryStringParameters || {};
@@ -144,75 +386,55 @@ exports.handler = async (event) => {
             return jsonResponse(400, { message: 'videoId is required' });
         }
 
-        const videoURL = `https://www.youtube.com/watch?v=${videoId}`;
-
-        // Get yt-dlp wrapper
-        const ytDlp = await getYTDlpWrap();
-
-        // Get video info with subtitles
-        console.log('[Transcript Function] Fetching video info and subtitles...');
-        const videoInfo = await ytDlp.getVideoInfo(videoURL);
-
-        // Try manual subtitles first, then automatic captions
-        let subtitlesSource = videoInfo.subtitles;
-        let isAutoCaptions = false;
-
-        if (!subtitlesSource || Object.keys(subtitlesSource).length === 0) {
-            console.log('[Transcript Function] No manual subtitles, trying automatic captions...');
-            subtitlesSource = videoInfo.automatic_captions;
-            isAutoCaptions = true;
+        try {
+            const ytDlpResult = await fetchTranscriptWithYtDlp(videoId, lang);
+            if (ytDlpResult) {
+                console.log('[Transcript Function] Success via yt-dlp');
+                return jsonResponse(200, ytDlpResult);
+            }
+        } catch (ytDlpError) {
+            console.warn('[Transcript Function] yt-dlp strategy failed, using fallback:', ytDlpError.message);
         }
 
-        if (!subtitlesSource || Object.keys(subtitlesSource).length === 0) {
-            console.log('[Transcript Function] No subtitles or captions available');
+        const videoURL = `https://www.youtube.com/watch?v=${videoId}`;
+        const watchHtml = await fetchURL(videoURL);
+        const playerResponse = extractPlayerResponse(watchHtml);
+
+        const captionTracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
+        if (!captionTracks.length) {
+            console.log('[Transcript Function] No caption tracks available');
             return jsonResponse(404, { message: 'No subtitles available for this video' });
         }
 
-        const availableLangs = Object.keys(subtitlesSource);
-        console.log(`[Transcript Function] Available ${isAutoCaptions ? 'auto-captions' : 'subtitles'}:`, availableLangs.slice(0, 10).join(', '), availableLangs.length > 10 ? `... (${availableLangs.length} total)` : '');
-
         let usedLanguage = lang;
         let isOriginal = false;
-        let subtitleFormats = null;
+        let selectedTrack = null;
 
-        // Find the requested language
         if (lang && lang !== 'auto') {
-            if (availableLangs.includes(lang)) {
-                subtitleFormats = subtitlesSource[lang];
-                usedLanguage = lang;
-            } else {
-                // Try to find by prefix (e.g., 'es' matches 'es-US')
-                const matchedLang = availableLangs.find(l => l.startsWith(lang + '-'));
-                if (matchedLang) {
-                    subtitleFormats = subtitlesSource[matchedLang];
-                    usedLanguage = matchedLang;
-                }
-            }
+            selectedTrack = captionTracks.find(track => track.languageCode === lang)
+                || captionTracks.find(track => track.languageCode?.startsWith(`${lang}-`))
+                || captionTracks.find(track => track.vssId?.includes(`.${lang}`));
         }
 
-        // If no match, use first available or 'en' if available
-        if (!subtitleFormats) {
-            // Try to use English first, then fall back to first available
-            const preferredLang = availableLangs.includes('en') ? 'en' :
-                                 availableLangs.includes('en-orig') ? 'en-orig' :
-                                 availableLangs[0];
-            subtitleFormats = subtitlesSource[preferredLang];
-            usedLanguage = preferredLang;
+        if (!selectedTrack) {
+            selectedTrack = captionTracks.find(track => track.languageCode === 'en') || captionTracks[0];
+            usedLanguage = selectedTrack.languageCode || 'auto';
             isOriginal = true;
-            console.log('[Transcript Function] Using preferred language:', preferredLang);
+        } else {
+            usedLanguage = selectedTrack.languageCode || usedLanguage;
         }
 
-        // Find preferred format (json3 or vtt)
-        const preferredFormat =
-            subtitleFormats.find(s => s.ext === 'json3') ||
-            subtitleFormats.find(s => s.ext === 'vtt') ||
-            subtitleFormats[0];
+        const json3Url = `${selectedTrack.baseUrl}${selectedTrack.baseUrl.includes('?') ? '&' : '?'}fmt=json3`;
+        const vttUrl = `${selectedTrack.baseUrl}${selectedTrack.baseUrl.includes('?') ? '&' : '?'}fmt=vtt`;
 
-        console.log('[Transcript Function] Using format:', preferredFormat.ext);
-
-        // Fetch subtitle content
         console.log('[Transcript Function] Downloading subtitle...');
-        const subtitleContent = await fetchURL(preferredFormat.url);
+        let subtitleContent = await fetchURL(json3Url).catch(() => null);
+        let subtitleFormat = 'json3';
+
+        if (!subtitleContent) {
+            subtitleContent = await fetchURL(vttUrl);
+            subtitleFormat = 'vtt';
+        }
 
         if (!subtitleContent || subtitleContent.length === 0) {
             console.log('[Transcript Function] Empty subtitle content');
@@ -221,14 +443,14 @@ exports.handler = async (event) => {
 
         // Parse based on format
         let segments;
-        if (preferredFormat.ext === 'json3') {
+        if (subtitleFormat === 'json3') {
             console.log('[Transcript Function] Parsing JSON3 format...');
             segments = parseJSON3Subtitles(subtitleContent);
-        } else if (preferredFormat.ext === 'vtt') {
+        } else if (subtitleFormat === 'vtt') {
             console.log('[Transcript Function] Parsing VTT format...');
             segments = parseVTTSubtitles(subtitleContent);
         } else {
-            console.log('[Transcript Function] Unsupported format:', preferredFormat.ext);
+            console.log('[Transcript Function] Unsupported format:', subtitleFormat);
             return jsonResponse(500, { message: 'Unsupported subtitle format' });
         }
 
@@ -245,11 +467,11 @@ exports.handler = async (event) => {
             language: usedLanguage,
             isOriginal,
             videoInfo: {
-                title: videoInfo.title || null,
-                duration: videoInfo.duration || null, // in seconds
-                thumbnail: videoInfo.thumbnail || null,
-                uploader: videoInfo.uploader || videoInfo.channel || videoInfo.uploader_id || null,
-                description: videoInfo.description || null
+                title: playerResponse?.videoDetails?.title || null,
+                duration: Number.parseInt(playerResponse?.videoDetails?.lengthSeconds, 10) || null,
+                thumbnail: playerResponse?.videoDetails?.thumbnail?.thumbnails?.slice(-1)[0]?.url || null,
+                uploader: playerResponse?.videoDetails?.author || null,
+                description: playerResponse?.videoDetails?.shortDescription || null
             }
         });
     } catch (error) {
