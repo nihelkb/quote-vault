@@ -17,6 +17,7 @@ import { transcriptService } from './services/TranscriptService.js';
 import { renderQuoteList } from './components/QuoteCard.js';
 import { updateCompareView, filterForCompare } from './components/CompareView.js';
 import { updateAllCollectionSelects } from './components/CollectionSelect.js';
+import { CustomSelect } from './shared/components/CustomSelect.js';
 
 // Utils
 import { toast } from './utils/toast.js';
@@ -5307,20 +5308,20 @@ function setupFilterListeners() {
     elements.searchInput.addEventListener('input', renderQuotes);
 
     // Setup custom selects - Quotes
-    setupCustomSelect(elements.stanceSelect, elements.filterStance);
-    setupCustomSelect(elements.favoriteSelect, elements.filterFavorite);
-    setupCustomSelect(elements.sortSelect, elements.sortBy);
+    new CustomSelect(elements.stanceSelect, elements.filterStance, renderQuotes).mount();
+    new CustomSelect(elements.favoriteSelect, elements.filterFavorite, renderQuotes).mount();
+    new CustomSelect(elements.sortSelect, elements.sortBy, renderQuotes).mount();
     // Collection filter is now controlled by sidebar navigation
 
     // Setup custom selects - Wiki
-    setupCustomSelect(elements.topicSortSelect, elements.topicSortBy, renderWikiView);
+    new CustomSelect(elements.topicSortSelect, elements.topicSortBy, renderWikiView).mount();
 
     // Setup custom selects - Insights
-    setupCustomSelect(elements.insightsStatusSelect, elements.insightsFilterStatus, renderInsightsView);
-    setupCustomSelect(elements.insightsSourceSelect, elements.insightsFilterSource, renderInsightsView);
+    new CustomSelect(elements.insightsStatusSelect, elements.insightsFilterStatus, renderInsightsView).mount();
+    new CustomSelect(elements.insightsSourceSelect, elements.insightsFilterSource, renderInsightsView).mount();
 
     // Setup custom select - Insight Modal
-    setupCustomSelect(elements.insightTopicSelect, elements.insightLinkedTopic, null);
+    new CustomSelect(elements.insightTopicSelect, elements.insightLinkedTopic, null).mount();
 
     // Wiki search listener
     if (elements.wikiSearchInput) {
@@ -5372,89 +5373,6 @@ function setupFilterListeners() {
     });
 }
 
-function setupCustomSelect(customSelect, hiddenSelect, onChangeCallback = null) {
-    if (!customSelect || !hiddenSelect) return;
-
-    const btn = customSelect.querySelector('.custom-select-btn');
-    const dropdown = customSelect.querySelector('.custom-select-dropdown');
-    const selectedText = btn.querySelector('.selected-text');
-
-    // Toggle dropdown
-    btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        // Close other dropdowns
-        document.querySelectorAll('.custom-select.open').forEach(s => {
-            if (s !== customSelect) s.classList.remove('open');
-        });
-
-        const isOpening = !customSelect.classList.contains('open');
-        const isInModal = customSelect.closest('.modal');
-
-        // If inside a modal and opening, set position BEFORE opening to avoid transition glitch
-        if (isInModal && isOpening) {
-            const rect = btn.getBoundingClientRect();
-            dropdown.style.transition = 'none';
-            dropdown.style.position = 'fixed';
-            dropdown.style.top = `${rect.bottom + 4}px`;
-            dropdown.style.left = `${rect.left}px`;
-            dropdown.style.width = `${rect.width}px`;
-
-            // Force reflow to apply styles immediately
-            dropdown.offsetHeight;
-
-            // Re-enable transition
-            dropdown.style.transition = '';
-        }
-
-        customSelect.classList.toggle('open');
-    });
-
-    // Handle option selection using event delegation
-    dropdown.addEventListener('click', (e) => {
-        const option = e.target.closest('.custom-select-option');
-        if (!option) return;
-
-        const value = option.dataset.value;
-        const text = option.querySelector('span').textContent;
-
-        // Update hidden select
-        hiddenSelect.value = value;
-
-        // Update button text
-        selectedText.textContent = text;
-
-        // Update active state
-        dropdown.querySelectorAll('.custom-select-option').forEach(opt => {
-            opt.classList.toggle('active', opt === option);
-        });
-
-        // Close dropdown
-        customSelect.classList.remove('open');
-
-        // Reset inline styles AFTER transition ends (for modals)
-        if (dropdown.style.position === 'fixed') {
-            // Wait for the close animation to complete
-            setTimeout(() => {
-                if (!customSelect.classList.contains('open')) {
-                    dropdown.style.position = '';
-                    dropdown.style.top = '';
-                    dropdown.style.left = '';
-                    dropdown.style.width = '';
-                }
-            }, 200); // Match the CSS transition duration
-        }
-
-        // Trigger change event
-        hiddenSelect.dispatchEvent(new Event('change'));
-
-        // Call the appropriate callback
-        if (onChangeCallback) {
-            onChangeCallback();
-        } else {
-            renderQuotes();
-        }
-    });
-}
 
 function setupViewListeners() {
     elements.viewList.addEventListener('click', () => {
