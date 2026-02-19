@@ -1,4 +1,6 @@
 const YTDlpWrap = require('yt-dlp-wrap').default;
+const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const Groq = require('groq-sdk');
 
@@ -22,16 +24,24 @@ if (process.env.GROQ_API_KEY) {
 
 // Initialize yt-dlp wrapper (singleton)
 let ytDlpWrap = null;
-const ytDlpBinaryPath = path.join(__dirname, '..', '..', 'yt-dlp.exe');
+const ytDlpBinaryName = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
+const ytDlpBinaryPath = path.join(os.tmpdir(), ytDlpBinaryName);
 
 async function getYTDlpWrap() {
     if (!ytDlpWrap) {
-        // Try to download binary if not exists
-        try {
-            await YTDlpWrap.downloadFromGithub(ytDlpBinaryPath);
-            console.log('[Video Metadata Function] Downloaded yt-dlp binary');
-        } catch (error) {
-            console.log('[Video Metadata Function] yt-dlp binary already exists or download not needed');
+        if (!fs.existsSync(ytDlpBinaryPath)) {
+            try {
+                await YTDlpWrap.downloadFromGithub(ytDlpBinaryPath);
+                if (process.platform !== 'win32') {
+                    await fs.promises.chmod(ytDlpBinaryPath, 0o755).catch(() => {});
+                }
+                console.log('[Video Metadata Function] Downloaded yt-dlp binary');
+            } catch (error) {
+                console.error('[Video Metadata Function] Failed to download yt-dlp binary:', error.message);
+                throw error;
+            }
+        } else {
+            console.log('[Video Metadata Function] Using cached yt-dlp binary');
         }
 
         ytDlpWrap = new YTDlpWrap(ytDlpBinaryPath);
