@@ -81,6 +81,9 @@
 :root[data-theme='dark'] .insight-card-description-text {
     border-color: var(--border);
 }
+:root[data-theme='dark'] .insight-card-topic {
+    background: var(--tag-bg);
+}
 
 :root[data-theme='dark'] .insight-card-description::after {
     background: linear-gradient(to bottom, transparent, var(--surface));
@@ -204,6 +207,8 @@
 
 /* ── Dark mode: Insights headers / page header ───────────────────────────── */
 :root[data-theme='dark'] .insights-page-header,
+:root[data-theme='dark'] .wiki-header,
+:root[data-theme='dark'] .desktop-header,
 :root[data-theme='dark'] .insights-header {
     background: var(--bg-light);
 }
