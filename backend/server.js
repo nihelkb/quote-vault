@@ -47,74 +47,6 @@ function fetchURL(url, redirects = 0) {
     });
 }
 
-function extractJsonObject(source, startIndex) {
-    let index = startIndex;
-    let depth = 0;
-    let inString = false;
-    let isEscaped = false;
-
-    while (index < source.length) {
-        const char = source[index];
-
-        if (inString) {
-            if (isEscaped) {
-                isEscaped = false;
-            } else if (char === '\\') {
-                isEscaped = true;
-            } else if (char === '"') {
-                inString = false;
-            }
-            index += 1;
-            continue;
-        }
-
-        if (char === '"') {
-            inString = true;
-            index += 1;
-            continue;
-        }
-
-        if (char === '{') depth += 1;
-        if (char === '}') {
-            depth -= 1;
-            if (depth === 0) {
-                return source.slice(startIndex, index + 1);
-            }
-        }
-
-        index += 1;
-    }
-
-    return null;
-}
-
-function extractPlayerResponse(html) {
-    const markers = [
-        'var ytInitialPlayerResponse = ',
-        'ytInitialPlayerResponse = ',
-        'window["ytInitialPlayerResponse"] = '
-    ];
-
-    for (const marker of markers) {
-        const markerIndex = html.indexOf(marker);
-        if (markerIndex === -1) continue;
-
-        const jsonStart = html.indexOf('{', markerIndex + marker.length);
-        if (jsonStart === -1) continue;
-
-        const jsonText = extractJsonObject(html, jsonStart);
-        if (!jsonText) continue;
-
-        try {
-            return JSON.parse(jsonText);
-        } catch {
-            continue;
-        }
-    }
-
-    throw new Error('Could not parse ytInitialPlayerResponse');
-}
-
 // ─── yt-dlp binary management ─────────────────────────────────────────────────
 
 let ytDlpWrap = null;
@@ -199,6 +131,56 @@ async function getYTDlpWrap() {
     return ytDlpWrap;
 }
 
+// ─── InnerTube API (más fiable que scraping HTML desde IPs de datacenter) ─────
+
+function fetchPlayerResponseFromInnerTube(videoId) {
+    return new Promise((resolve, reject) => {
+        const payload = JSON.stringify({
+            videoId,
+            context: {
+                client: {
+                    clientName: 'TVHTML5',
+                    clientVersion: '7.20220325',
+                    hl: 'en',
+                    gl: 'US',
+                    utcOffsetMinutes: 0
+                }
+            }
+        });
+
+        const options = {
+            hostname: 'www.youtube.com',
+            path: '/youtubei/v1/player',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(payload),
+                'User-Agent': 'Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebKit/538.1 (KHTML, like Gecko) Version/6.0 TV Safari/538.1',
+                'X-YouTube-Client-Name': '7',
+                'X-YouTube-Client-Version': '7.20220325',
+                'Origin': 'https://www.youtube.com',
+                'Accept-Language': 'en-US,en;q=0.9'
+            }
+        };
+
+        const req = https.request(options, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    resolve(JSON.parse(data));
+                } catch (e) {
+                    reject(new Error('Failed to parse InnerTube response'));
+                }
+            });
+        });
+
+        req.on('error', reject);
+        req.write(payload);
+        req.end();
+    });
+}
+
 // ─── Transcript helpers ───────────────────────────────────────────────────────
 
 function pickSubtitleTrackFromYtDlp(subtitlesSource, requestedLang) {
@@ -242,7 +224,7 @@ function pickSubtitleTrackFromYtDlp(subtitlesSource, requestedLang) {
 async function fetchTranscriptWithYtDlp(videoId, lang) {
     const videoURL = `https://www.youtube.com/watch?v=${videoId}`;
     const ytDlp = await getYTDlpWrap();
-    const videoInfo = await ytDlp.getVideoInfo(videoURL);
+    const videoInfo = await ytDlp.getVideoInfo([videoURL, '--extractor-args', 'youtube:player_client=ios,web']);
 
     let subtitlesSource = videoInfo.subtitles;
     if (!subtitlesSource || Object.keys(subtitlesSource).length === 0) {
@@ -456,9 +438,8 @@ app.get('/api/transcript', async (req, res) => {
             console.warn('[Transcript] yt-dlp strategy failed, using fallback:', ytDlpError.message);
         }
 
-        const videoURL = `https://www.youtube.com/watch?v=${videoId}`;
-        const watchHtml = await fetchURL(videoURL);
-        const playerResponse = extractPlayerResponse(watchHtml);
+        console.log('[Transcript] Trying InnerTube API fallback...');
+        const playerResponse = await fetchPlayerResponseFromInnerTube(videoId);
 
         const captionTracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
         if (!captionTracks.length) {
@@ -542,10 +523,8 @@ app.get('/api/video-metadata', async (req, res) => {
             return res.status(400).json({ message: 'videoId is required' });
         }
 
-        const videoURL = `https://www.youtube.com/watch?v=${videoId}`;
-        console.log('[Video Metadata] Fetching watch page...');
-        const watchHtml = await fetchURL(videoURL);
-        const playerResponse = extractPlayerResponse(watchHtml);
+        console.log('[Video Metadata] Fetching player response via InnerTube...');
+        const playerResponse = await fetchPlayerResponseFromInnerTube(videoId);
         const videoInfo = playerResponse?.videoDetails;
 
         if (!videoInfo) {
