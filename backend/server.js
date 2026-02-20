@@ -431,6 +431,10 @@ function extractDescriptionFallback(description) {
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
+app.get('/health', (_req, res) => {
+    res.json({ status: 'ok', service: 'quote-vault-backend' });
+});
+
 app.get('/api/transcript', async (req, res) => {
     try {
         const videoId = req.query.videoId;

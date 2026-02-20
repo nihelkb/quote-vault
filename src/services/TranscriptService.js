@@ -56,7 +56,7 @@ class TranscriptService {
                 }
 
                 if (!contentType.includes('application/json')) {
-                    lastError = new Error('La respuesta no es JSON. Asegura que la Netlify Function esta corriendo (usa netlify dev).');
+                    lastError = new Error(`El backend (${endpoint}) devolvió una respuesta que no es JSON (Content-Type: ${contentType || 'none'}). Verifica que VITE_BACKEND_URL apunte al servidor Express correcto.`);
                     continue;
                 }
 
