@@ -18,6 +18,7 @@ import { renderQuoteList } from './components/QuoteCard.js';
 import { updateCompareView, filterForCompare } from './components/CompareView.js';
 import { updateAllCollectionSelects } from './components/CollectionSelect.js';
 import { CustomSelect } from './shared/components/CustomSelect.js';
+import { AppShell } from './features/layout/index.js';
 
 // Utils
 import { toast } from './utils/toast.js';
@@ -266,409 +267,6 @@ const elements = {
     themeToggleBtnMobile: document.getElementById('themeToggleBtnMobile')
 };
 
-const THEME_STORAGE_KEY = 'quotevault-theme';
-
-// ============================================================================
-// Initialization
-// ============================================================================
-function init() {
-    applyTheme(getInitialTheme());
-
-    // Initialize i18n first
-    i18n.init();
-    updateLanguageSelector(i18n.getLocale());
-
-    toast.init('toastContainer');
-    confirmModal.init();
-    setupAuthListeners();
-    setupQuoteListeners();
-    setupFilterListeners();
-    setupViewListeners();
-    setupModalListeners();
-    setupLanguageListener();
-    setupThemeListener();
-    setupHeaderProfileMenu();
-    setupMobileListeners();
-    initMobileFiltersPanel();
-    setupInsightModalListeners();
-    setupTopicModalListeners();
-
-    // Auth state observer
-    authService.onAuthStateChange(handleAuthStateChange);
-
-    // Listen for locale changes to re-render dynamic content
-    i18n.onLocaleChange(() => {
-        // Re-render current section
-        switch (state.currentSection) {
-            case 'wiki':
-                if (state.currentTopicId) {
-                    openTopicView(state.currentTopicId);
-                } else {
-                    renderWikiView();
-                }
-                break;
-            case 'insights':
-                if (state.currentInsightId) {
-                    openInsightView(state.currentInsightId);
-                } else {
-                    renderInsightsView();
-                }
-                break;
-            case 'quotes':
-            default:
-                renderQuotes();
-                break;
-        }
-        // Update sidebar elements
-        renderSidebarCollections();
-        renderSidebarTags();
-        renderSidebarTopics();
-        updateInsightsCounts();
-        updateStats();
-        // Update filters and selects
-        updateCollectionSelects();
-        updateMobileFiltersPanel();
-    });
-}
-
-function getInitialTheme() {
-    try {
-        const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
-        if (storedTheme === 'light' || storedTheme === 'dark') {
-            return storedTheme;
-        }
-    } catch (error) {
-        console.warn('Unable to read saved theme preference:', error);
-    }
-
-    return globalThis.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-
-function getCurrentTheme() {
-    return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
-}
-
-function updateThemeToggleState(theme) {
-    const isDarkTheme = theme === 'dark';
-    const nextThemeLabel = isDarkTheme ? 'claro' : 'oscuro';
-    const tooltip = `Cambiar a modo ${nextThemeLabel}`;
-
-    document.querySelectorAll('.theme-toggle-btn').forEach((button) => {
-        button.setAttribute('aria-label', tooltip);
-        button.dataset.tooltip = tooltip;
-    });
-}
-
-function applyTheme(theme) {
-    document.documentElement.dataset.theme = theme;
-    updateThemeToggleState(theme);
-}
-
-function setTheme(theme) {
-    applyTheme(theme);
-    try {
-        localStorage.setItem(THEME_STORAGE_KEY, theme);
-    } catch (error) {
-        console.warn('Unable to save theme preference:', error);
-    }
-}
-
-function toggleTheme() {
-    const currentTheme = getCurrentTheme();
-    setTheme(currentTheme === 'dark' ? 'light' : 'dark');
-}
-
-function setupThemeListener() {
-    document.querySelectorAll('.theme-toggle-btn').forEach((button) => {
-        button.addEventListener('click', toggleTheme);
-    });
-}
-
-// ============================================================================
-// Language Handler
-// ============================================================================
-const languageConfig = {
-    es: {
-        label: 'ES',
-        flagSvg: '<path fill="#c60b1e" d="M0 0h640v480H0z"/><path fill="#ffc400" d="M0 120h640v240H0z"/>'
-    },
-    en: {
-        label: 'EN',
-        flagSvg: '<path fill="#012169" d="M0 0h640v480H0z"/><path fill="#FFF" d="m75 0 244 181L562 0h78v62L400 241l240 178v61h-80L320 301 81 480H0v-60l239-178L0 64V0h75z"/><path fill="#C8102E" d="m424 281 216 159v40L369 281h55zm-184 20 6 35L54 480H0l240-179zM640 0v3L391 191l2-44L590 0h50zM0 0l239 176h-60L0 42V0z"/><path fill="#FFF" d="M241 0v480h160V0H241zM0 160v160h640V160H0z"/><path fill="#C8102E" d="M0 193v96h640v-96H0zM273 0v480h96V0h-96z"/>'
-    }
-};
-
-function setupLanguageListener() {
-    // Toggle dropdown
-    elements.languageBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeAllLanguageSelectors();
-        elements.languageSelector.classList.toggle('open');
-    });
-
-    // Language options
-    elements.languageDropdown.querySelectorAll('.language-option').forEach(option => {
-        option.addEventListener('click', () => {
-            const lang = option.dataset.lang;
-            i18n.setLocale(lang);
-            updateLanguageSelector(lang);
-            elements.languageSelector.classList.remove('open');
-        });
-    });
-
-    // Setup header language selectors (wiki & insights)
-    document.querySelectorAll('.header-language-selector').forEach(selector => {
-        const btn = selector.querySelector('.language-btn');
-        const dropdown = selector.querySelector('.language-dropdown');
-
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            closeAllLanguageSelectors();
-            selector.classList.toggle('open');
-        });
-
-        dropdown.querySelectorAll('.language-option').forEach(option => {
-            option.addEventListener('click', () => {
-                const lang = option.dataset.lang;
-                i18n.setLocale(lang);
-                updateLanguageSelector(lang);
-                selector.classList.remove('open');
-            });
-        });
-    });
-
-    // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!elements.languageSelector.contains(e.target)) {
-            elements.languageSelector.classList.remove('open');
-        }
-        document.querySelectorAll('.header-language-selector').forEach(selector => {
-            if (!selector.contains(e.target)) {
-                selector.classList.remove('open');
-            }
-        });
-    });
-}
-
-function closeAllLanguageSelectors() {
-    elements.languageSelector.classList.remove('open');
-    document.querySelectorAll('.header-language-selector').forEach(s => s.classList.remove('open'));
-}
-
-function updateLanguageSelector(locale) {
-    const config = languageConfig[locale] || languageConfig.es;
-    if (elements.currentLang) elements.currentLang.textContent = config.label;
-    if (elements.currentLangMobile) {
-        elements.currentLangMobile.textContent = config.label;
-    }
-
-    // Update active state in dropdown (desktop)
-    elements.languageDropdown.querySelectorAll('.language-option').forEach(option => {
-        option.classList.toggle('active', option.dataset.lang === locale);
-    });
-
-    // Update active state in dropdown (mobile)
-    if (elements.languageDropdownMobile) {
-        elements.languageDropdownMobile.querySelectorAll('.language-option').forEach(option => {
-            option.classList.toggle('active', option.dataset.lang === locale);
-        });
-    }
-
-    // Update active state in header language selectors (wiki & insights)
-    document.querySelectorAll('.header-language-selector .language-dropdown').forEach(dropdown => {
-        dropdown.querySelectorAll('.language-option').forEach(option => {
-            option.classList.toggle('active', option.dataset.lang === locale);
-        });
-    });
-}
-
-// ============================================================================
-// Auth Handlers
-// ============================================================================
-function handleAuthStateChange(user) {
-    elements.loadingScreen.classList.add('hidden');
-
-    if (user) {
-        if (authService.needsEmailVerification(user)) {
-            showVerifyScreen(user);
-            return;
-        }
-
-        showMainApp(user);
-        subscribeToData(user.uid);
-    } else {
-        showAuthScreen();
-        unsubscribeFromData();
-    }
-}
-
-function showAuthScreen() {
-    elements.authScreen.classList.remove('hidden');
-    elements.verifyScreen.classList.add('hidden');
-    elements.mainApp.classList.add('hidden');
-}
-
-function showVerifyScreen(user) {
-    elements.authScreen.classList.add('hidden');
-    elements.mainApp.classList.add('hidden');
-    elements.verifyScreen.classList.remove('hidden');
-    elements.verifyEmail.textContent = user.email;
-}
-
-function showMainApp(user) {
-    elements.authScreen.classList.add('hidden');
-    elements.verifyScreen.classList.add('hidden');
-    elements.mainApp.classList.remove('hidden');
-
-    const displayName = authService.getDisplayName(user);
-    const photoURL = authService.getPhotoURL(user);
-    const email = user.email || '';
-
-    // Avatar: Google photo or initials fallback
-    const initials = displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-    const avatarHtml = photoURL
-        ? `<img src="${photoURL}" alt="" referrerpolicy="no-referrer">`
-        : `<span>${initials}</span>`;
-
-    // Header avatar (main + clones in wiki/insights headers)
-    const headerAvatar = document.getElementById('headerAvatar');
-    if (headerAvatar) headerAvatar.innerHTML = avatarHtml;
-    document.querySelectorAll('.header-avatar-clone').forEach(el => { el.innerHTML = avatarHtml; });
-
-    // Mobile display name
-    elements.userEmailMobile.textContent = displayName;
-
-    // Header username (main + clones in wiki/insights headers)
-    if (elements.headerUsername) elements.headerUsername.textContent = displayName;
-    document.querySelectorAll('.header-username-clone').forEach(el => { el.textContent = displayName; });
-
-    switchSection(state.currentSection);
-}
-
-function setupAuthListeners() {
-    // Auth tabs
-    elements.authTabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            elements.authTabs.forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            state.authMode = tab.dataset.tab;
-
-            const isRegister = state.authMode === 'register';
-            elements.authSubmit.textContent = isRegister ? t('auth.createAccount') : t('auth.login');
-            elements.displayNameGroup.classList.toggle('hidden', !isRegister);
-            elements.passwordHint.classList.toggle('hidden', !isRegister);
-            elements.authError.classList.remove('show');
-        });
-    });
-
-    // Google Sign In
-    elements.googleBtn.addEventListener('click', async () => {
-        elements.googleBtn.disabled = true;
-        elements.authError.classList.remove('show');
-
-        try {
-            await authService.signInWithGoogle();
-        } catch (error) {
-            showAuthError(error.code);
-        }
-
-        elements.googleBtn.disabled = false;
-    });
-
-    // Email/Password Auth
-    elements.authForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        const email = document.getElementById('authEmail').value;
-        const password = document.getElementById('authPassword').value;
-        const displayName = document.getElementById('authDisplayName')?.value;
-
-        elements.authSubmit.disabled = true;
-        elements.authError.classList.remove('show');
-
-        try {
-            if (state.authMode === 'login') {
-                const user = await authService.signInWithEmail(email, password);
-                if (authService.needsEmailVerification(user)) {
-                    showVerifyScreen(user);
-                }
-            } else {
-                await authService.registerWithEmail(email, password, displayName);
-            }
-        } catch (error) {
-            showAuthError(error.code);
-        }
-
-        elements.authSubmit.disabled = false;
-    });
-
-    // Resend verification
-    elements.resendVerification.addEventListener('click', async () => {
-        elements.resendVerification.disabled = true;
-        elements.resendVerification.textContent = t('auth.sending');
-
-        try {
-            await authService.resendVerificationEmail();
-            elements.resendVerification.textContent = t('auth.emailSent');
-        } catch (error) {
-            elements.resendVerification.textContent = t('auth.sendError');
-        }
-
-        setTimeout(() => {
-            elements.resendVerification.textContent = t('auth.resendEmail');
-            elements.resendVerification.disabled = false;
-        }, 3000);
-    });
-
-    // Use another account
-    if (elements.useAnotherAccount) {
-        elements.useAnotherAccount.addEventListener('click', logout);
-    }
-
-    // Logout button (removed from navbar)
-    if (elements.logoutBtn) {
-        elements.logoutBtn.addEventListener('click', logout);
-    }
-}
-
-function setupHeaderProfileMenu() {
-    if (!elements.headerProfileMenus.length) return;
-
-    const closeAllMenus = () => {
-        elements.headerProfileMenus.forEach(menu => menu.classList.remove('open'));
-    };
-
-    elements.headerProfileMenus.forEach(menu => {
-        const btn = menu.querySelector('.header-profile-btn');
-        if (!btn) return;
-
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const wasOpen = menu.classList.contains('open');
-            closeAllMenus();
-            if (!wasOpen) menu.classList.add('open');
-        });
-    });
-
-    elements.headerProfileLogoutBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            closeAllMenus();
-            logout();
-        });
-    });
-
-    document.addEventListener('click', (e) => {
-        elements.headerProfileMenus.forEach(menu => {
-            if (!menu.contains(e.target)) menu.classList.remove('open');
-        });
-    });
-}
-
-function showAuthError(errorCode) {
-    elements.authError.textContent = authService.getErrorMessage(errorCode);
-    elements.authError.classList.add('show');
-}
-
 // ============================================================================
 // Data Subscriptions
 // ============================================================================
@@ -783,7 +381,6 @@ function updateStats() {
 function renderNavSidebar() {
     renderSidebarCollections();
     renderSidebarTags();
-    setupNavSidebarListeners();
 }
 
 function renderSidebarCollections() {
@@ -4184,89 +3781,6 @@ function updateInsightsCounts() {
     }
 }
 
-function setupNavSidebarListeners() {
-    // Sidebar toggle button (close)
-    if (elements.sidebarToggle) {
-        elements.sidebarToggle.onclick = () => {
-            elements.navSidebar.classList.toggle('collapsed');
-            document.querySelector('.app-layout').classList.toggle('sidebar-collapsed');
-        };
-    }
-
-    // Sidebar open button (reopen when collapsed)
-    if (elements.sidebarOpenBtn) {
-        elements.sidebarOpenBtn.onclick = () => {
-            elements.navSidebar.classList.remove('collapsed');
-            document.querySelector('.app-layout').classList.remove('sidebar-collapsed');
-        };
-    }
-
-    // Main navigation tabs
-    setupMainNavTabs();
-
-    // Collapsible sections
-    if (elements.collectionsHeader) {
-        elements.collectionsHeader.onclick = () => {
-            elements.collectionsHeader.classList.toggle('collapsed');
-            elements.sidebarCollections.classList.toggle('collapsed');
-        };
-    }
-
-    if (elements.tagsHeader) {
-        elements.tagsHeader.onclick = () => {
-            elements.tagsHeader.classList.toggle('collapsed');
-            elements.sidebarTags.classList.toggle('collapsed');
-        };
-    }
-
-    if (elements.insightStatusHeader) {
-        elements.insightStatusHeader.onclick = () => {
-            elements.insightStatusHeader.classList.toggle('collapsed');
-            elements.sidebarInsightStatus.classList.toggle('collapsed');
-        };
-    }
-
-    if (elements.allInsightsHeader) {
-        elements.allInsightsHeader.onclick = () => {
-            state.insightStatusFilter = '';
-            updateInsightStatusActive();
-            renderInsightsView();
-        };
-    }
-
-    if (elements.sidebarInsightStatus) {
-        elements.sidebarInsightStatus.querySelectorAll('.nav-item').forEach(item => {
-            item.onclick = () => {
-                const status = item.dataset.status || '';
-                state.insightStatusFilter = state.insightStatusFilter === status ? '' : status;
-                updateInsightStatusActive();
-                renderInsightsView();
-            };
-        });
-    }
-
-    // New collection button in sidebar
-    if (elements.navNewCollectionBtn) {
-        elements.navNewCollectionBtn.onclick = () => {
-            elements.collectionModal.classList.add('active');
-            elements.newCollectionName.focus();
-        };
-    }
-
-    // New topic button
-    if (elements.navNewTopicBtn) {
-        elements.navNewTopicBtn.onclick = () => {
-            openTopicModal();
-        };
-    }
-
-    // New insight button
-    if (elements.navNewInsightBtn) {
-        elements.navNewInsightBtn.onclick = () => {
-            openInsightModal();
-        };
-    }
-}
 
 function updateInsightStatusActive() {
     if (!elements.sidebarInsightStatus) return;
@@ -4277,164 +3791,9 @@ function updateInsightStatusActive() {
     });
 }
 
-function setupMainNavTabs() {
-    const tabs = [
-        { el: elements.navWikiTab, view: 'wiki' },
-        { el: elements.navInsightsTab, view: 'insights' },
-        { el: elements.navQuotesTab, view: 'quotes' }
-    ];
 
-    tabs.forEach(({ el, view }) => {
-        if (el) {
-            el.onclick = () => switchSection(view);
-        }
-    });
-}
-
-function switchSection(section) {
-    state.currentSection = section;
-
-    // Clear detail view state when switching sections
-    state.currentInsightId = null;
-    state.currentTopicId = null;
-
-    // Update tab active states
-    [elements.navWikiTab, elements.navInsightsTab, elements.navQuotesTab].forEach(tab => {
-        if (tab) tab.classList.remove('active');
-    });
-
-    // Hide all sidebar content sections
-    [elements.navWikiContent, elements.navInsightsContent, elements.navQuotesContent].forEach(content => {
-        if (content) content.style.display = 'none';
-    });
-
-    // Get main content elements
-    const desktopHeader = document.querySelector('.content-header.desktop-header');
-
-    // Hide all headers first
-    if (desktopHeader) desktopHeader.style.display = 'none';
-    if (elements.wikiHeader) elements.wikiHeader.style.display = 'none';
-    if (elements.insightsHeader) elements.insightsHeader.style.display = 'none';
-
-    // Show active section
-    switch (section) {
-        case 'wiki':
-            if (elements.navWikiTab) elements.navWikiTab.classList.add('active');
-            if (elements.navWikiContent) elements.navWikiContent.style.display = 'block';
-            // Show wiki header
-            if (elements.wikiHeader) elements.wikiHeader.style.display = 'flex';
-            // Hide quote-specific elements
-            const viewControlsWiki = document.querySelector('.view-controls');
-            if (viewControlsWiki) viewControlsWiki.style.display = 'none';
-            if (elements.quotesList) elements.quotesList.classList.add('hidden');
-            if (elements.quotesCompare) elements.quotesCompare.classList.add('hidden');
-            if (elements.emptyState) elements.emptyState.classList.add('hidden');
-            renderWikiView();
-            break;
-        case 'insights':
-            if (elements.navInsightsTab) elements.navInsightsTab.classList.add('active');
-            if (elements.navInsightsContent) elements.navInsightsContent.style.display = 'block';
-            // Show insights header
-            if (elements.insightsHeader) elements.insightsHeader.style.display = 'flex';
-            // Hide quote-specific elements
-            const viewControlsInsights = document.querySelector('.view-controls');
-            if (viewControlsInsights) viewControlsInsights.style.display = 'none';
-            if (elements.quotesList) elements.quotesList.classList.add('hidden');
-            if (elements.quotesCompare) elements.quotesCompare.classList.add('hidden');
-            if (elements.emptyState) elements.emptyState.classList.add('hidden');
-            renderInsightsView();
-            break;
-        case 'quotes':
-        default:
-            if (elements.navQuotesTab) elements.navQuotesTab.classList.add('active');
-            if (elements.navQuotesContent) elements.navQuotesContent.style.display = 'block';
-            // Restore quotes view content if it was replaced by wiki/insights
-            restoreQuotesView();
-            // Show quote-specific elements (get viewControls after restore)
-            if (desktopHeader) desktopHeader.style.display = 'flex';
-            const viewControlsQuotes = document.querySelector('.view-controls');
-            if (viewControlsQuotes) viewControlsQuotes.style.display = 'flex';
-            elements.quotesList.classList.remove('hidden');
-            if (state.currentView === 'compare') {
-                elements.quotesCompare.classList.remove('hidden');
-            }
-            renderQuotes();
-            break;
-    }
-}
 
 // Restore quotes view if content-body was replaced by wiki/insights
-function restoreQuotesView() {
-    const contentBody = document.querySelector('.content-body');
-    if (!contentBody) return;
-
-    // Check if quotes elements exist, if not, recreate them
-    if (!document.getElementById('quotesList')) {
-        contentBody.innerHTML = `
-            <div class="view-controls">
-                <button class="view-btn ${state.currentView === 'list' ? 'active' : ''}" id="viewList" data-i18n-title="quotes.listView" data-tooltip="${t('tooltips.listView')}">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="3" y1="6" x2="21" y2="6"></line>
-                        <line x1="3" y1="12" x2="21" y2="12"></line>
-                        <line x1="3" y1="18" x2="21" y2="18"></line>
-                    </svg>
-                </button>
-                <button class="view-btn ${state.currentView === 'compare' ? 'active' : ''}" id="viewCompare" data-i18n-title="quotes.compareView" data-tooltip="${t('tooltips.compareView')}">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="3" width="7" height="18"></rect>
-                        <rect x="14" y="3" width="7" height="18"></rect>
-                    </svg>
-                </button>
-            </div>
-            <div class="quotes-list" id="quotesList"></div>
-            <div class="quotes-compare hidden" id="quotesCompare">
-                <div class="compare-column favor">
-                    <h3 data-i18n="stances.favor">A favor</h3>
-                    <div class="compare-quotes" id="quotesFavor"></div>
-                </div>
-                <div class="compare-column against">
-                    <h3 data-i18n="stances.contra">En contra</h3>
-                    <div class="compare-quotes" id="quotesAgainst"></div>
-                </div>
-            </div>
-            <div class="empty-state hidden" id="emptyState">
-                <h3 data-i18n="quotes.emptyTitle">Tu colección está vacía</h3>
-                <p data-i18n="quotes.emptyMessage">Comienza añadiendo tu primera cita memorable</p>
-            </div>
-        `;
-
-        // Re-cache the DOM elements
-        elements.quotesList = document.getElementById('quotesList');
-        elements.quotesCompare = document.getElementById('quotesCompare');
-        elements.quotesFavor = document.getElementById('quotesFavor');
-        elements.quotesAgainst = document.getElementById('quotesAgainst');
-        elements.emptyState = document.getElementById('emptyState');
-
-        // Re-attach view toggle event listeners
-        const viewList = document.getElementById('viewList');
-        const viewCompare = document.getElementById('viewCompare');
-        if (viewList) {
-            viewList.onclick = () => {
-                state.currentView = 'list';
-                viewList.classList.add('active');
-                if (viewCompare) viewCompare.classList.remove('active');
-                elements.quotesCompare.classList.add('hidden');
-                elements.quotesList.classList.remove('hidden');
-                renderQuotes();
-            };
-        }
-        if (viewCompare) {
-            viewCompare.onclick = () => {
-                state.currentView = 'compare';
-                viewCompare.classList.add('active');
-                if (viewList) viewList.classList.remove('active');
-                elements.quotesList.classList.add('hidden');
-                elements.quotesCompare.classList.remove('hidden');
-                renderQuotes();
-            };
-        }
-    }
-}
 
 // Wiki and Insights views
 function renderWikiView() {
@@ -5221,7 +4580,7 @@ async function handleInsightSubmit() {
 
         // Switch to insights view
         if (state.currentSection !== 'insights') {
-            switchSection('insights');
+            window.switchSection?.('insights');
         }
     } catch (err) {
         handleFirebaseError(err, t('toast.saveError'));
@@ -5296,7 +4655,7 @@ async function handleTopicSubmit() {
 
         // Switch to wiki view
         if (state.currentSection !== 'wiki') {
-            switchSection('wiki');
+            window.switchSection?.('wiki');
         }
     } catch (err) {
         console.error('Error saving topic:', err);
@@ -5580,9 +4939,6 @@ async function createCollection() {
     }
 }
 
-async function logout() {
-    await authService.logout();
-}
 
 function openReplyModal(parentId, suggestedStance, collectionId) {
     const parentQuote = state.quotes.find(q => q.id === parentId);
@@ -5635,10 +4991,9 @@ window.toggleFavorite = toggleFavorite;
 window.openNewCollectionModal = openNewCollectionModal;
 window.closeCollectionModal = closeCollectionModal;
 window.createCollection = createCollection;
-window.logout = logout;
 window.openReplyModal = openReplyModal;
 window.toggleReplies = toggleReplies;
-window.switchSection = switchSection;
+// window.switchSection is set by AppShell after mount
 window.editTopic = editTopic;
 window.deleteTopic = deleteTopic;
 window.editInsight = editInsight;
@@ -5662,6 +5017,28 @@ window.changeInsightStatus = changeInsightStatus;
 window.toggleTopicSelector = toggleTopicSelector;
 window.linkInsightToTopic = linkInsightToTopic;
 window.toggleInsightExpand = toggleInsightExpand;
+
+// Bridge: render functions exposed for AppShell locale-change handler + _restoreQuotesView
+window.renderSidebarCollections   = renderSidebarCollections;
+window.renderSidebarTags          = renderSidebarTags;
+window.renderSidebarTopics        = renderSidebarTopics;
+window.updateInsightsCounts       = updateInsightsCounts;
+window.updateStats                = updateStats;
+window.updateCollectionSelects    = updateCollectionSelects;
+window.updateMobileFiltersPanel   = updateMobileFiltersPanel;
+window.openTopicView              = openTopicView;
+window.openInsightView            = openInsightView;
+window.setupViewListeners         = setupViewListeners;
+// Bridge: re-cache quote element refs after DOM recreation in AppShell._restoreQuotesView
+window._recacheQuotesElements = () => {
+    elements.quotesList    = document.getElementById('quotesList');
+    elements.quotesCompare = document.getElementById('quotesCompare');
+    elements.quotesFavor   = document.getElementById('quotesFavor');
+    elements.quotesAgainst = document.getElementById('quotesAgainst');
+    elements.emptyState    = document.getElementById('emptyState');
+    elements.viewList      = document.getElementById('viewList');
+    elements.viewCompare   = document.getElementById('viewCompare');
+};
 
 // Custom Sections
 window.openNewSectionModal = openNewSectionModal;
@@ -5717,7 +5094,7 @@ function setupMobileListeners() {
     });
 
     // Mobile logout
-    elements.logoutBtnMobile.addEventListener('click', logout);
+    elements.logoutBtnMobile.addEventListener('click', () => authService.logout());
 
     // Filter panel toggle
     elements.filterToggleBtn.addEventListener('click', openFiltersPanel);
@@ -5741,7 +5118,6 @@ function setupMobileListeners() {
         option.addEventListener('click', () => {
             const lang = option.dataset.lang;
             i18n.setLocale(lang);
-            updateLanguageSelector(lang);
             elements.languageSelectorMobile.classList.remove('open');
         });
     });
@@ -5965,7 +5341,34 @@ function updateFilterBadge() {
 // ============================================================================
 // Start Application
 // ============================================================================
-init();
+new AppShell(document.body, {
+    // Servicios
+    state,
+    authService,
+    quoteService,
+    collectionService,
+    topicService,
+    insightService,
+    i18n,
+    // Suscripciones a datos
+    subscribeToData,
+    unsubscribeFromData,
+    // Renderizadores de sección (bridge hasta T-10, T-16, T-21)
+    renderQuotes,
+    renderWikiView,
+    renderInsightsView,
+    // Setup de listeners restantes (bridge hasta T-08 → T-28)
+    onMainAppReady() {
+        setupQuoteListeners();
+        setupFilterListeners();
+        setupViewListeners();
+        setupModalListeners();
+        setupMobileListeners();
+        initMobileFiltersPanel();
+        setupInsightModalListeners();
+        setupTopicModalListeners();
+    }
+}).mount();
 
 // Re-render insights grid when viewport crosses column-count breakpoints
 let _insightsResizeTimer;

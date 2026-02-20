@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quote Vault</title>
+    <!-- Anti-flash: aplica el tema antes de que el CSS se pinte -->
+    <script>
+        (function () {
+            var t = localStorage.getItem('quotevault-theme');
+            document.documentElement.dataset.theme =
+                (t === 'light' || t === 'dark') ? t
+                : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        })();
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/src/styles.css">
 </head>
