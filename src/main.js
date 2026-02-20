@@ -4398,9 +4398,8 @@ async function fetchUrlMetadata(url) {
         if (videoId) {
             try {
                 // Try video-metadata function first (faster, just metadata)
-                const metadataEndpoints = import.meta.env.DEV
-                    ? ['/.netlify/functions/video-metadata', '/api/video-metadata']
-                    : ['/api/video-metadata', '/.netlify/functions/video-metadata'];
+                const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+                const metadataEndpoints = [`${backendUrl}/api/video-metadata`];
 
                 for (const endpoint of metadataEndpoints) {
                     try {
@@ -4423,9 +4422,7 @@ async function fetchUrlMetadata(url) {
                 }
 
                 // Fallback to transcript function if video-metadata fails
-                const transcriptEndpoints = import.meta.env.DEV
-                    ? ['/.netlify/functions/transcript', '/api/transcript']
-                    : ['/api/transcript', '/.netlify/functions/transcript'];
+                const transcriptEndpoints = [`${backendUrl}/api/transcript`];
 
                 for (const endpoint of transcriptEndpoints) {
                     try {

@@ -39,9 +39,8 @@ class TranscriptService {
             if (language && language !== 'auto') {
                 params.set('lang', language);
             }
-            const endpoints = import.meta.env.DEV
-                ? ['/.netlify/functions/transcript', '/api/transcript']
-                : ['/api/transcript', '/.netlify/functions/transcript'];
+            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+            const endpoints = [`${backendUrl}/api/transcript`];
 
             let lastError;
             for (const endpoint of endpoints) {

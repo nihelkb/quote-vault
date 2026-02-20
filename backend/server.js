@@ -1,20 +1,21 @@
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
 const YTDlpWrap = require('yt-dlp-wrap').default;
 const https = require('https');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const Groq = require('groq-sdk');
 
-const jsonResponse = (statusCode, body) => ({
-    statusCode,
-    headers: {
-        'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body)
-});
+// ─── App setup ───────────────────────────────────────────────────────────────
 
-/**
- * Fetch content from URL
- */
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// ─── Shared helpers ───────────────────────────────────────────────────────────
+
 function fetchURL(url, redirects = 0) {
     return new Promise((resolve, reject) => {
         const request = https.get(url, {
@@ -114,6 +115,8 @@ function extractPlayerResponse(html) {
     throw new Error('Could not parse ytInitialPlayerResponse');
 }
 
+// ─── yt-dlp binary management ─────────────────────────────────────────────────
+
 let ytDlpWrap = null;
 const ytDlpBinaryName = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
 const ytDlpBinaryPath = path.join(os.tmpdir(), ytDlpBinaryName);
@@ -134,9 +137,7 @@ function getYtDlpDownloadUrl() {
 function downloadBinary(url, destinationPath, redirects = 0) {
     return new Promise((resolve, reject) => {
         const request = https.get(url, {
-            headers: {
-                'User-Agent': 'quote-vault-netlify-function'
-            }
+            headers: { 'User-Agent': 'quote-vault-backend' }
         }, (response) => {
             if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
                 if (redirects >= 5) {
@@ -154,11 +155,7 @@ function downloadBinary(url, destinationPath, redirects = 0) {
 
             const fileStream = fs.createWriteStream(destinationPath);
             response.pipe(fileStream);
-
-            fileStream.on('finish', () => {
-                fileStream.close(() => resolve());
-            });
-
+            fileStream.on('finish', () => fileStream.close(() => resolve()));
             fileStream.on('error', (error) => {
                 fs.unlink(destinationPath, () => reject(error));
             });
@@ -177,7 +174,6 @@ async function isValidCachedBinary(binaryPath) {
         const buffer = Buffer.alloc(4);
         await descriptor.read(buffer, 0, 4, 0);
         await descriptor.close();
-
         const isElf = buffer[0] === 0x7f && buffer[1] === 0x45 && buffer[2] === 0x4c && buffer[3] === 0x46;
         return isElf;
     } catch {
@@ -191,7 +187,7 @@ async function getYTDlpWrap() {
     const hasValidBinary = await isValidCachedBinary(ytDlpBinaryPath);
     if (!hasValidBinary) {
         const downloadUrl = getYtDlpDownloadUrl();
-        console.log('[Transcript Function] Downloading yt-dlp from:', downloadUrl);
+        console.log('[yt-dlp] Downloading binary from:', downloadUrl);
         await downloadBinary(downloadUrl, ytDlpBinaryPath);
     }
 
@@ -203,11 +199,11 @@ async function getYTDlpWrap() {
     return ytDlpWrap;
 }
 
+// ─── Transcript helpers ───────────────────────────────────────────────────────
+
 function pickSubtitleTrackFromYtDlp(subtitlesSource, requestedLang) {
     const availableLangs = Object.keys(subtitlesSource || {});
-    if (!availableLangs.length) {
-        return null;
-    }
+    if (!availableLangs.length) return null;
 
     let usedLanguage = requestedLang;
     let isOriginal = false;
@@ -218,7 +214,7 @@ function pickSubtitleTrackFromYtDlp(subtitlesSource, requestedLang) {
             subtitleFormats = subtitlesSource[requestedLang];
             usedLanguage = requestedLang;
         } else {
-            const matchedLang = availableLangs.find((language) => language.startsWith(`${requestedLang}-`));
+            const matchedLang = availableLangs.find((l) => l.startsWith(`${requestedLang}-`));
             if (matchedLang) {
                 subtitleFormats = subtitlesSource[matchedLang];
                 usedLanguage = matchedLang;
@@ -236,15 +232,11 @@ function pickSubtitleTrackFromYtDlp(subtitlesSource, requestedLang) {
     }
 
     const preferredFormat =
-        subtitleFormats.find((format) => format.ext === 'json3') ||
-        subtitleFormats.find((format) => format.ext === 'vtt') ||
+        subtitleFormats.find((f) => f.ext === 'json3') ||
+        subtitleFormats.find((f) => f.ext === 'vtt') ||
         subtitleFormats[0];
 
-    return {
-        preferredFormat,
-        usedLanguage,
-        isOriginal
-    };
+    return { preferredFormat, usedLanguage, isOriginal };
 }
 
 async function fetchTranscriptWithYtDlp(videoId, lang) {
@@ -258,14 +250,10 @@ async function fetchTranscriptWithYtDlp(videoId, lang) {
     }
 
     const track = pickSubtitleTrackFromYtDlp(subtitlesSource, lang);
-    if (!track) {
-        return null;
-    }
+    if (!track) return null;
 
     const subtitleContent = await fetchURL(track.preferredFormat.url);
-    if (!subtitleContent || subtitleContent.length === 0) {
-        return null;
-    }
+    if (!subtitleContent || subtitleContent.length === 0) return null;
 
     let segments;
     if (track.preferredFormat.ext === 'json3') {
@@ -276,9 +264,7 @@ async function fetchTranscriptWithYtDlp(videoId, lang) {
         return null;
     }
 
-    if (!segments.length) {
-        return null;
-    }
+    if (!segments.length) return null;
 
     return {
         content: segments,
@@ -294,9 +280,6 @@ async function fetchTranscriptWithYtDlp(videoId, lang) {
     };
 }
 
-/**
- * Parse JSON3 subtitle format to our format
- */
 function parseJSON3Subtitles(json3Text) {
     const data = JSON.parse(json3Text);
     const segments = [];
@@ -321,24 +304,17 @@ function parseJSON3Subtitles(json3Text) {
     return segments;
 }
 
-/**
- * Parse VTT subtitle format to our format
- */
 function parseVTTSubtitles(vttText) {
     const segments = [];
     const lines = vttText.split('\n');
-
     let currentSegment = null;
+
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
-
-        // Match timestamp line: "00:00:01.601 --> 00:00:06.439"
         const timestampMatch = line.match(/^(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\.(\d{3})/);
 
         if (timestampMatch) {
-            if (currentSegment && currentSegment.text) {
-                segments.push(currentSegment);
-            }
+            if (currentSegment && currentSegment.text) segments.push(currentSegment);
 
             const startMs = (
                 parseInt(timestampMatch[1]) * 3600000 +
@@ -346,7 +322,6 @@ function parseVTTSubtitles(vttText) {
                 parseInt(timestampMatch[3]) * 1000 +
                 parseInt(timestampMatch[4])
             );
-
             const endMs = (
                 parseInt(timestampMatch[5]) * 3600000 +
                 parseInt(timestampMatch[6]) * 60000 +
@@ -354,46 +329,127 @@ function parseVTTSubtitles(vttText) {
                 parseInt(timestampMatch[8])
             );
 
-            currentSegment = {
-                text: '',
-                offset: startMs,
-                duration: endMs - startMs
-            };
+            currentSegment = { text: '', offset: startMs, duration: endMs - startMs };
         } else if (currentSegment && line && !line.startsWith('WEBVTT') && !line.startsWith('Kind:') && !line.startsWith('Language:')) {
-            // This is subtitle text
             currentSegment.text += (currentSegment.text ? '\n' : '') + line;
         }
     }
 
-    // Don't forget the last segment
-    if (currentSegment && currentSegment.text) {
-        segments.push(currentSegment);
-    }
+    if (currentSegment && currentSegment.text) segments.push(currentSegment);
 
     return segments;
 }
 
-exports.handler = async (event) => {
-    try {
-        const params = event.queryStringParameters || {};
-        const videoId = params.videoId;
-        const lang = params.lang || 'auto';
+// ─── Video-metadata helpers ───────────────────────────────────────────────────
 
-        console.log('[Transcript Function] Received request:', { videoId, lang });
+let groqClient = null;
+if (process.env.GROQ_API_KEY) {
+    groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
+}
+
+async function extractDescriptionSummary(description) {
+    if (!description) return null;
+
+    if (groqClient) {
+        try {
+            console.log('[Video Metadata] Using Groq AI to extract description...');
+
+            const completion = await groqClient.chat.completions.create({
+                model: 'llama-3.1-8b-instant',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'You are an expert at summarizing YouTube video descriptions. Your task is to read the ENTIRE description and create a concise 2-3 sentence summary that captures the main topic and key points of the video. Ignore promotional content, links, timestamps, and credits. Focus on WHAT the video is about and WHY it matters.'
+                    },
+                    {
+                        role: 'user',
+                        content: `Read this YouTube video description and write a clear, informative 2-3 sentence summary. The summary should capture the video's main topic and key points. Do NOT just copy the beginning - read the whole description first, then summarize.\n\nDescription:\n${description}\n\nWrite a 2-3 sentence summary of what this video is about:`
+                    }
+                ],
+                temperature: 0.3,
+                max_tokens: 200,
+                top_p: 1
+            });
+
+            const extracted = completion.choices[0]?.message?.content?.trim();
+
+            if (!extracted) {
+                console.log('[Video Metadata] Groq returned empty, falling back to regex');
+                return extractDescriptionFallback(description);
+            }
+
+            const wordCount = extracted.split(/\s+/).filter(w => w.length > 0).length;
+            console.log('[Video Metadata] Groq returned:', wordCount, 'words');
+
+            if (wordCount >= 20 && wordCount <= 150) {
+                console.log('[Video Metadata] AI extraction successful!');
+                return extracted;
+            }
+
+            if (wordCount > 150) {
+                const words = extracted.split(/\s+/);
+                const truncated = words.slice(0, 150).join(' ');
+                const lastPeriod = truncated.lastIndexOf('.');
+                if (lastPeriod > 0) return truncated.substring(0, lastPeriod + 1);
+            }
+
+            console.log('[Video Metadata] AI extraction failed validation, falling back to regex');
+        } catch (error) {
+            console.error('[Video Metadata] Groq API error:', error.message);
+        }
+    }
+
+    console.log('[Video Metadata] Using fallback regex extraction...');
+    return extractDescriptionFallback(description);
+}
+
+function extractDescriptionFallback(description) {
+    let cleaned = description
+        .replace(/https?:\/\/[^\s]+/g, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+
+    const lines = cleaned.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const contentLines = [];
+
+    for (const line of lines) {
+        if (/^\d{1,2}:\d{2}/.test(line)) break;
+
+        if (/^(support|follow|subscribe|join|watch|get)/i.test(line)) {
+            if (contentLines.length > 0) break;
+            continue;
+        }
+
+        if (line.length >= 20) {
+            contentLines.push(line);
+            if (contentLines.join(' ').length > 200) break;
+        }
+    }
+
+    return contentLines.join(' ').substring(0, 350) || null;
+}
+
+// ─── Routes ───────────────────────────────────────────────────────────────────
+
+app.get('/api/transcript', async (req, res) => {
+    try {
+        const videoId = req.query.videoId;
+        const lang = req.query.lang || 'auto';
+
+        console.log('[Transcript] Received request:', { videoId, lang });
 
         if (!videoId) {
-            console.log('[Transcript Function] Missing videoId');
-            return jsonResponse(400, { message: 'videoId is required' });
+            return res.status(400).json({ message: 'videoId is required' });
         }
 
         try {
             const ytDlpResult = await fetchTranscriptWithYtDlp(videoId, lang);
             if (ytDlpResult) {
-                console.log('[Transcript Function] Success via yt-dlp');
-                return jsonResponse(200, ytDlpResult);
+                console.log('[Transcript] Success via yt-dlp');
+                return res.json(ytDlpResult);
             }
         } catch (ytDlpError) {
-            console.warn('[Transcript Function] yt-dlp strategy failed, using fallback:', ytDlpError.message);
+            console.warn('[Transcript] yt-dlp strategy failed, using fallback:', ytDlpError.message);
         }
 
         const videoURL = `https://www.youtube.com/watch?v=${videoId}`;
@@ -402,8 +458,7 @@ exports.handler = async (event) => {
 
         const captionTracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
         if (!captionTracks.length) {
-            console.log('[Transcript Function] No caption tracks available');
-            return jsonResponse(404, { message: 'No subtitles available for this video' });
+            return res.status(404).json({ message: 'No subtitles available for this video' });
         }
 
         let usedLanguage = lang;
@@ -411,13 +466,13 @@ exports.handler = async (event) => {
         let selectedTrack = null;
 
         if (lang && lang !== 'auto') {
-            selectedTrack = captionTracks.find(track => track.languageCode === lang)
-                || captionTracks.find(track => track.languageCode?.startsWith(`${lang}-`))
-                || captionTracks.find(track => track.vssId?.includes(`.${lang}`));
+            selectedTrack = captionTracks.find(t => t.languageCode === lang)
+                || captionTracks.find(t => t.languageCode?.startsWith(`${lang}-`))
+                || captionTracks.find(t => t.vssId?.includes(`.${lang}`));
         }
 
         if (!selectedTrack) {
-            selectedTrack = captionTracks.find(track => track.languageCode === 'en') || captionTracks[0];
+            selectedTrack = captionTracks.find(t => t.languageCode === 'en') || captionTracks[0];
             usedLanguage = selectedTrack.languageCode || 'auto';
             isOriginal = true;
         } else {
@@ -427,7 +482,7 @@ exports.handler = async (event) => {
         const json3Url = `${selectedTrack.baseUrl}${selectedTrack.baseUrl.includes('?') ? '&' : '?'}fmt=json3`;
         const vttUrl = `${selectedTrack.baseUrl}${selectedTrack.baseUrl.includes('?') ? '&' : '?'}fmt=vtt`;
 
-        console.log('[Transcript Function] Downloading subtitle...');
+        console.log('[Transcript] Downloading subtitle...');
         let subtitleContent = await fetchURL(json3Url).catch(() => null);
         let subtitleFormat = 'json3';
 
@@ -437,32 +492,25 @@ exports.handler = async (event) => {
         }
 
         if (!subtitleContent || subtitleContent.length === 0) {
-            console.log('[Transcript Function] Empty subtitle content');
-            return jsonResponse(404, { message: 'Subtitle content is empty' });
+            return res.status(404).json({ message: 'Subtitle content is empty' });
         }
 
-        // Parse based on format
         let segments;
         if (subtitleFormat === 'json3') {
-            console.log('[Transcript Function] Parsing JSON3 format...');
             segments = parseJSON3Subtitles(subtitleContent);
         } else if (subtitleFormat === 'vtt') {
-            console.log('[Transcript Function] Parsing VTT format...');
             segments = parseVTTSubtitles(subtitleContent);
         } else {
-            console.log('[Transcript Function] Unsupported format:', subtitleFormat);
-            return jsonResponse(500, { message: 'Unsupported subtitle format' });
+            return res.status(500).json({ message: 'Unsupported subtitle format' });
         }
 
         if (segments.length === 0) {
-            console.log('[Transcript Function] No segments parsed');
-            return jsonResponse(404, { message: 'Could not parse subtitles' });
+            return res.status(404).json({ message: 'Could not parse subtitles' });
         }
 
-        console.log('[Transcript Function] Success! Got', segments.length, 'segments');
-        console.log('[Transcript Function] First segment:', segments[0]);
+        console.log('[Transcript] Success! Got', segments.length, 'segments');
 
-        return jsonResponse(200, {
+        return res.json({
             content: segments,
             language: usedLanguage,
             isOriginal,
@@ -475,10 +523,52 @@ exports.handler = async (event) => {
             }
         });
     } catch (error) {
-        console.error('[Transcript Function] Error:', error.message);
-        console.error('[Transcript Function] Stack:', error.stack);
-        return jsonResponse(500, {
-            message: error.message || 'Failed to fetch subtitles'
-        });
+        console.error('[Transcript] Error:', error.message);
+        return res.status(500).json({ message: error.message || 'Failed to fetch subtitles' });
     }
-};
+});
+
+app.get('/api/video-metadata', async (req, res) => {
+    try {
+        const videoId = req.query.videoId;
+
+        console.log('[Video Metadata] Received request:', { videoId });
+
+        if (!videoId) {
+            return res.status(400).json({ message: 'videoId is required' });
+        }
+
+        const videoURL = `https://www.youtube.com/watch?v=${videoId}`;
+        console.log('[Video Metadata] Fetching watch page...');
+        const watchHtml = await fetchURL(videoURL);
+        const playerResponse = extractPlayerResponse(watchHtml);
+        const videoInfo = playerResponse?.videoDetails;
+
+        if (!videoInfo) {
+            return res.status(404).json({ message: 'Video details not found' });
+        }
+
+        console.log('[Video Metadata] Success! Got metadata for:', videoInfo.title);
+
+        const descriptionSummary = await extractDescriptionSummary(videoInfo.shortDescription);
+
+        return res.json({
+            title: videoInfo.title || null,
+            duration: Number.parseInt(videoInfo.lengthSeconds, 10) || null,
+            thumbnail: videoInfo.thumbnail?.thumbnails?.slice(-1)[0]?.url || null,
+            channel: videoInfo.author || null,
+            description: descriptionSummary,
+            fullDescription: videoInfo.shortDescription || null
+        });
+    } catch (error) {
+        console.error('[Video Metadata] Error:', error.message);
+        return res.status(500).json({ message: error.message || 'Failed to fetch video metadata' });
+    }
+});
+
+// ─── Start ────────────────────────────────────────────────────────────────────
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`[Server] Quote Vault backend running on port ${PORT}`);
+});

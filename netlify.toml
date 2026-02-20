@@ -1,13 +1,9 @@
-[functions]
-  directory = "netlify/functions"
-  node_bundler = "esbuild"
+[build]
+  command = "npm run build"
+  publish = "dist"
 
+# SPA fallback — all routes return index.html so client-side routing works
 [[redirects]]
-  from = "/api/transcript"
-  to = "/.netlify/functions/transcript"
-  status = 200
-
-[[redirects]]
-  from = "/api/video-metadata"
-  to = "/.netlify/functions/video-metadata"
+  from = "/*"
+  to = "/index.html"
   status = 200
