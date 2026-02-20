@@ -139,8 +139,9 @@ function fetchPlayerResponseFromInnerTube(videoId) {
             videoId,
             context: {
                 client: {
-                    clientName: 'TVHTML5',
-                    clientVersion: '7.20220325',
+                    clientName: 'IOS',
+                    clientVersion: '19.29.1',
+                    deviceModel: 'iPhone16,2',
                     hl: 'en',
                     gl: 'US',
                     utcOffsetMinutes: 0
@@ -155,9 +156,9 @@ function fetchPlayerResponseFromInnerTube(videoId) {
             headers: {
                 'Content-Type': 'application/json',
                 'Content-Length': Buffer.byteLength(payload),
-                'User-Agent': 'Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebKit/538.1 (KHTML, like Gecko) Version/6.0 TV Safari/538.1',
-                'X-YouTube-Client-Name': '7',
-                'X-YouTube-Client-Version': '7.20220325',
+                'User-Agent': 'com.google.ios.youtube/19.29.1 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X)',
+                'X-YouTube-Client-Name': '5',
+                'X-YouTube-Client-Version': '19.29.1',
                 'Origin': 'https://www.youtube.com',
                 'Accept-Language': 'en-US,en;q=0.9'
             }
@@ -411,6 +412,66 @@ function extractDescriptionFallback(description) {
     return contentLines.join(' ').substring(0, 350) || null;
 }
 
+// ─── Timedtext API (endpoint público, no bloqueado por IP) ────────────────────
+
+async function fetchTranscriptFromTimedText(videoId, lang) {
+    console.log('[TimedText] Fetching caption list...');
+
+    let listXml;
+    try {
+        listXml = await fetchURL(`https://www.youtube.com/api/timedtext?type=list&v=${videoId}`);
+    } catch {
+        return null;
+    }
+    if (!listXml || !listXml.includes('<track')) return null;
+
+    // Parse tracks from XML
+    const tracks = [];
+    const trackPat = /<track\s([^>]+?)(?:\s*\/?>)/g;
+    let m;
+    while ((m = trackPat.exec(listXml)) !== null) {
+        const attrs = {};
+        const attrPat = /(\w+)="([^"]*)"/g;
+        let a;
+        while ((a = attrPat.exec(m[1])) !== null) attrs[a[1]] = a[2];
+        if (attrs.lang_code) tracks.push(attrs);
+    }
+    if (!tracks.length) return null;
+
+    // Select best track for requested language
+    let selected = null;
+    if (lang && lang !== 'auto') {
+        selected = tracks.find(t => t.lang_code === lang)
+            || tracks.find(t => t.lang_code?.startsWith(lang));
+    }
+    if (!selected) {
+        selected = tracks.find(t => t.lang_default === 'true')
+            || tracks.find(t => t.lang_code === 'en')
+            || tracks[0];
+    }
+
+    const params = new URLSearchParams({ v: videoId, lang: selected.lang_code, fmt: 'json3' });
+    if (selected.name) params.set('name', selected.name);
+
+    console.log('[TimedText] Fetching transcript, lang:', selected.lang_code);
+    let transcriptJson;
+    try {
+        transcriptJson = await fetchURL(`https://www.youtube.com/api/timedtext?${params}`);
+    } catch {
+        return null;
+    }
+    if (!transcriptJson) return null;
+
+    const segments = parseJSON3Subtitles(transcriptJson);
+    if (!segments.length) return null;
+
+    return {
+        content: segments,
+        language: selected.lang_code,
+        isOriginal: selected.lang_default === 'true' || !lang || lang === 'auto'
+    };
+}
+
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => {
@@ -438,75 +499,81 @@ app.get('/api/transcript', async (req, res) => {
             console.warn('[Transcript] yt-dlp strategy failed, using fallback:', ytDlpError.message);
         }
 
-        console.log('[Transcript] Trying InnerTube API fallback...');
+        // Fallback 1: InnerTube iOS — devuelve captionTracks con URLs de descarga
+        console.log('[Transcript] Trying InnerTube iOS fallback...');
         const playerResponse = await fetchPlayerResponseFromInnerTube(videoId);
-
         const captionTracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
-        if (!captionTracks.length) {
-            return res.status(404).json({ message: 'No subtitles available for this video' });
-        }
 
-        let usedLanguage = lang;
-        let isOriginal = false;
-        let selectedTrack = null;
+        if (captionTracks.length) {
+            let usedLanguage = lang;
+            let isOriginal = false;
+            let selectedTrack = null;
 
-        if (lang && lang !== 'auto') {
-            selectedTrack = captionTracks.find(t => t.languageCode === lang)
-                || captionTracks.find(t => t.languageCode?.startsWith(`${lang}-`))
-                || captionTracks.find(t => t.vssId?.includes(`.${lang}`));
-        }
-
-        if (!selectedTrack) {
-            selectedTrack = captionTracks.find(t => t.languageCode === 'en') || captionTracks[0];
-            usedLanguage = selectedTrack.languageCode || 'auto';
-            isOriginal = true;
-        } else {
-            usedLanguage = selectedTrack.languageCode || usedLanguage;
-        }
-
-        const json3Url = `${selectedTrack.baseUrl}${selectedTrack.baseUrl.includes('?') ? '&' : '?'}fmt=json3`;
-        const vttUrl = `${selectedTrack.baseUrl}${selectedTrack.baseUrl.includes('?') ? '&' : '?'}fmt=vtt`;
-
-        console.log('[Transcript] Downloading subtitle...');
-        let subtitleContent = await fetchURL(json3Url).catch(() => null);
-        let subtitleFormat = 'json3';
-
-        if (!subtitleContent) {
-            subtitleContent = await fetchURL(vttUrl);
-            subtitleFormat = 'vtt';
-        }
-
-        if (!subtitleContent || subtitleContent.length === 0) {
-            return res.status(404).json({ message: 'Subtitle content is empty' });
-        }
-
-        let segments;
-        if (subtitleFormat === 'json3') {
-            segments = parseJSON3Subtitles(subtitleContent);
-        } else if (subtitleFormat === 'vtt') {
-            segments = parseVTTSubtitles(subtitleContent);
-        } else {
-            return res.status(500).json({ message: 'Unsupported subtitle format' });
-        }
-
-        if (segments.length === 0) {
-            return res.status(404).json({ message: 'Could not parse subtitles' });
-        }
-
-        console.log('[Transcript] Success! Got', segments.length, 'segments');
-
-        return res.json({
-            content: segments,
-            language: usedLanguage,
-            isOriginal,
-            videoInfo: {
-                title: playerResponse?.videoDetails?.title || null,
-                duration: Number.parseInt(playerResponse?.videoDetails?.lengthSeconds, 10) || null,
-                thumbnail: playerResponse?.videoDetails?.thumbnail?.thumbnails?.slice(-1)[0]?.url || null,
-                uploader: playerResponse?.videoDetails?.author || null,
-                description: playerResponse?.videoDetails?.shortDescription || null
+            if (lang && lang !== 'auto') {
+                selectedTrack = captionTracks.find(t => t.languageCode === lang)
+                    || captionTracks.find(t => t.languageCode?.startsWith(`${lang}-`))
+                    || captionTracks.find(t => t.vssId?.includes(`.${lang}`));
             }
-        });
+            if (!selectedTrack) {
+                selectedTrack = captionTracks.find(t => t.languageCode === 'en') || captionTracks[0];
+                usedLanguage = selectedTrack.languageCode || 'auto';
+                isOriginal = true;
+            } else {
+                usedLanguage = selectedTrack.languageCode || usedLanguage;
+            }
+
+            const json3Url = `${selectedTrack.baseUrl}${selectedTrack.baseUrl.includes('?') ? '&' : '?'}fmt=json3`;
+            const vttUrl = `${selectedTrack.baseUrl}${selectedTrack.baseUrl.includes('?') ? '&' : '?'}fmt=vtt`;
+
+            console.log('[Transcript] Downloading subtitle via InnerTube captionTrack...');
+            let subtitleContent = await fetchURL(json3Url).catch(() => null);
+            let subtitleFormat = 'json3';
+            if (!subtitleContent) {
+                subtitleContent = await fetchURL(vttUrl).catch(() => null);
+                subtitleFormat = 'vtt';
+            }
+
+            if (subtitleContent && subtitleContent.length > 0) {
+                const segments = subtitleFormat === 'json3'
+                    ? parseJSON3Subtitles(subtitleContent)
+                    : parseVTTSubtitles(subtitleContent);
+
+                if (segments.length > 0) {
+                    console.log('[Transcript] Success via InnerTube! Got', segments.length, 'segments');
+                    return res.json({
+                        content: segments,
+                        language: usedLanguage,
+                        isOriginal,
+                        videoInfo: {
+                            title: playerResponse?.videoDetails?.title || null,
+                            duration: Number.parseInt(playerResponse?.videoDetails?.lengthSeconds, 10) || null,
+                            thumbnail: playerResponse?.videoDetails?.thumbnail?.thumbnails?.slice(-1)[0]?.url || null,
+                            uploader: playerResponse?.videoDetails?.author || null,
+                            description: playerResponse?.videoDetails?.shortDescription || null
+                        }
+                    });
+                }
+            }
+        }
+
+        // Fallback 2: Timedtext API — endpoint público, no bloqueado por IP
+        console.log('[Transcript] Trying timedtext API fallback...');
+        const timedResult = await fetchTranscriptFromTimedText(videoId, lang);
+        if (timedResult) {
+            console.log('[Transcript] Success via timedtext! Got', timedResult.content.length, 'segments');
+            return res.json({
+                ...timedResult,
+                videoInfo: playerResponse?.videoDetails ? {
+                    title: playerResponse.videoDetails.title || null,
+                    duration: Number.parseInt(playerResponse.videoDetails.lengthSeconds, 10) || null,
+                    thumbnail: playerResponse.videoDetails.thumbnail?.thumbnails?.slice(-1)[0]?.url || null,
+                    uploader: playerResponse.videoDetails.author || null,
+                    description: playerResponse.videoDetails.shortDescription || null
+                } : null
+            });
+        }
+
+        return res.status(404).json({ message: 'No subtitles available for this video' });
     } catch (error) {
         console.error('[Transcript] Error:', error.message);
         return res.status(500).json({ message: error.message || 'Failed to fetch subtitles' });
