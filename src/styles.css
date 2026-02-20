@@ -38,11 +38,6 @@
     --favor: #6ec5a1;
     --against: #ef8e99;
     --neutral: #b4bfcb;
-    /* Topic icon */
-    --icon-bg-start: #232d3e;
-    --icon-bg-end:   #1b2230;
-    --icon-border:   #2d3a4d;
-    --icon-color:    #8d99aa;
     color-scheme: dark;
 }
 
@@ -117,6 +112,12 @@
 /* Gradiente de fade: de transparente a var(--surface) en lugar de blanco */
 :root[data-theme='dark'] .section-card-content::after {
     background: linear-gradient(to bottom, transparent, var(--surface));
+}
+
+/* Monogram en topic detail header — fondo/borde, sin pisar el color del icono */
+:root[data-theme='dark'] .topic-detail-monogram {
+    background: var(--tag-bg);
+    border-color: var(--border);
 }
 
 /* Back button en topic/insight header */
@@ -2364,19 +2365,24 @@ header {
 .topic-icon[data-icon="heart"],    .topic-icon-small[data-icon="heart"]    { color: #c07080; }
 .topic-icon[data-icon="star"],     .topic-icon-small[data-icon="star"]     { color: #c0a050; }
 
-/* Topic Icon Colors by Category — dark mode (versiones más luminosas) */
-:root[data-theme='dark'] .topic-icon[data-icon="folder"],   :root[data-theme='dark'] .topic-icon-small[data-icon="folder"]   { color: #c4a882; }
-:root[data-theme='dark'] .topic-icon[data-icon="globe"],    :root[data-theme='dark'] .topic-icon-small[data-icon="globe"]    { color: #6ec5a1; }
-:root[data-theme='dark'] .topic-icon[data-icon="coin"],     :root[data-theme='dark'] .topic-icon-small[data-icon="coin"]     { color: #f0b429; }
-:root[data-theme='dark'] .topic-icon[data-icon="scale"],    :root[data-theme='dark'] .topic-icon-small[data-icon="scale"]    { color: #a78bd4; }
-:root[data-theme='dark'] .topic-icon[data-icon="building"], :root[data-theme='dark'] .topic-icon-small[data-icon="building"] { color: #8da5be; }
-:root[data-theme='dark'] .topic-icon[data-icon="flask"],    :root[data-theme='dark'] .topic-icon-small[data-icon="flask"]    { color: #5bc0d4; }
-:root[data-theme='dark'] .topic-icon[data-icon="code"],     :root[data-theme='dark'] .topic-icon-small[data-icon="code"]     { color: #85c46a; }
-:root[data-theme='dark'] .topic-icon[data-icon="brain"],    :root[data-theme='dark'] .topic-icon-small[data-icon="brain"]    { color: #d490aa; }
-:root[data-theme='dark'] .topic-icon[data-icon="book"],     :root[data-theme='dark'] .topic-icon-small[data-icon="book"]     { color: #c49a80; }
-:root[data-theme='dark'] .topic-icon[data-icon="target"],   :root[data-theme='dark'] .topic-icon-small[data-icon="target"]   { color: #e8906a; }
-:root[data-theme='dark'] .topic-icon[data-icon="heart"],    :root[data-theme='dark'] .topic-icon-small[data-icon="heart"]    { color: #ef8e99; }
-:root[data-theme='dark'] .topic-icon[data-icon="star"],     :root[data-theme='dark'] .topic-icon-small[data-icon="star"]     { color: #f0c060; }
+/* Topic Icon — dark mode: fondo tintado con el color del propio icono */
+:root[data-theme='dark'] :is(.topic-icon, .topic-icon-small, .topic-detail-monogram) {
+    background: var(--bg-light);
+    border-color: var(--border);
+}
+
+:root[data-theme='dark'] :is(.topic-icon, .topic-icon-small, .topic-detail-monogram)[data-icon="folder"]   { color: #c4a882; background: rgba(196,168,130, 0.10); border-color: rgba(196,168,130, 0.22); }
+:root[data-theme='dark'] :is(.topic-icon, .topic-icon-small, .topic-detail-monogram)[data-icon="globe"]    { color: #6ec5a1; background: rgba(110,197,161, 0.10); border-color: rgba(110,197,161, 0.22); }
+:root[data-theme='dark'] :is(.topic-icon, .topic-icon-small, .topic-detail-monogram)[data-icon="coin"]     { color: #f0b429; background: rgba(240,180, 41, 0.10); border-color: rgba(240,180, 41, 0.22); }
+:root[data-theme='dark'] :is(.topic-icon, .topic-icon-small, .topic-detail-monogram)[data-icon="scale"]    { color: #a78bd4; background: rgba(167,139,212, 0.10); border-color: rgba(167,139,212, 0.22); }
+:root[data-theme='dark'] :is(.topic-icon, .topic-icon-small, .topic-detail-monogram)[data-icon="building"] { color: #8da5be; background: rgba(141,165,190, 0.10); border-color: rgba(141,165,190, 0.22); }
+:root[data-theme='dark'] :is(.topic-icon, .topic-icon-small, .topic-detail-monogram)[data-icon="flask"]    { color: #5bc0d4; background: rgba( 91,192,212, 0.10); border-color: rgba( 91,192,212, 0.22); }
+:root[data-theme='dark'] :is(.topic-icon, .topic-icon-small, .topic-detail-monogram)[data-icon="code"]     { color: #85c46a; background: rgba(133,196,106, 0.10); border-color: rgba(133,196,106, 0.22); }
+:root[data-theme='dark'] :is(.topic-icon, .topic-icon-small, .topic-detail-monogram)[data-icon="brain"]    { color: #d490aa; background: rgba(212,144,170, 0.10); border-color: rgba(212,144,170, 0.22); }
+:root[data-theme='dark'] :is(.topic-icon, .topic-icon-small, .topic-detail-monogram)[data-icon="book"]     { color: #c49a80; background: rgba(196,154,128, 0.10); border-color: rgba(196,154,128, 0.22); }
+:root[data-theme='dark'] :is(.topic-icon, .topic-icon-small, .topic-detail-monogram)[data-icon="target"]   { color: #e8906a; background: rgba(232,144,106, 0.10); border-color: rgba(232,144,106, 0.22); }
+:root[data-theme='dark'] :is(.topic-icon, .topic-icon-small, .topic-detail-monogram)[data-icon="heart"]    { color: #ef8e99; background: rgba(239,142,153, 0.10); border-color: rgba(239,142,153, 0.22); }
+:root[data-theme='dark'] :is(.topic-icon, .topic-icon-small, .topic-detail-monogram)[data-icon="star"]     { color: #f0c060; background: rgba(240,192, 96, 0.10); border-color: rgba(240,192, 96, 0.22); }
 
 /* Insights Grid - Flex Columns Layout */
 .insights-grid {

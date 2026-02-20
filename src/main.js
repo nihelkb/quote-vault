@@ -561,7 +561,7 @@ function renderTopicDetailView(topic, linkedQuotes, linkedInsights) {
                 </button>
 
                 <div class="topic-detail-title-row">
-                    <div class="topic-detail-monogram" aria-hidden="true">${topicIcon}</div>
+                    <div class="topic-detail-monogram" data-icon="${topic.icon || 'folder'}" aria-hidden="true">${topicIcon}</div>
                     <div class="topic-detail-title">
                         <h1>${escapeHtml(topic.name)}</h1>
                         ${topic.description ? `<p class="topic-detail-description">${escapeHtml(topic.description)}</p>` : ''}
