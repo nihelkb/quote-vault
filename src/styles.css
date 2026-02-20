@@ -65,10 +65,14 @@
 
 :root[data-theme='dark'] .insight-source-description summary,
 :root[data-theme='dark'] .insight-source-description-body,
-:root[data-theme='dark'] .insight-detail-header,
-:root[data-theme='dark'] .topic-detail-header,
 :root[data-theme='dark'] .coming-soon-notice {
     background: var(--bg-light);
+}
+/* Header se funde con el fondo; el borde inferior define el límite */
+:root[data-theme='dark'] .insight-detail-header,
+:root[data-theme='dark'] .topic-detail-header {
+    background: var(--bg);
+    box-shadow: 0 1px 0 var(--border);
 }
 
 /* ── Dark mode: corrige colores hardcodeados ─────────────────────────────── */
@@ -87,22 +91,26 @@
 /* Section cards (topic detail) */
 :root[data-theme='dark'] .section-card {
     background: var(--surface);
-    border: 1px solid var(--border);
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 1px 4px rgba(0, 0, 0, 0.25);
 }
 :root[data-theme='dark'] .section-card:hover {
-    border-color: var(--accent-strong);
-    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+    border-color: color-mix(in srgb, var(--card-accent, var(--accent-strong)) 55%, var(--border));
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+/* Empty cards show a faint accent hint for identity in dark mode */
+:root[data-theme='dark'] .section-card:not(.has-content)::before {
+    opacity: 0.35;
 }
 :root[data-theme='dark'] .section-card-icon {
-    background: var(--bg-light);
-    border-color: var(--border);
-    color: var(--text-muted);
+    background: color-mix(in srgb, var(--card-icon, var(--text-muted)) 14%, var(--surface));
+    border-color: color-mix(in srgb, var(--card-icon, var(--border)) 25%, var(--border));
+    color: var(--card-icon, var(--text-muted));
 }
 :root[data-theme='dark'] .section-card-count {
-    background: var(--bg-light);
-    color: var(--text-muted);
-    border-color: var(--border);
+    background: color-mix(in srgb, var(--card-accent, var(--bg-light)) 10%, var(--bg-light));
+    color: var(--text-light);
+    border-color: color-mix(in srgb, var(--card-accent, var(--border)) 20%, var(--border));
 }
 :root[data-theme='dark'] .section-card-preview-text,
 :root[data-theme='dark'] .section-card-content p,
@@ -137,7 +145,7 @@
     color: var(--text);
 }
 :root[data-theme='dark'] .topic-insights-sidebar {
-    background: var(--bg-light);
+    background: var(--bg);
 }
 :root[data-theme='dark'] .insight-sidebar-card {
     background: var(--surface);
@@ -299,6 +307,9 @@
 }
 
 /* ── Dark mode: Sidebar accordion y highlights vinculados ────────────────── */
+:root[data-theme='dark'] .section-highlights-sidebar {
+    background: var(--bg);
+}
 :root[data-theme='dark'] .sidebar-accordion {
     background: var(--surface);
 }
