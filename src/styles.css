@@ -41,6 +41,29 @@
     color-scheme: dark;
 }
 
+/* ── Scrollbar global ────────────────────────────────────────────────────── */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
 :root[data-theme='dark'] .insight-card-title,
 :root[data-theme='dark'] .insight-card-author,
 :root[data-theme='dark'] .insight-card-date,
