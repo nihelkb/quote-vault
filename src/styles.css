@@ -23,21 +23,26 @@
 }
 
 :root[data-theme='dark'] {
-    --bg: #11151a;
-    --surface: #1a2028;
-    --bg-light: #202734;
+    --bg: #0f1318;
+    --surface: #1b2230;
+    --bg-light: #232d3e;
     --text: #eef2f7;
     --text-primary: #eef2f7;
-    --text-light: #b2bcc9;
-    --text-muted: #98a3b1;
-    --border: #2b3442;
+    --text-light: #c0c9d8;
+    --text-muted: #8d99aa;
+    --border: #2d3a4d;
     --accent: #d4dbea;
     --accent-strong: #5b74a6;
     --accent-strong-hover: #6f89bd;
-    --tag-bg: #232c3a;
+    --tag-bg: #293344;
     --favor: #6ec5a1;
     --against: #ef8e99;
     --neutral: #b4bfcb;
+    /* Topic icon */
+    --icon-bg-start: #232d3e;
+    --icon-bg-end:   #1b2230;
+    --icon-border:   #2d3a4d;
+    --icon-color:    #8d99aa;
     color-scheme: dark;
 }
 
@@ -69,6 +74,332 @@
 :root[data-theme='dark'] .topic-detail-header,
 :root[data-theme='dark'] .coming-soon-notice {
     background: var(--bg-light);
+}
+
+/* ── Dark mode: corrige colores hardcodeados ─────────────────────────────── */
+
+/* Tooltip */
+:root[data-theme='dark'] .tooltip-bubble {
+    background: var(--surface);
+    border-color: var(--border);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+:root[data-theme='dark'] .tooltip-bubble[data-position="top"]::after    { border-top-color:    var(--surface); }
+:root[data-theme='dark'] .tooltip-bubble[data-position="bottom"]::after { border-bottom-color: var(--surface); }
+:root[data-theme='dark'] .tooltip-bubble[data-position="left"]::after   { border-left-color:   var(--surface); }
+:root[data-theme='dark'] .tooltip-bubble[data-position="right"]::after  { border-right-color:  var(--surface); }
+
+/* Section cards (topic detail) */
+:root[data-theme='dark'] .section-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+:root[data-theme='dark'] .section-card:hover {
+    border-color: var(--accent-strong);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+}
+:root[data-theme='dark'] .section-card-icon {
+    background: var(--bg-light);
+    border-color: var(--border);
+    color: var(--text-muted);
+}
+:root[data-theme='dark'] .section-card-count {
+    background: var(--bg-light);
+    color: var(--text-muted);
+    border-color: var(--border);
+}
+:root[data-theme='dark'] .section-card-preview-text,
+:root[data-theme='dark'] .section-card-content p,
+:root[data-theme='dark'] .section-card-content li {
+    color: var(--text-light);
+}
+/* Gradiente de fade: de transparente a var(--surface) en lugar de blanco */
+:root[data-theme='dark'] .section-card-content::after {
+    background: linear-gradient(to bottom, transparent, var(--surface));
+}
+
+/* Back button en topic/insight header */
+:root[data-theme='dark'] .topic-detail-header .btn-back {
+    background: var(--tag-bg);
+    border-color: var(--border);
+    color: var(--text-light);
+}
+:root[data-theme='dark'] .topic-detail-header .btn-back:hover {
+    background: var(--bg-light);
+    border-color: var(--accent-strong);
+    color: var(--text);
+}
+
+/* Topic insights sidebar */
+:root[data-theme='dark'] .insight-sidebar-card .insight-card-title {
+    color: var(--text);
+}
+:root[data-theme='dark'] .topic-insights-sidebar {
+    background: var(--bg-light);
+}
+:root[data-theme='dark'] .insight-sidebar-card {
+    background: var(--surface);
+    box-shadow: none;
+}
+:root[data-theme='dark'] .insight-sidebar-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    border-color: var(--accent-strong);
+}
+:root[data-theme='dark'] .insight-sidebar-card .insight-card-status.draft {
+    background: rgba(247, 212, 75, 0.15);
+    color: #f7d44b;
+}
+:root[data-theme='dark'] .insight-sidebar-card .insight-card-status.reviewed {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+}
+:root[data-theme='dark'] .insight-sidebar-card .insight-card-status.integrated {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+}
+
+/* Insight tabs */
+:root[data-theme='dark'] .insight-tab:hover {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text);
+}
+:root[data-theme='dark'] .insight-tab.active {
+    color: var(--text);
+    background: var(--surface);
+    border-bottom-color: var(--accent-strong);
+}
+
+/* ── Dark mode: Insights headers / page header ───────────────────────────── */
+:root[data-theme='dark'] .insights-page-header,
+:root[data-theme='dark'] .insights-header {
+    background: var(--bg-light);
+}
+
+/* ── Dark mode: Insight status badges y dropdowns de estado ──────────────── */
+:root[data-theme='dark'] .insight-status-badge.draft,
+:root[data-theme='dark'] .status-option.draft { color: #f7d44b; }
+:root[data-theme='dark'] .insight-status-badge.reviewed,
+:root[data-theme='dark'] .status-option.reviewed { color: #60a5fa; }
+:root[data-theme='dark'] .insight-status-badge.integrated,
+:root[data-theme='dark'] .status-option.integrated { color: #34d399; }
+:root[data-theme='dark'] .insight-status-badge.discarded,
+:root[data-theme='dark'] .status-option.discarded { color: var(--text-muted); }
+
+/* ── Dark mode: Insight source description ───────────────────────────────── */
+:root[data-theme='dark'] .insight-source-description {
+    background: var(--bg-light);
+    border-left-color: var(--accent-strong);
+    color: var(--text-light);
+}
+:root[data-theme='dark'] .insight-source-description summary:hover {
+    background: var(--tag-bg);
+    color: var(--text);
+}
+:root[data-theme='dark'] .insight-source-description[open] summary {
+    color: var(--text);
+    border-bottom-color: var(--border);
+}
+:root[data-theme='dark'] .insight-source-description-body {
+    background: var(--bg-light);
+    border-left-color: var(--accent-strong);
+}
+
+/* ── Dark mode: Insight card hover actions ───────────────────────────────── */
+:root[data-theme='dark'] .insight-card-action:hover {
+    background: var(--bg-light);
+}
+
+/* ── Dark mode: Inputs de búsqueda (topic detail y wiki header) ──────────── */
+:root[data-theme='dark'] .topic-detail-header .search-input-wrapper,
+:root[data-theme='dark'] .header-search {
+    background: var(--bg-light);
+    border-color: var(--border);
+    color: var(--text-muted);
+}
+:root[data-theme='dark'] .header-search:focus-within,
+:root[data-theme='dark'] .topic-detail-header .search-input-wrapper:focus-within {
+    background: var(--surface);
+    border-color: var(--accent-strong);
+}
+:root[data-theme='dark'] .topic-detail-header .search-input-placeholder,
+:root[data-theme='dark'] .topic-detail-header .search-input {
+    color: var(--text-muted);
+}
+
+/* ── Dark mode: Section detail modal (editor de sección) ─────────────────── */
+:root[data-theme='dark'] .section-detail-content {
+    background: var(--bg);
+}
+:root[data-theme='dark'] .section-detail-header {
+    background: var(--surface);
+    border-bottom-color: var(--border);
+}
+:root[data-theme='dark'] .section-detail-sidebar {
+    background: var(--surface);
+    border-left-color: var(--border);
+}
+
+/* ── Dark mode: Markdown preview pane ───────────────────────────────────── */
+:root[data-theme='dark'] .md-preview-pane,
+:root[data-theme='dark'] .section-detail-body .md-preview-pane {
+    background: var(--bg);
+}
+:root[data-theme='dark'] .md-preview-pane blockquote,
+:root[data-theme='dark'] .section-detail-body blockquote {
+    background: var(--bg-light);
+    border-left-color: var(--accent-strong);
+}
+:root[data-theme='dark'] .md-preview-pane code,
+:root[data-theme='dark'] .section-detail-body code {
+    background: var(--bg-light);
+    border-color: var(--border);
+    color: var(--text-light);
+}
+:root[data-theme='dark'] .md-preview-pane pre,
+:root[data-theme='dark'] .section-detail-body pre {
+    background: var(--bg-light);
+    border-color: var(--border);
+}
+:root[data-theme='dark'] .md-preview-pane hr,
+:root[data-theme='dark'] .section-detail-body hr {
+    border-top-color: var(--border);
+}
+:root[data-theme='dark'] .section-detail-body h1,
+:root[data-theme='dark'] .section-detail-body h2,
+:root[data-theme='dark'] .section-detail-body h3 {
+    border-bottom-color: var(--border);
+}
+
+/* ── Dark mode: Markdown toolbar dropdown ────────────────────────────────── */
+:root[data-theme='dark'] .md-toolbar-dropdown-menu {
+    background: var(--surface);
+    border-color: var(--border);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+:root[data-theme='dark'] .entry-form-toolbar {
+    background: var(--surface);
+    border-bottom-color: var(--border);
+}
+
+/* ── Dark mode: TOC sidebar ──────────────────────────────────────────────── */
+:root[data-theme='dark'] .sidebar-toc a {
+    color: var(--text-muted);
+}
+:root[data-theme='dark'] .sidebar-toc a:hover {
+    color: var(--text);
+}
+:root[data-theme='dark'] .sidebar-toc a.active {
+    color: var(--text);
+    border-left-color: var(--accent-strong);
+}
+:root[data-theme='dark'] .sidebar-toc-item.section {
+    color: var(--text-light);
+}
+
+/* ── Dark mode: Sidebar accordion y highlights vinculados ────────────────── */
+:root[data-theme='dark'] .sidebar-accordion {
+    background: var(--surface);
+}
+:root[data-theme='dark'] .linked-highlight-item {
+    background: var(--bg-light);
+    border-color: var(--border);
+}
+
+/* ── Dark mode: Section card acciones ────────────────────────────────────── */
+:root[data-theme='dark'] .section-card-actions .btn-icon-small {
+    background: var(--surface);
+    border-color: var(--border);
+}
+:root[data-theme='dark'] .section-card-actions .btn-icon-small:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #f87171;
+}
+
+/* ── Dark mode: Modales genéricos ────────────────────────────────────────── */
+:root[data-theme='dark'] .modal-content {
+    background: var(--surface);
+}
+:root[data-theme='dark'] .modal-header {
+    border-bottom-color: var(--border);
+}
+:root[data-theme='dark'] .btn-close:hover {
+    background: var(--tag-bg);
+}
+:root[data-theme='dark'] .entry-form-modal {
+    background: var(--surface);
+}
+
+/* ── Dark mode: Icon picker ──────────────────────────────────────────────── */
+:root[data-theme='dark'] .icon-picker-grid .icon-btn {
+    background: var(--bg-light);
+    border-color: var(--border);
+    color: var(--text-muted);
+}
+:root[data-theme='dark'] .icon-picker-grid .icon-btn:hover {
+    background: var(--tag-bg);
+    border-color: var(--accent-strong);
+    color: var(--text);
+}
+:root[data-theme='dark'] .icon-option {
+    background: var(--bg-light);
+    border-color: var(--border);
+    color: var(--text-muted);
+}
+
+/* ── Dark mode: Entry notes y lista de entradas ──────────────────────────── */
+:root[data-theme='dark'] .entry-item-notes {
+    background: var(--bg-light);
+}
+:root[data-theme='dark'] .entries-list .entry-item:hover {
+    background: var(--bg-light);
+}
+
+/* ── Dark mode: Entry badges ─────────────────────────────────────────────── */
+:root[data-theme='dark'] .entry-badge.verified,
+:root[data-theme='dark'] .entry-badge.high {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+}
+:root[data-theme='dark'] .entry-badge.unverified,
+:root[data-theme='dark'] .entry-badge.low {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+}
+:root[data-theme='dark'] .entry-badge.medium {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+}
+
+/* ── Dark mode: Note type buttons (active backgrounds) ───────────────────── */
+:root[data-theme='dark'] .note-type-btn[data-type="key"].active {
+    background: rgba(245, 158, 11, 0.12);
+}
+:root[data-theme='dark'] .note-type-btn[data-type="question"].active {
+    background: rgba(139, 92, 246, 0.12);
+}
+:root[data-theme='dark'] .note-type-btn[data-type="idea"].active {
+    background: rgba(16, 185, 129, 0.12);
+}
+:root[data-theme='dark'] .note-type-btn[data-type="todo"].active {
+    background: rgba(59, 130, 246, 0.12);
+}
+
+/* ── Dark mode: Filters panel actions ────────────────────────────────────── */
+:root[data-theme='dark'] .filters-panel-actions {
+    background: var(--surface);
+    border-top-color: var(--border);
+}
+
+/* ── Dark mode: Topic tags border ────────────────────────────────────────── */
+:root[data-theme='dark'] .topic-tag {
+    border-color: var(--border);
+}
+
+/* ── Dark mode: Coming soon notice text ──────────────────────────────────── */
+:root[data-theme='dark'] .coming-soon-notice {
+    color: var(--text-light);
 }
 
 * {
@@ -2019,19 +2350,33 @@ header {
     height: 16px;
 }
 
-/* Topic Icon Colors by Category */
-.topic-icon[data-icon="folder"], .topic-icon-small[data-icon="folder"] { color: #8b7355; }
-.topic-icon[data-icon="globe"], .topic-icon-small[data-icon="globe"] { color: #5b8a72; }
-.topic-icon[data-icon="coin"], .topic-icon-small[data-icon="coin"] { color: #b8860b; }
-.topic-icon[data-icon="scale"], .topic-icon-small[data-icon="scale"] { color: #7b68a0; }
+/* Topic Icon Colors by Category — light mode */
+.topic-icon[data-icon="folder"],   .topic-icon-small[data-icon="folder"]   { color: #8b7355; }
+.topic-icon[data-icon="globe"],    .topic-icon-small[data-icon="globe"]    { color: #5b8a72; }
+.topic-icon[data-icon="coin"],     .topic-icon-small[data-icon="coin"]     { color: #b8860b; }
+.topic-icon[data-icon="scale"],    .topic-icon-small[data-icon="scale"]    { color: #7b68a0; }
 .topic-icon[data-icon="building"], .topic-icon-small[data-icon="building"] { color: #6b7b8a; }
-.topic-icon[data-icon="flask"], .topic-icon-small[data-icon="flask"] { color: #4a90a0; }
-.topic-icon[data-icon="code"], .topic-icon-small[data-icon="code"] { color: #6b8e5a; }
-.topic-icon[data-icon="brain"], .topic-icon-small[data-icon="brain"] { color: #a07080; }
-.topic-icon[data-icon="book"], .topic-icon-small[data-icon="book"] { color: #8b6b5a; }
-.topic-icon[data-icon="target"], .topic-icon-small[data-icon="target"] { color: #c07050; }
-.topic-icon[data-icon="heart"], .topic-icon-small[data-icon="heart"] { color: #c07080; }
-.topic-icon[data-icon="star"], .topic-icon-small[data-icon="star"] { color: #c0a050; }
+.topic-icon[data-icon="flask"],    .topic-icon-small[data-icon="flask"]    { color: #4a90a0; }
+.topic-icon[data-icon="code"],     .topic-icon-small[data-icon="code"]     { color: #6b8e5a; }
+.topic-icon[data-icon="brain"],    .topic-icon-small[data-icon="brain"]    { color: #a07080; }
+.topic-icon[data-icon="book"],     .topic-icon-small[data-icon="book"]     { color: #8b6b5a; }
+.topic-icon[data-icon="target"],   .topic-icon-small[data-icon="target"]   { color: #c07050; }
+.topic-icon[data-icon="heart"],    .topic-icon-small[data-icon="heart"]    { color: #c07080; }
+.topic-icon[data-icon="star"],     .topic-icon-small[data-icon="star"]     { color: #c0a050; }
+
+/* Topic Icon Colors by Category — dark mode (versiones más luminosas) */
+:root[data-theme='dark'] .topic-icon[data-icon="folder"],   :root[data-theme='dark'] .topic-icon-small[data-icon="folder"]   { color: #c4a882; }
+:root[data-theme='dark'] .topic-icon[data-icon="globe"],    :root[data-theme='dark'] .topic-icon-small[data-icon="globe"]    { color: #6ec5a1; }
+:root[data-theme='dark'] .topic-icon[data-icon="coin"],     :root[data-theme='dark'] .topic-icon-small[data-icon="coin"]     { color: #f0b429; }
+:root[data-theme='dark'] .topic-icon[data-icon="scale"],    :root[data-theme='dark'] .topic-icon-small[data-icon="scale"]    { color: #a78bd4; }
+:root[data-theme='dark'] .topic-icon[data-icon="building"], :root[data-theme='dark'] .topic-icon-small[data-icon="building"] { color: #8da5be; }
+:root[data-theme='dark'] .topic-icon[data-icon="flask"],    :root[data-theme='dark'] .topic-icon-small[data-icon="flask"]    { color: #5bc0d4; }
+:root[data-theme='dark'] .topic-icon[data-icon="code"],     :root[data-theme='dark'] .topic-icon-small[data-icon="code"]     { color: #85c46a; }
+:root[data-theme='dark'] .topic-icon[data-icon="brain"],    :root[data-theme='dark'] .topic-icon-small[data-icon="brain"]    { color: #d490aa; }
+:root[data-theme='dark'] .topic-icon[data-icon="book"],     :root[data-theme='dark'] .topic-icon-small[data-icon="book"]     { color: #c49a80; }
+:root[data-theme='dark'] .topic-icon[data-icon="target"],   :root[data-theme='dark'] .topic-icon-small[data-icon="target"]   { color: #e8906a; }
+:root[data-theme='dark'] .topic-icon[data-icon="heart"],    :root[data-theme='dark'] .topic-icon-small[data-icon="heart"]    { color: #ef8e99; }
+:root[data-theme='dark'] .topic-icon[data-icon="star"],     :root[data-theme='dark'] .topic-icon-small[data-icon="star"]     { color: #f0c060; }
 
 /* Insights Grid - Flex Columns Layout */
 .insights-grid {
