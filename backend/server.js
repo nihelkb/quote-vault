@@ -133,45 +133,111 @@ async function getYTDlpWrap() {
 
 // ─── InnerTube API (más fiable que scraping HTML desde IPs de datacenter) ─────
 
-function fetchPlayerResponseFromInnerTube(videoId) {
+/**
+ * IMPORTANTE: YouTube rechaza versiones de cliente obsoletas — devuelve HTTP 400
+ * o playabilityStatus=LOGIN_REQUIRED. Cuando la transcripción deje de funcionar,
+ * lo primero que hay que revisar son estas versiones. La referencia viva está en
+ * INNERTUBE_CLIENTS de yt-dlp:
+ * https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/extractor/youtube/_base.py
+ *
+ * Se pueden sobrescribir sin tocar código con las env vars YT_<CLIENTE>_VERSION.
+ */
+const IOS_VERSION = process.env.YT_IOS_VERSION || '21.26.4';
+const ANDROID_VERSION = process.env.YT_ANDROID_VERSION || '21.26.364';
+const ANDROID_VR_VERSION = process.env.YT_ANDROID_VR_VERSION || '1.65.10';
+
+// Se prueban en orden hasta que uno devuelva un player response utilizable.
+const INNERTUBE_CLIENTS = [
+    {
+        name: 'IOS',
+        context: {
+            clientName: 'IOS',
+            clientVersion: IOS_VERSION,
+            deviceMake: 'Apple',
+            deviceModel: 'iPhone16,2',
+            osName: 'iPhone',
+            osVersion: '18.5.22F76',
+            hl: 'en',
+            gl: 'US',
+            utcOffsetMinutes: 0
+        },
+        headers: {
+            'User-Agent': `com.google.ios.youtube/${IOS_VERSION} (iPhone16,2; U; CPU iOS 18_5 like Mac OS X; en_US)`,
+            'X-YouTube-Client-Name': '5',
+            'X-YouTube-Client-Version': IOS_VERSION
+        }
+    },
+    {
+        name: 'ANDROID',
+        context: {
+            clientName: 'ANDROID',
+            clientVersion: ANDROID_VERSION,
+            androidSdkVersion: 34,
+            osName: 'Android',
+            osVersion: '14',
+            hl: 'en',
+            gl: 'US',
+            utcOffsetMinutes: 0
+        },
+        headers: {
+            'User-Agent': `com.google.android.youtube/${ANDROID_VERSION} (Linux; U; Android 14; en_US) gzip`,
+            'X-YouTube-Client-Name': '3',
+            'X-YouTube-Client-Version': ANDROID_VERSION
+        }
+    },
+    {
+        name: 'ANDROID_VR',
+        context: {
+            clientName: 'ANDROID_VR',
+            clientVersion: ANDROID_VR_VERSION,
+            deviceMake: 'Oculus',
+            deviceModel: 'Quest 3',
+            osName: 'Android',
+            osVersion: '12',
+            androidSdkVersion: 32,
+            hl: 'en',
+            gl: 'US',
+            utcOffsetMinutes: 0
+        },
+        headers: {
+            'User-Agent': `com.google.android.apps.youtube.vr.oculus/${ANDROID_VR_VERSION} (Linux; U; Android 12; en_US; Quest 3) gzip`,
+            'X-YouTube-Client-Name': '28',
+            'X-YouTube-Client-Version': ANDROID_VR_VERSION
+        }
+    }
+];
+
+function requestPlayerResponse(videoId, client) {
     return new Promise((resolve, reject) => {
         const payload = JSON.stringify({
             videoId,
-            context: {
-                client: {
-                    clientName: 'IOS',
-                    clientVersion: '19.29.1',
-                    deviceModel: 'iPhone16,2',
-                    hl: 'en',
-                    gl: 'US',
-                    utcOffsetMinutes: 0
-                }
-            }
+            context: { client: client.context },
+            contentCheckOk: true,
+            racyCheckOk: true
         });
 
-        const options = {
+        const req = https.request({
             hostname: 'www.youtube.com',
             path: '/youtubei/v1/player',
             method: 'POST',
             headers: {
+                ...client.headers,
                 'Content-Type': 'application/json',
                 'Content-Length': Buffer.byteLength(payload),
-                'User-Agent': 'com.google.ios.youtube/19.29.1 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X)',
-                'X-YouTube-Client-Name': '5',
-                'X-YouTube-Client-Version': '19.29.1',
-                'Origin': 'https://www.youtube.com',
                 'Accept-Language': 'en-US,en;q=0.9'
             }
-        };
-
-        const req = https.request(options, (res) => {
+        }, (res) => {
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
+                if (res.statusCode < 200 || res.statusCode >= 300) {
+                    reject(new Error(`InnerTube ${client.name} returned HTTP ${res.statusCode}`));
+                    return;
+                }
                 try {
                     resolve(JSON.parse(data));
-                } catch (e) {
-                    reject(new Error('Failed to parse InnerTube response'));
+                } catch {
+                    reject(new Error(`Failed to parse InnerTube ${client.name} response`));
                 }
             });
         });
@@ -180,6 +246,47 @@ function fetchPlayerResponseFromInnerTube(videoId) {
         req.write(payload);
         req.end();
     });
+}
+
+/**
+ * Recorre los clientes hasta obtener un player response reproducible.
+ * @param {string} videoId
+ * @param {boolean} requireCaptions - si true, sigue probando mientras no haya captionTracks
+ */
+async function fetchPlayerResponseFromInnerTube(videoId, requireCaptions = false) {
+    let lastUsable = null;
+    const failures = [];
+
+    for (const client of INNERTUBE_CLIENTS) {
+        let playerResponse;
+        try {
+            playerResponse = await requestPlayerResponse(videoId, client);
+        } catch (error) {
+            failures.push(`${client.name}: ${error.message}`);
+            continue;
+        }
+
+        const status = playerResponse?.playabilityStatus?.status;
+        if (status && status !== 'OK') {
+            const reason = playerResponse.playabilityStatus.reason || '';
+            failures.push(`${client.name}: ${status}${reason ? ` (${reason})` : ''}`);
+            continue;
+        }
+
+        const hasCaptions = Boolean(
+            playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks?.length
+        );
+        console.log(`[InnerTube] ${client.name} OK | captions: ${hasCaptions ? 'sí' : 'no'}`);
+
+        if (!requireCaptions || hasCaptions) return playerResponse;
+
+        // Sirve para metadatos aunque no traiga subtítulos; seguimos buscando uno que sí.
+        lastUsable = lastUsable || playerResponse;
+        failures.push(`${client.name}: sin captionTracks`);
+    }
+
+    if (lastUsable) return lastUsable;
+    throw new Error(`Todos los clientes InnerTube fallaron — ${failures.join(' | ')}`);
 }
 
 // ─── Transcript helpers ───────────────────────────────────────────────────────
@@ -225,7 +332,9 @@ function pickSubtitleTrackFromYtDlp(subtitlesSource, requestedLang) {
 async function fetchTranscriptWithYtDlp(videoId, lang) {
     const videoURL = `https://www.youtube.com/watch?v=${videoId}`;
     const ytDlp = await getYTDlpWrap();
-    const videoInfo = await ytDlp.getVideoInfo([videoURL, '--extractor-args', 'youtube:player_client=ios,web']);
+    // Sin forzar player_client: yt-dlp mantiene su propia lista de clientes válidos
+    // y fijarla aquí es justo lo que dejó de funcionar antes (ios,web están rotos).
+    const videoInfo = await ytDlp.getVideoInfo([videoURL]);
 
     let subtitlesSource = videoInfo.subtitles;
     if (!subtitlesSource || Object.keys(subtitlesSource).length === 0) {
@@ -297,7 +406,7 @@ function parseVTTSubtitles(vttText) {
         const timestampMatch = line.match(/^(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\.(\d{3})/);
 
         if (timestampMatch) {
-            if (currentSegment && currentSegment.text) segments.push(currentSegment);
+            if (currentSegment && currentSegment.lines.length) segments.push(currentSegment);
 
             const startMs = (
                 parseInt(timestampMatch[1]) * 3600000 +
@@ -312,15 +421,42 @@ function parseVTTSubtitles(vttText) {
                 parseInt(timestampMatch[8])
             );
 
-            currentSegment = { text: '', offset: startMs, duration: endMs - startMs };
+            currentSegment = { lines: [], offset: startMs, duration: endMs - startMs };
         } else if (currentSegment && line && !line.startsWith('WEBVTT') && !line.startsWith('Kind:') && !line.startsWith('Language:')) {
-            currentSegment.text += (currentSegment.text ? '\n' : '') + line;
+            // Los subtítulos auto-generados traen marcas de karaoke palabra a palabra
+            // — <00:00:00.533><c>que </c> — que hay que quitar o acaban en pantalla.
+            const clean = line
+                .replace(/<\d{2}:\d{2}:\d{2}\.\d{3}>/g, '')
+                .replace(/<\/?c[^>]*>/g, '')
+                .replace(/<[^>]+>/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            if (clean) currentSegment.lines.push(clean);
         }
     }
 
-    if (currentSegment && currentSegment.text) segments.push(currentSegment);
+    if (currentSegment && currentSegment.lines.length) segments.push(currentSegment);
 
-    return segments;
+    // El VTT auto-generado usa subtítulos "rodantes": cada cue reimprime la última
+    // línea del anterior más una nueva. Quedarnos sólo con las líneas que no venían
+    // ya en el cue previo evita que salga todo el texto duplicado.
+    const result = [];
+    let previousLines = [];
+
+    for (const segment of segments) {
+        const fresh = segment.lines.filter(l => !previousLines.includes(l));
+        previousLines = segment.lines;
+        if (!fresh.length) continue;
+
+        result.push({
+            text: fresh.join('\n'),
+            offset: segment.offset,
+            duration: segment.duration
+        });
+    }
+
+    return result;
 }
 
 // ─── Video-metadata helpers ───────────────────────────────────────────────────
@@ -412,63 +548,107 @@ function extractDescriptionFallback(description) {
     return contentLines.join(' ').substring(0, 350) || null;
 }
 
-// ─── Timedtext API (endpoint público, no bloqueado por IP) ────────────────────
+// ─── Selección y descarga de pistas de subtítulos ─────────────────────────────
 
-async function fetchTranscriptFromTimedText(videoId, lang) {
-    console.log('[TimedText] Fetching caption list...');
-
-    let listXml;
-    try {
-        listXml = await fetchURL(`https://www.youtube.com/api/timedtext?type=list&v=${videoId}`);
-    } catch {
-        return null;
-    }
-    if (!listXml || !listXml.includes('<track')) return null;
-
-    // Parse tracks from XML
-    const tracks = [];
-    const trackPat = /<track\s([^>]+?)(?:\s*\/?>)/g;
-    let m;
-    while ((m = trackPat.exec(listXml)) !== null) {
-        const attrs = {};
-        const attrPat = /(\w+)="([^"]*)"/g;
-        let a;
-        while ((a = attrPat.exec(m[1])) !== null) attrs[a[1]] = a[2];
-        if (attrs.lang_code) tracks.push(attrs);
-    }
+/**
+ * Elige la mejor pista para el idioma pedido.
+ * Prefiere subtítulos manuales sobre auto-generados (kind === 'asr').
+ * Si no existe el idioma pedido pero YouTube ofrece traducción automática,
+ * devuelve translateTo para pedirla con el parámetro tlang.
+ */
+function selectCaptionTrack(captionsRenderer, requestedLang) {
+    const tracks = captionsRenderer?.captionTracks || [];
     if (!tracks.length) return null;
 
-    // Select best track for requested language
-    let selected = null;
-    if (lang && lang !== 'auto') {
-        selected = tracks.find(t => t.lang_code === lang)
-            || tracks.find(t => t.lang_code?.startsWith(lang));
-    }
-    if (!selected) {
-        selected = tracks.find(t => t.lang_default === 'true')
-            || tracks.find(t => t.lang_code === 'en')
-            || tracks[0];
+    const preferManual = (candidates) =>
+        candidates.find(t => t.kind !== 'asr') || candidates[0];
+
+    if (requestedLang && requestedLang !== 'auto') {
+        const exact = tracks.filter(t => t.languageCode === requestedLang);
+        if (exact.length) {
+            return { track: preferManual(exact), language: requestedLang, isOriginal: false };
+        }
+
+        // es → es-419, pt → pt-BR, etc.
+        const regional = tracks.filter(t => t.languageCode?.startsWith(`${requestedLang}-`));
+        if (regional.length) {
+            const track = preferManual(regional);
+            return { track, language: track.languageCode, isOriginal: false };
+        }
+
+        // Sin pista nativa: pedir traducción automática si está disponible.
+        const canTranslate = (captionsRenderer.translationLanguages || [])
+            .some(l => l.languageCode === requestedLang);
+        if (canTranslate) {
+            const base = tracks.find(t => t.kind !== 'asr') || tracks[0];
+            return { track: base, language: requestedLang, isOriginal: false, translateTo: requestedLang };
+        }
     }
 
-    const params = new URLSearchParams({ v: videoId, lang: selected.lang_code, fmt: 'json3' });
-    if (selected.name) params.set('name', selected.name);
+    // auto: idioma original del vídeo.
+    // Las pistas vienen ordenadas alfabéticamente, así que tracks[0] suele ser
+    // árabe y no el original. La pista buena la marca YouTube en audioTracks.
+    const audioTracks = captionsRenderer.audioTracks || [];
+    const defaultAudio = audioTracks[captionsRenderer.defaultAudioTrackIndex || 0];
+    const original =
+        tracks[defaultAudio?.defaultCaptionTrackIndex]        // preferencia de YouTube
+        || tracks.find(t => t.kind === 'asr')                  // ASR = idioma hablado
+        || tracks[0];
 
-    console.log('[TimedText] Fetching transcript, lang:', selected.lang_code);
-    let transcriptJson;
-    try {
-        transcriptJson = await fetchURL(`https://www.youtube.com/api/timedtext?${params}`);
-    } catch {
-        return null;
-    }
-    if (!transcriptJson) return null;
-
-    const segments = parseJSON3Subtitles(transcriptJson);
-    if (!segments.length) return null;
+    const originalLang = original.languageCode;
+    // Si el original es auto-generado pero hay subtítulos manuales del mismo
+    // idioma, esos tienen mejor puntuación y puntuación de frases.
+    const manual = tracks.find(t => t.languageCode === originalLang && t.kind !== 'asr');
 
     return {
-        content: segments,
-        language: selected.lang_code,
-        isOriginal: selected.lang_default === 'true' || !lang || lang === 'auto'
+        track: manual || original,
+        language: originalLang || 'auto',
+        isOriginal: true
+    };
+}
+
+/**
+ * Descarga una pista. Intenta json3 y cae a vtt.
+ * Devuelve null si YouTube responde vacío (típico cuando baseUrl lleva exp=xpe,
+ * que exige un PoToken generado por el player JS y no podemos producir aquí).
+ */
+async function downloadCaptionTrack(track, translateTo) {
+    for (const format of ['json3', 'vtt']) {
+        let url;
+        try {
+            url = new URL(track.baseUrl);
+        } catch {
+            return null;
+        }
+        url.searchParams.set('fmt', format);
+        if (translateTo) url.searchParams.set('tlang', translateTo);
+
+        const body = await fetchURL(url.toString()).catch(() => null);
+        if (!body || body.length === 0) continue;
+
+        try {
+            const segments = format === 'json3'
+                ? parseJSON3Subtitles(body)
+                : parseVTTSubtitles(body);
+            if (segments.length) return segments;
+        } catch {
+            // formato inesperado — probamos el siguiente
+        }
+    }
+
+    return null;
+}
+
+function buildVideoInfo(playerResponse) {
+    const details = playerResponse?.videoDetails;
+    if (!details) return null;
+
+    return {
+        title: details.title || null,
+        duration: Number.parseInt(details.lengthSeconds, 10) || null,
+        thumbnail: details.thumbnail?.thumbnails?.slice(-1)[0]?.url || null,
+        uploader: details.author || null,
+        description: details.shortDescription || null
     };
 }
 
@@ -489,91 +669,72 @@ app.get('/api/transcript', async (req, res) => {
             return res.status(400).json({ message: 'videoId is required' });
         }
 
+        // Estrategia 1: InnerTube. Es la vía rápida y, a diferencia de yt-dlp,
+        // no la bloquean desde IPs de datacenter (Render/Koyeb).
+        let playerResponse = null;
         try {
+            playerResponse = await fetchPlayerResponseFromInnerTube(videoId, true);
+            const captionsRenderer = playerResponse?.captions?.playerCaptionsTracklistRenderer;
+            const selection = selectCaptionTrack(captionsRenderer, lang);
+
+            if (selection) {
+                console.log(
+                    '[Transcript] Pista elegida:', selection.language,
+                    selection.translateTo ? '(traducida vía tlang)' : `(${selection.track.kind || 'manual'})`
+                );
+
+                let segments = await downloadCaptionTrack(selection.track, selection.translateTo);
+                let resolved = selection;
+
+                // Las peticiones con tlang las limita YouTube (HTTP 429) mucho antes
+                // que las normales. Antes que devolver 404, servimos el original:
+                // una transcripción en otro idioma es más útil que ninguna.
+                if (!segments && !selection.isOriginal) {
+                    console.warn('[Transcript] Falló', selection.language, '— repliego al idioma original');
+                    const fallback = selectCaptionTrack(captionsRenderer, 'auto');
+                    if (fallback) {
+                        segments = await downloadCaptionTrack(fallback.track);
+                        if (segments) resolved = fallback;
+                    }
+                }
+
+                if (segments) {
+                    console.log(`[Transcript] Éxito vía InnerTube — ${segments.length} segmentos (${resolved.language})`);
+                    return res.json({
+                        content: segments,
+                        language: resolved.language,
+                        isOriginal: resolved.isOriginal,
+                        // Avisa al frontend de que no es el idioma que se pidió.
+                        requestedLanguage: lang,
+                        languageFallback: resolved.language !== selection.language,
+                        videoInfo: buildVideoInfo(playerResponse)
+                    });
+                }
+                console.warn('[Transcript] La descarga de la pista vino vacía');
+            } else {
+                console.warn('[Transcript] El vídeo no expone captionTracks');
+            }
+        } catch (innerTubeError) {
+            console.warn('[Transcript] InnerTube falló:', innerTubeError.message);
+        }
+
+        // Estrategia 2: yt-dlp. Más lento (descarga el binario) y propenso a que
+        // YouTube lo bloquee por bot en la nube, pero cubre casos que InnerTube no.
+        try {
+            console.log('[Transcript] Probando fallback con yt-dlp...');
             const ytDlpResult = await fetchTranscriptWithYtDlp(videoId, lang);
             if (ytDlpResult) {
-                console.log('[Transcript] Success via yt-dlp');
+                console.log('[Transcript] Éxito vía yt-dlp —', ytDlpResult.content.length, 'segmentos');
                 return res.json(ytDlpResult);
             }
         } catch (ytDlpError) {
-            console.warn('[Transcript] yt-dlp strategy failed, using fallback:', ytDlpError.message);
+            console.warn('[Transcript] yt-dlp falló:', ytDlpError.message);
         }
 
-        // Fallback 1: InnerTube iOS — devuelve captionTracks con URLs de descarga
-        console.log('[Transcript] Trying InnerTube iOS fallback...');
-        const playerResponse = await fetchPlayerResponseFromInnerTube(videoId);
-        const captionTracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
-
-        if (captionTracks.length) {
-            let usedLanguage = lang;
-            let isOriginal = false;
-            let selectedTrack = null;
-
-            if (lang && lang !== 'auto') {
-                selectedTrack = captionTracks.find(t => t.languageCode === lang)
-                    || captionTracks.find(t => t.languageCode?.startsWith(`${lang}-`))
-                    || captionTracks.find(t => t.vssId?.includes(`.${lang}`));
-            }
-            if (!selectedTrack) {
-                selectedTrack = captionTracks.find(t => t.languageCode === 'en') || captionTracks[0];
-                usedLanguage = selectedTrack.languageCode || 'auto';
-                isOriginal = true;
-            } else {
-                usedLanguage = selectedTrack.languageCode || usedLanguage;
-            }
-
-            const json3Url = `${selectedTrack.baseUrl}${selectedTrack.baseUrl.includes('?') ? '&' : '?'}fmt=json3`;
-            const vttUrl = `${selectedTrack.baseUrl}${selectedTrack.baseUrl.includes('?') ? '&' : '?'}fmt=vtt`;
-
-            console.log('[Transcript] Downloading subtitle via InnerTube captionTrack...');
-            let subtitleContent = await fetchURL(json3Url).catch(() => null);
-            let subtitleFormat = 'json3';
-            if (!subtitleContent) {
-                subtitleContent = await fetchURL(vttUrl).catch(() => null);
-                subtitleFormat = 'vtt';
-            }
-
-            if (subtitleContent && subtitleContent.length > 0) {
-                const segments = subtitleFormat === 'json3'
-                    ? parseJSON3Subtitles(subtitleContent)
-                    : parseVTTSubtitles(subtitleContent);
-
-                if (segments.length > 0) {
-                    console.log('[Transcript] Success via InnerTube! Got', segments.length, 'segments');
-                    return res.json({
-                        content: segments,
-                        language: usedLanguage,
-                        isOriginal,
-                        videoInfo: {
-                            title: playerResponse?.videoDetails?.title || null,
-                            duration: Number.parseInt(playerResponse?.videoDetails?.lengthSeconds, 10) || null,
-                            thumbnail: playerResponse?.videoDetails?.thumbnail?.thumbnails?.slice(-1)[0]?.url || null,
-                            uploader: playerResponse?.videoDetails?.author || null,
-                            description: playerResponse?.videoDetails?.shortDescription || null
-                        }
-                    });
-                }
-            }
-        }
-
-        // Fallback 2: Timedtext API — endpoint público, no bloqueado por IP
-        console.log('[Transcript] Trying timedtext API fallback...');
-        const timedResult = await fetchTranscriptFromTimedText(videoId, lang);
-        if (timedResult) {
-            console.log('[Transcript] Success via timedtext! Got', timedResult.content.length, 'segments');
-            return res.json({
-                ...timedResult,
-                videoInfo: playerResponse?.videoDetails ? {
-                    title: playerResponse.videoDetails.title || null,
-                    duration: Number.parseInt(playerResponse.videoDetails.lengthSeconds, 10) || null,
-                    thumbnail: playerResponse.videoDetails.thumbnail?.thumbnails?.slice(-1)[0]?.url || null,
-                    uploader: playerResponse.videoDetails.author || null,
-                    description: playerResponse.videoDetails.shortDescription || null
-                } : null
-            });
-        }
-
-        return res.status(404).json({ message: 'No subtitles available for this video' });
+        return res.status(404).json({
+            message: 'No hay subtítulos disponibles para este vídeo',
+            videoInfo: buildVideoInfo(playerResponse)
+        });
     } catch (error) {
         console.error('[Transcript] Error:', error.message);
         return res.status(500).json({ message: error.message || 'Failed to fetch subtitles' });
