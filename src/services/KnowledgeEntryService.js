@@ -25,7 +25,7 @@ class KnowledgeEntryService {
     /**
      * Subscribe to entries for a specific topic
      */
-    subscribeToTopic(topicId, userId, callback) {
+    subscribeToTopic(topicId, userId, callback, onError = console.error) {
         // Unsubscribe from previous subscription for this topic
         if (this.subscriptions.has(topicId)) {
             this.subscriptions.get(topicId)();
@@ -43,7 +43,7 @@ class KnowledgeEntryService {
                 ...doc.data()
             }));
             callback(entries);
-        });
+        }, error => onError(error));
 
         this.subscriptions.set(topicId, unsubscribe);
         return unsubscribe;

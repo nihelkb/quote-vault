@@ -30,8 +30,11 @@ export class VerifyScreen extends Component {
                 </p>
                 <button class="btn btn-secondary" id="resendVerificationInner"
                     data-i18n="auth.resendEmail">Reenviar email</button>
+                <button class="btn btn-primary" id="checkVerificationInner"
+                    data-i18n="auth.alreadyVerified">Ya he verificado</button>
                 <button class="btn-link" id="useAnotherAccountInner"
                     data-i18n="auth.useAnotherAccount">Usar otra cuenta</button>
+                <p class="auth-error" id="verifyStatusInner" role="status" aria-live="polite"></p>
             </div>
         `;
     }
@@ -39,7 +42,9 @@ export class VerifyScreen extends Component {
     onMount() {
         const { authService } = this.props;
         const resendBtn = this.$('#resendVerificationInner');
+        const checkBtn  = this.$('#checkVerificationInner');
         const otherBtn  = this.$('#useAnotherAccountInner');
+        const statusEl  = this.$('#verifyStatusInner');
 
         // ── Reenviar verificación ──────────────────────────────────────────
         this.listen(resendBtn, 'click', async () => {
@@ -51,15 +56,38 @@ export class VerifyScreen extends Component {
             } catch {
                 resendBtn.textContent = t('auth.sendError');
             }
-            setTimeout(() => {
+            this._resendTimer = setTimeout(() => {
                 resendBtn.textContent = t('auth.resendEmail');
                 resendBtn.disabled = false;
             }, 3000);
         });
 
+        this.listen(checkBtn, 'click', async () => {
+            checkBtn.disabled = true;
+            statusEl.textContent = t('auth.checkingVerification');
+            try {
+                const user = await authService.refreshCurrentUser();
+                if (user?.emailVerified) {
+                    statusEl.textContent = t('auth.verified');
+                    this.props.onVerified?.(user);
+                } else {
+                    statusEl.textContent = t('auth.notVerifiedYet');
+                }
+            } catch (error) {
+                statusEl.textContent = authService.getErrorMessage(error.code);
+            } finally {
+                checkBtn.disabled = false;
+            }
+        });
+
         // ── Usar otra cuenta (logout) ──────────────────────────────────────
-        this.listen(otherBtn, 'click', () => authService.logout());
+        this.listen(otherBtn, 'click', async () => {
+            try { await authService.logout(); }
+            catch (error) { statusEl.textContent = authService.getErrorMessage(error.code); }
+        });
     }
+
+    onUnmount() { clearTimeout(this._resendTimer); }
 
     // ── API Pública ──────────────────────────────────────────────────────────
 

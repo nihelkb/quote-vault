@@ -24,7 +24,7 @@ class TopicService {
     /**
      * Subscribe to user's topics in real-time
      */
-    subscribe(userId, callback) {
+    subscribe(userId, callback, onError = console.error) {
         if (this.unsubscribe) {
             this.unsubscribe();
         }
@@ -46,7 +46,7 @@ class TopicService {
                 return new Date(dateB) - new Date(dateA);
             });
             callback(topics);
-        });
+        }, error => onError(error));
 
         return this.unsubscribe;
     }

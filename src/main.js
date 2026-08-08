@@ -83,6 +83,7 @@ const state = {
 
 // State for reply modal
 let replyParentId = null;
+let subscribedUserId = null;
 
 // ============================================================================
 // DOM Elements
@@ -271,27 +272,35 @@ const elements = {
 // Data Subscriptions
 // ============================================================================
 function subscribeToData(userId) {
+    if (!userId || subscribedUserId === userId) return;
+    unsubscribeFromData();
+    subscribedUserId = userId;
+    const onSubscriptionError = (error) => handleFirebaseError(error, t('toast.errorDefault'));
     quoteService.subscribe(userId, (quotes) => {
+        if (subscribedUserId !== userId) return;
         state.quotes = quotes;
         renderQuotes();
         updateStats();
-    });
+    }, onSubscriptionError);
 
     collectionService.subscribe(userId, (collections) => {
+        if (subscribedUserId !== userId) return;
         state.collections = collections;
         updateCollectionSelects();
         renderSidebarCollections();
-    });
+    }, onSubscriptionError);
 
     topicService.subscribe(userId, (topics) => {
+        if (subscribedUserId !== userId) return;
         state.topics = topics;
         renderSidebarTopics();
         if (state.currentSection === 'wiki' && !state.currentTopicId) {
             renderWikiView();
         }
-    });
+    }, onSubscriptionError);
 
     insightService.subscribe(userId, (insights) => {
+        if (subscribedUserId !== userId) return;
         state.insights = insights;
         updateInsightsCounts();
 
@@ -300,14 +309,49 @@ function subscribeToData(userId) {
         if (state.currentSection === 'insights' && !state.currentInsightId) {
             renderInsightsView();
         }
-    });
+    }, onSubscriptionError);
 }
 
 function unsubscribeFromData() {
+    subscribedUserId = null;
     quoteService.unsubscribeAll();
     collectionService.unsubscribeAll();
     topicService.unsubscribeAll();
     insightService.unsubscribeAll();
+    knowledgeEntryService.unsubscribeAll();
+}
+
+function clearSensitiveState() {
+    state.quotes = [];
+    state.collections = [];
+    state.topics = [];
+    state.insights = [];
+    state.knowledgeEntries = [];
+    state.currentTopicId = null;
+    state.currentInsightId = null;
+    state.insightStatusFilter = '';
+    replyParentId = null;
+
+    // Remove account A's content before account B's shell becomes visible.
+    elements.quoteForm?.reset();
+    elements.insightForm?.reset();
+    elements.topicForm?.reset();
+    elements.newCollectionName && (elements.newCollectionName.value = '');
+    elements.searchInput && (elements.searchInput.value = '');
+    elements.mobileSearchInput && (elements.mobileSearchInput.value = '');
+    elements.filterCollection && (elements.filterCollection.value = '');
+    elements.filterStance && (elements.filterStance.value = '');
+    elements.filterFavorite && (elements.filterFavorite.value = '');
+
+    renderQuotes();
+    renderSidebarCollections();
+    renderSidebarTags();
+    renderSidebarTopics();
+    updateCollectionSelects();
+    updateStats();
+    updateInsightsCounts();
+    if (state.currentSection === 'wiki') renderWikiView();
+    if (state.currentSection === 'insights') renderInsightsView();
 }
 
 // ============================================================================
@@ -4566,11 +4610,13 @@ async function handleInsightSubmit() {
     };
 
     try {
+        const user = authService.getCurrentUser();
+        if (!user) throw new Error(t('auth.errors.sessionRequired'));
         if (insightId) {
             await insightService.update(insightId, data);
             toast.success(t('toast.insightUpdated'));
         } else {
-            await insightService.create(data, authService.getCurrentUser().uid);
+            await insightService.create(data, user.uid);
             toast.success(t('toast.insightSaved'));
         }
         closeInsightModal();
@@ -4641,11 +4687,13 @@ async function handleTopicSubmit() {
     };
 
     try {
+        const user = authService.getCurrentUser();
+        if (!user) throw new Error(t('auth.errors.sessionRequired'));
         if (topicId) {
             await topicService.update(topicId, data);
             toast.success(t('toast.topicUpdated'));
         } else {
-            await topicService.create(data, authService.getCurrentUser().uid);
+            await topicService.create(data, user.uid);
             toast.success(t('toast.topicCreated'));
         }
         closeTopicModal();
@@ -4656,7 +4704,9 @@ async function handleTopicSubmit() {
         }
     } catch (err) {
         console.error('Error saving topic:', err);
-        toast.error(t('toast.errorSavingTopic'));
+        toast.error(err.message === t('auth.errors.sessionRequired')
+            ? err.message
+            : t('toast.errorSavingTopic'));
     }
 }
 
@@ -4700,6 +4750,7 @@ async function handleQuoteSubmit(e) {
 
     try {
         const user = authService.getCurrentUser();
+        if (!user) throw new Error(t('auth.errors.sessionRequired'));
         if (id) {
             await quoteService.update(id, { ...quoteData, userId: user.uid });
             toast.success(t('toast.quoteUpdated'));
@@ -4710,7 +4761,9 @@ async function handleQuoteSubmit(e) {
         closeModal();
     } catch (error) {
         console.error('Error saving quote:', error);
-        toast.error(t('toast.errorSavingQuote'));
+        toast.error(error.message === t('auth.errors.sessionRequired')
+            ? error.message
+            : t('toast.errorSavingQuote'));
     }
 
     elements.saveBtn.disabled = false;
@@ -4889,6 +4942,7 @@ function deleteQuote(id) {
         actionText: t('quotes.delete'),
         onConfirm: async () => {
             try {
+                if (!authService.getCurrentUser()) throw { code: 'auth/no-current-user' };
                 await quoteService.delete(id);
                 toast.success(t('toast.quoteDeleted'));
             } catch (error) {
@@ -4901,6 +4955,7 @@ function deleteQuote(id) {
 
 async function toggleFavorite(id, value) {
     try {
+        if (!authService.getCurrentUser()) throw { code: 'auth/no-current-user' };
         await quoteService.toggleFavorite(id, value);
         toast.success(value ? t('toast.quoteFavorited') : t('toast.quoteUnfavorited'));
     } catch (error) {
@@ -4927,12 +4982,15 @@ async function createCollection() {
 
     try {
         const user = authService.getCurrentUser();
+        if (!user) throw { code: 'auth/no-current-user' };
         await collectionService.create(name, user.uid);
         toast.success(t('toast.collectionCreated'));
         closeCollectionModal();
     } catch (error) {
         console.error('Error creating collection:', error);
-        toast.error(t('toast.errorCreatingCollection'));
+        toast.error(error.code === 'auth/no-current-user'
+            ? authService.getErrorMessage(error.code)
+            : t('toast.errorCreatingCollection'));
     }
 }
 
@@ -5091,7 +5149,10 @@ function setupMobileListeners() {
     });
 
     // Mobile logout
-    elements.logoutBtnMobile.addEventListener('click', () => authService.logout());
+    elements.logoutBtnMobile.addEventListener('click', async () => {
+        try { await authService.logout(); }
+        catch (error) { handleFirebaseError(error, t('auth.errors.default')); }
+    });
 
     // Filter panel toggle
     elements.filterToggleBtn.addEventListener('click', openFiltersPanel);
@@ -5350,6 +5411,7 @@ new AppShell(document.body, {
     // Suscripciones a datos
     subscribeToData,
     unsubscribeFromData,
+    clearSensitiveState,
     // Renderizadores de sección (bridge hasta T-10, T-16, T-21)
     renderQuotes,
     renderWikiView,

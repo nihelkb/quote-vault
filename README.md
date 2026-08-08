@@ -70,45 +70,23 @@ This enables the serverless function that fetches YouTube transcripts using `yt-
 4. Click **Enable**
 
 #### Configure Security Rules
-Go to **Firestore Database** → **Rules** and paste:
+[`firestore.rules`](./firestore.rules) is the canonical source for Firestore
+security rules. It protects `quotes`, `collections`, `topics`, `insights`, and
+`knowledge_entries` by requiring an authenticated, verified email and strict
+document ownership; `userId` cannot change during an update.
 
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
+Deploy the versioned rules with the Firebase CLI:
 
-    match /quotes/{quoteId} {
-      allow read, write: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
-    }
-
-    match /collections/{collectionId} {
-      allow read, write: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
-    }
-
-    match /topics/{topicId} {
-      allow read, write: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
-    }
-
-    match /insights/{insightId} {
-      allow read, write: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
-    }
-
-    match /knowledge/{entryId} {
-      allow read, write: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
-    }
-  }
-}
+```bash
+npx firebase-tools deploy --only firestore:rules
 ```
 
-Click **Publish**.
+For local rule checks, start the Firestore emulator. The project does not ship
+emulator seed data or automated rules tests:
+
+```bash
+npx firebase-tools emulators:start --only firestore
+```
 
 #### Create Indexes
 Go to **Firestore Database** → **Indexes** → **Create index**

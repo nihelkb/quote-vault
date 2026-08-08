@@ -26,7 +26,7 @@ class CollectionService {
      * @param {Function} callback - Function to execute when collections change
      * @returns {Function} - Unsubscribe function
      */
-    subscribe(userId, callback) {
+    subscribe(userId, callback, onError = console.error) {
         if (this.unsubscribe) {
             this.unsubscribe();
         }
@@ -44,7 +44,7 @@ class CollectionService {
             // Sort alphabetically on client (avoids composite index requirement)
             collections.sort((a, b) => a.name.localeCompare(b.name));
             callback(collections);
-        });
+        }, error => onError(error));
 
         return this.unsubscribe;
     }

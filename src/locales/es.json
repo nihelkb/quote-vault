@@ -14,6 +14,9 @@
     "displayNamePlaceholder": "Tu nombre o apodo",
     "emailPlaceholder": "Email",
     "passwordPlaceholder": "Contraseña",
+    "displayNameLabel": "Nombre para mostrar",
+    "emailLabel": "Email",
+    "passwordLabel": "Contraseña",
     "passwordHint": "Mínimo 8 caracteres, una mayúscula, una minúscula y un número",
     "verifyEmail": "Verifica tu email",
     "verificationSent": "Hemos enviado un enlace de verificación a:",
@@ -23,6 +26,10 @@
     "sending": "Enviando...",
     "emailSent": "Email enviado",
     "sendError": "Error al enviar",
+    "alreadyVerified": "Ya he verificado mi email",
+    "checkingVerification": "Comprobando la verificación...",
+    "verified": "Email verificado. Abriendo tu repositorio...",
+    "notVerifiedYet": "Tu email aún no está verificado. Abre el enlace e inténtalo de nuevo.",
     "errors": {
       "userNotFound": "Usuario no encontrado",
       "wrongPassword": "Contraseña incorrecta",
@@ -33,7 +40,8 @@
       "invalidEmail": "Email inválido",
       "popupClosed": "Inicio de sesión cancelado",
       "popupBlocked": "El popup fue bloqueado. Permite popups para este sitio.",
-      "default": "Error de autenticación"
+      "default": "Error de autenticación",
+      "sessionRequired": "Tu sesión ha terminado. Inicia sesión de nuevo."
     }
   },
   "quotes": {

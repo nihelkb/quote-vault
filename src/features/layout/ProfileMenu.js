@@ -1,4 +1,6 @@
 import { Component } from '../../core/Component.js';
+import { toast } from '../../utils/toast.js';
+import { t } from '../../utils/i18n.js';
 
 /**
  * ProfileMenu — Gestiona los menús de perfil (avatar + dropdown logout).
@@ -38,9 +40,14 @@ export class ProfileMenu extends Component {
 
             const logoutBtn = menu.querySelector('.header-profile-logout');
             if (logoutBtn) {
-                this.listen(logoutBtn, 'click', () => {
+                this.listen(logoutBtn, 'click', async () => {
                     closeAll();
-                    this.props.authService.logout();
+                    try {
+                        await this.props.authService.logout();
+                    } catch (error) {
+                        console.error('Unable to log out:', error);
+                        toast.error(t('auth.errors.default'));
+                    }
                 });
             }
         });

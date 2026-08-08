@@ -18,6 +18,7 @@ class AuthService {
     constructor() {
         this.currentUser = null;
         this.listeners = [];
+        this.authUnsubscribe = null;
     }
 
     /**
@@ -28,14 +29,21 @@ class AuthService {
     onAuthStateChange(callback) {
         this.listeners.push(callback);
 
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            this.currentUser = user;
-            this.listeners.forEach(listener => listener(user));
-        });
+        // Firebase needs exactly one observer. Consumers are multiplexed here so
+        // mounting/unmounting UI cannot create duplicate auth notifications.
+        if (!this.authUnsubscribe) {
+            this.authUnsubscribe = onAuthStateChanged(auth, (user) => {
+                this.currentUser = user;
+                [...this.listeners].forEach(listener => listener(user));
+            });
+        }
 
         return () => {
             this.listeners = this.listeners.filter(l => l !== callback);
-            unsubscribe();
+            if (this.listeners.length === 0 && this.authUnsubscribe) {
+                this.authUnsubscribe();
+                this.authUnsubscribe = null;
+            }
         };
     }
 
@@ -80,6 +88,16 @@ class AuthService {
         if (auth.currentUser) {
             await sendEmailVerification(auth.currentUser);
         }
+    }
+
+    async refreshCurrentUser() {
+        const user = auth.currentUser;
+        if (!user) throw { code: 'auth/no-current-user' };
+        await user.reload();
+        // Refresh claims/token after a verification link was opened in another tab.
+        await user.getIdToken(true);
+        this.currentUser = auth.currentUser;
+        return this.currentUser;
     }
 
     /**
@@ -145,7 +163,8 @@ class AuthService {
             'auth/weak-password-custom': 'auth.errors.weakPasswordCustom',
             'auth/invalid-email': 'auth.errors.invalidEmail',
             'auth/popup-closed-by-user': 'auth.errors.popupClosed',
-            'auth/popup-blocked': 'auth.errors.popupBlocked'
+            'auth/popup-blocked': 'auth.errors.popupBlocked',
+            'auth/no-current-user': 'auth.errors.sessionRequired'
         };
         const key = errorKeys[errorCode] || 'auth.errors.default';
         return t(key);

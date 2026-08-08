@@ -27,7 +27,7 @@ class QuoteService {
      * @param {Function} callback - Function to execute when quotes change
      * @returns {Function} - Unsubscribe function
      */
-    subscribe(userId, callback) {
+    subscribe(userId, callback, onError = console.error) {
         if (this.unsubscribe) {
             this.unsubscribe();
         }
@@ -44,7 +44,7 @@ class QuoteService {
                 ...doc.data()
             }));
             callback(quotes);
-        });
+        }, error => onError(error));
 
         return this.unsubscribe;
     }

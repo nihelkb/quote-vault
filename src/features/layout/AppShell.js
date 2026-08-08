@@ -43,6 +43,7 @@ export class AppShell extends Component {
         this._profileMenu  = null;
         this._themeToggle  = null;
         this._mainAppReady = false;
+        this._activeUserId = null;
     }
 
     // Behavioral wrapper: no borrar el body
@@ -71,8 +72,12 @@ export class AppShell extends Component {
         });
         this._authScreen.mount();
 
-        this._verifyScreen = new VerifyScreen(verifyScreenEl, { authService });
+        this._verifyScreen = new VerifyScreen(verifyScreenEl, {
+            authService,
+            onVerified: (user) => this._handleAuthChange(user)
+        });
         this._verifyScreen.mount();
+        i18n.translatePage();
 
         // ── 3. Componentes de layout (sidebar, lang, perfil) ──────────────
         this._navSidebar = new NavSidebar(document.getElementById('navSidebar'), {
@@ -142,6 +147,13 @@ export class AppShell extends Component {
     _handleAuthChange(user) {
         document.getElementById('loadingScreen')?.classList.add('hidden');
 
+        const nextUserId = user?.uid ?? null;
+        if (this._activeUserId !== nextUserId) {
+            this.props.unsubscribeFromData?.();
+            this.props.clearSensitiveState?.();
+            this._activeUserId = nextUserId;
+        }
+
         if (user) {
             if (this.props.authService.needsEmailVerification(user)) {
                 this._showVerifyScreen(user);
@@ -151,8 +163,6 @@ export class AppShell extends Component {
             }
         } else {
             this._showAuthScreen();
-            this.props.unsubscribeFromData?.();
-            this._mainAppReady = false;
         }
     }
 

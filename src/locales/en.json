@@ -14,6 +14,9 @@
     "displayNamePlaceholder": "Your name or nickname",
     "emailPlaceholder": "Email",
     "passwordPlaceholder": "Password",
+    "displayNameLabel": "Display name",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
     "passwordHint": "Minimum 8 characters, one uppercase, one lowercase and one number",
     "verifyEmail": "Verify your email",
     "verificationSent": "We've sent a verification link to:",
@@ -23,6 +26,10 @@
     "sending": "Sending...",
     "emailSent": "Email sent",
     "sendError": "Error sending",
+    "alreadyVerified": "I've verified my email",
+    "checkingVerification": "Checking verification...",
+    "verified": "Email verified. Opening your vault...",
+    "notVerifiedYet": "Your email is not verified yet. Please open the link and try again.",
     "errors": {
       "userNotFound": "User not found",
       "wrongPassword": "Incorrect password",
@@ -33,7 +40,8 @@
       "invalidEmail": "Invalid email",
       "popupClosed": "Sign in cancelled",
       "popupBlocked": "Popup was blocked. Please allow popups for this site.",
-      "default": "Authentication error"
+      "default": "Authentication error",
+      "sessionRequired": "Your session has ended. Please sign in again."
     }
   },
   "quotes": {
