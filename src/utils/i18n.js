@@ -122,10 +122,21 @@ class I18n {
             el.placeholder = this.t(key);
         });
 
+        document.querySelectorAll('[data-i18n-aria-label]').forEach(el => {
+            const key = el.getAttribute('data-i18n-aria-label');
+            el.setAttribute('aria-label', this.t(key));
+        });
+
         // Translate titles
         document.querySelectorAll('[data-i18n-title]').forEach(el => {
             const key = el.getAttribute('data-i18n-title');
             el.title = this.t(key);
+        });
+
+        // Translate tooltips
+        document.querySelectorAll('[data-i18n-tooltip]').forEach(el => {
+            const key = el.getAttribute('data-i18n-tooltip');
+            el.setAttribute('data-tooltip', this.t(key));
         });
 
         // Translate option values

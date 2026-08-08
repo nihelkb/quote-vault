@@ -8,16 +8,61 @@
 import { authService } from './services/AuthService.js';
 import { quoteService } from './services/QuoteService.js';
 import { collectionService } from './services/CollectionService.js';
+import { topicService } from './services/TopicService.js';
+import { insightService } from './services/InsightService.js';
+import { knowledgeEntryService } from './services/KnowledgeEntryService.js';
+import { transcriptService } from './services/TranscriptService.js';
 
 // Components
 import { renderQuoteList } from './components/QuoteCard.js';
 import { updateCompareView, filterForCompare } from './components/CompareView.js';
 import { updateAllCollectionSelects } from './components/CollectionSelect.js';
+import { CustomSelect } from './shared/components/CustomSelect.js';
+import { AppShell } from './features/layout/index.js';
 
 // Utils
 import { toast } from './utils/toast.js';
 import { confirmModal } from './utils/confirmModal.js';
 import { i18n, t } from './utils/i18n.js';
+import { escapeHtml, extractHeadingsFromMarkdown, renderMarkdown,
+         getSectionIconSvg, getTopicIconSvg, getHighlightColor, getRelativeTime } from './utils/helpers.js';
+import { showBlockerModal } from './utils/blockerModal.js';
+import { FirebaseBlockedError } from './utils/firebaseBlockerDetector.js';
+import './utils/tooltip.js'; // side-effect: registers global tooltip event listeners
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+/**
+ * Handle errors from Firebase operations
+ * Shows blocker modal if request was blocked by client
+ */
+function handleFirebaseError(error, defaultMessage = t('toast.errorDefault')) {
+    console.error('Firebase error:', error);
+
+    if (error instanceof FirebaseBlockedError || error?.name === 'FirebaseBlockedError') {
+        showBlockerModal(() => {
+            // On successful retry, reload the page
+            window.location.reload();
+        });
+        return;
+    }
+
+    // Show toast for other errors
+    toast.error(error.message || defaultMessage);
+}
 
 // ============================================================================
 // Application State
@@ -25,9 +70,20 @@ import { i18n, t } from './utils/i18n.js';
 const state = {
     quotes: [],
     collections: [],
-    currentView: 'list',
+    topics: [],
+    insights: [],
+    knowledgeEntries: [], // Entries for current topic
+    currentView: 'list', // list, compare
+    currentSection: 'wiki', // wiki, insights, quotes
+    currentInsightId: null, // Currently viewing insight
+    currentTopicId: null,   // Currently viewing topic
+    insightStatusFilter: '',
     authMode: 'login'
 };
+
+// State for reply modal
+let replyParentId = null;
+let subscribedUserId = null;
 
 // ============================================================================
 // DOM Elements
@@ -49,32 +105,92 @@ const elements = {
     passwordHint: document.getElementById('passwordHint'),
     resendVerification: document.getElementById('resendVerification'),
     verifyEmail: document.getElementById('verifyEmail'),
-    userEmail: document.getElementById('userEmail'),
     useAnotherAccount: document.getElementById('useAnotherAccount'),
-    logoutBtn: document.getElementById('logoutBtn'),
+    headerUsername: document.getElementById('headerUsername'),
+    headerProfileBtns: document.querySelectorAll('.header-profile-btn'),
+    headerProfileMenus: document.querySelectorAll('.header-profile-menu'),
+    headerProfileLogoutBtns: document.querySelectorAll('.header-profile-logout'),
+    headerLogoutBtn: document.getElementById('headerLogoutBtn'),
 
     // Quotes
     quotesList: document.getElementById('quotesList'),
     emptyState: document.getElementById('emptyState'),
     totalQuotes: document.getElementById('totalQuotes'),
 
+    // Navigation Sidebar
+    navSidebar: document.getElementById('navSidebar'),
+    sidebarToggle: document.getElementById('sidebarToggle'),
+    sidebarOpenBtn: document.getElementById('sidebarOpenBtn'),
+
+    // Main navigation tabs
+    navWikiTab: document.getElementById('navWikiTab'),
+    navInsightsTab: document.getElementById('navInsightsTab'),
+    navQuotesTab: document.getElementById('navQuotesTab'),
+
+    // View content containers
+    navWikiContent: document.getElementById('navWikiContent'),
+    navInsightsContent: document.getElementById('navInsightsContent'),
+    navQuotesContent: document.getElementById('navQuotesContent'),
+
+    // Wiki/Topics elements
+    sidebarTopics: document.getElementById('sidebarTopics'),
+    totalTopics: document.getElementById('totalTopics'),
+    navNewTopicBtn: document.getElementById('navNewTopicBtn'),
+
+    // Insights elements
+    allInsightsHeader: document.getElementById('allInsightsHeader'),
+    totalInsights: document.getElementById('totalInsights'),
+    insightsDraftBadge: document.getElementById('insightsDraftBadge'),
+    insightsDraftCount: document.getElementById('insightsDraftCount'),
+    insightsReviewedCount: document.getElementById('insightsReviewedCount'),
+    insightsIntegratedCount: document.getElementById('insightsIntegratedCount'),
+    insightStatusHeader: document.getElementById('insightStatusHeader'),
+    sidebarInsightStatus: document.getElementById('sidebarInsightStatus'),
+    navNewInsightBtn: document.getElementById('navNewInsightBtn'),
+
+    // Quotes sidebar elements
+    sidebarCollections: document.getElementById('sidebarCollections'),
+    sidebarTags: document.getElementById('sidebarTags'),
+    collectionsHeader: document.getElementById('collectionsHeader'),
+    tagsHeader: document.getElementById('tagsHeader'),
+    navNewCollectionBtn: document.getElementById('navNewCollectionBtn'),
+
     // Compare View
     quotesCompare: document.getElementById('quotesCompare'),
     quotesFavor: document.getElementById('quotesFavor'),
     quotesAgainst: document.getElementById('quotesAgainst'),
 
-    // Filters
+    // Filters - Quotes
     searchInput: document.getElementById('searchInput'),
     filterCollection: document.getElementById('filterCollection'),
     filterStance: document.getElementById('filterStance'),
     filterFavorite: document.getElementById('filterFavorite'),
     sortBy: document.getElementById('sortBy'),
 
-    // Custom selects
-    collectionSelect: document.getElementById('collectionSelect'),
+    // Custom selects - Quotes
     stanceSelect: document.getElementById('stanceSelect'),
     favoriteSelect: document.getElementById('favoriteSelect'),
     sortSelect: document.getElementById('sortSelect'),
+
+    // Headers
+    wikiHeader: document.querySelector('.wiki-header'),
+    insightsHeader: document.querySelector('.insights-header'),
+
+    // Filters - Wiki
+    wikiSearchInput: document.getElementById('wikiSearchInput'),
+    wikiFilterStatus: document.getElementById('wikiFilterStatus'),
+    wikiStatusSelect: document.getElementById('wikiStatusSelect'),
+    topicSortBy: document.getElementById('topicSortBy'),
+    topicSortSelect: document.getElementById('topicSortSelect'),
+    newTopicBtnHeader: document.getElementById('newTopicBtnHeader'),
+
+    // Filters - Insights
+    insightsSearchInput: document.getElementById('insightsSearchInput'),
+    insightsFilterStatus: document.getElementById('insightsFilterStatus'),
+    insightsFilterSource: document.getElementById('insightsFilterSource'),
+    insightsStatusSelect: document.getElementById('insightsStatusSelect'),
+    insightsSourceSelect: document.getElementById('insightsSourceSelect'),
+    newInsightBtnHeader: document.getElementById('newInsightBtnHeader'),
 
     // View controls
     viewList: document.getElementById('viewList'),
@@ -94,11 +210,41 @@ const elements = {
     cancelCollectionBtn: document.getElementById('cancelCollectionBtn'),
     createCollectionBtn: document.getElementById('createCollectionBtn'),
 
+    // Insight Modal
+    insightModal: document.getElementById('insightModal'),
+    insightModalTitle: document.getElementById('insightModalTitle'),
+    insightForm: document.getElementById('insightForm'),
+    insightId: document.getElementById('insightId'),
+    insightSourceUrl: document.getElementById('insightSourceUrl'),
+    insightTags: document.getElementById('insightTags'),
+    insightLinkedTopic: document.getElementById('insightLinkedTopic'),
+    insightTopicSelect: document.getElementById('insightTopicSelect'),
+    fetchMetadataBtn: document.getElementById('fetchMetadataBtn'),
+    sourcePreview: document.getElementById('sourcePreview'),
+    sourceThumbnail: document.getElementById('sourceThumbnail'),
+    sourceTypeBadge: document.getElementById('sourceTypeBadge'),
+    sourceTitle: document.getElementById('sourceTitle'),
+    sourceChannel: document.getElementById('sourceChannel'),
+    cancelInsightBtn: document.getElementById('cancelInsightBtn'),
+
+    // Topic Modal
+    topicModal: document.getElementById('topicModal'),
+    topicModalTitle: document.getElementById('topicModalTitle'),
+    topicForm: document.getElementById('topicForm'),
+    topicId: document.getElementById('topicId'),
+    topicName: document.getElementById('topicName'),
+    topicDescription: document.getElementById('topicDescription'),
+    topicTags: document.getElementById('topicTags'),
+    topicIconValue: document.getElementById('topicIconValue'),
+    iconPicker: document.getElementById('iconPicker'),
+    cancelTopicBtn: document.getElementById('cancelTopicBtn'),
+
     // Language
     languageSelector: document.getElementById('languageSelector'),
     languageBtn: document.getElementById('languageBtn'),
     languageDropdown: document.getElementById('languageDropdown'),
     currentLang: document.getElementById('currentLang'),
+    themeToggleBtn: document.getElementById('themeToggleBtn'),
 
     // Mobile elements
     mobileSearchInput: document.getElementById('mobileSearchInput'),
@@ -118,246 +264,94 @@ const elements = {
     languageSelectorMobile: document.getElementById('languageSelectorMobile'),
     languageBtnMobile: document.getElementById('languageBtnMobile'),
     languageDropdownMobile: document.getElementById('languageDropdownMobile'),
-    currentLangMobile: document.getElementById('currentLangMobile')
+    currentLangMobile: document.getElementById('currentLangMobile'),
+    themeToggleBtnMobile: document.getElementById('themeToggleBtnMobile')
 };
-
-// ============================================================================
-// Initialization
-// ============================================================================
-function init() {
-    // Initialize i18n first
-    i18n.init();
-    updateLanguageSelector(i18n.getLocale());
-
-    toast.init('toastContainer');
-    confirmModal.init();
-    setupAuthListeners();
-    setupQuoteListeners();
-    setupFilterListeners();
-    setupViewListeners();
-    setupModalListeners();
-    setupLanguageListener();
-    setupMobileListeners();
-    initMobileFiltersPanel();
-
-    // Auth state observer
-    authService.onAuthStateChange(handleAuthStateChange);
-
-    // Listen for locale changes to re-render dynamic content
-    i18n.onLocaleChange(() => {
-        renderQuotes();
-        updateCollectionSelects();
-        updateMobileFiltersPanel();
-    });
-}
-
-// ============================================================================
-// Language Handler
-// ============================================================================
-const languageConfig = {
-    es: {
-        label: 'ES',
-        flagSvg: '<path fill="#c60b1e" d="M0 0h640v480H0z"/><path fill="#ffc400" d="M0 120h640v240H0z"/>'
-    },
-    en: {
-        label: 'EN',
-        flagSvg: '<path fill="#012169" d="M0 0h640v480H0z"/><path fill="#FFF" d="m75 0 244 181L562 0h78v62L400 241l240 178v61h-80L320 301 81 480H0v-60l239-178L0 64V0h75z"/><path fill="#C8102E" d="m424 281 216 159v40L369 281h55zm-184 20 6 35L54 480H0l240-179zM640 0v3L391 191l2-44L590 0h50zM0 0l239 176h-60L0 42V0z"/><path fill="#FFF" d="M241 0v480h160V0H241zM0 160v160h640V160H0z"/><path fill="#C8102E" d="M0 193v96h640v-96H0zM273 0v480h96V0h-96z"/>'
-    }
-};
-
-function setupLanguageListener() {
-    // Toggle dropdown
-    elements.languageBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        elements.languageSelector.classList.toggle('open');
-    });
-
-    // Language options
-    elements.languageDropdown.querySelectorAll('.language-option').forEach(option => {
-        option.addEventListener('click', () => {
-            const lang = option.dataset.lang;
-            i18n.setLocale(lang);
-            updateLanguageSelector(lang);
-            elements.languageSelector.classList.remove('open');
-        });
-    });
-
-    // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!elements.languageSelector.contains(e.target)) {
-            elements.languageSelector.classList.remove('open');
-        }
-    });
-}
-
-function updateLanguageSelector(locale) {
-    const config = languageConfig[locale] || languageConfig.es;
-    elements.currentLang.textContent = config.label;
-    if (elements.currentLangMobile) {
-        elements.currentLangMobile.textContent = config.label;
-    }
-
-    // Update active state in dropdown (desktop)
-    elements.languageDropdown.querySelectorAll('.language-option').forEach(option => {
-        option.classList.toggle('active', option.dataset.lang === locale);
-    });
-
-    // Update active state in dropdown (mobile)
-    if (elements.languageDropdownMobile) {
-        elements.languageDropdownMobile.querySelectorAll('.language-option').forEach(option => {
-            option.classList.toggle('active', option.dataset.lang === locale);
-        });
-    }
-}
-
-// ============================================================================
-// Auth Handlers
-// ============================================================================
-function handleAuthStateChange(user) {
-    elements.loadingScreen.classList.add('hidden');
-
-    if (user) {
-        if (authService.needsEmailVerification(user)) {
-            showVerifyScreen(user);
-            return;
-        }
-
-        showMainApp(user);
-        subscribeToData(user.uid);
-    } else {
-        showAuthScreen();
-        unsubscribeFromData();
-    }
-}
-
-function showAuthScreen() {
-    elements.authScreen.classList.remove('hidden');
-    elements.verifyScreen.classList.add('hidden');
-    elements.mainApp.classList.add('hidden');
-}
-
-function showVerifyScreen(user) {
-    elements.authScreen.classList.add('hidden');
-    elements.mainApp.classList.add('hidden');
-    elements.verifyScreen.classList.remove('hidden');
-    elements.verifyEmail.textContent = user.email;
-}
-
-function showMainApp(user) {
-    elements.authScreen.classList.add('hidden');
-    elements.verifyScreen.classList.add('hidden');
-    elements.mainApp.classList.remove('hidden');
-    const displayName = authService.getDisplayName(user);
-    elements.userEmail.textContent = displayName;
-    elements.userEmailMobile.textContent = displayName;
-}
-
-function setupAuthListeners() {
-    // Auth tabs
-    elements.authTabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            elements.authTabs.forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            state.authMode = tab.dataset.tab;
-
-            const isRegister = state.authMode === 'register';
-            elements.authSubmit.textContent = isRegister ? t('auth.createAccount') : t('auth.login');
-            elements.displayNameGroup.classList.toggle('hidden', !isRegister);
-            elements.passwordHint.classList.toggle('hidden', !isRegister);
-            elements.authError.classList.remove('show');
-        });
-    });
-
-    // Google Sign In
-    elements.googleBtn.addEventListener('click', async () => {
-        elements.googleBtn.disabled = true;
-        elements.authError.classList.remove('show');
-
-        try {
-            await authService.signInWithGoogle();
-        } catch (error) {
-            showAuthError(error.code);
-        }
-
-        elements.googleBtn.disabled = false;
-    });
-
-    // Email/Password Auth
-    elements.authForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        const email = document.getElementById('authEmail').value;
-        const password = document.getElementById('authPassword').value;
-        const displayName = document.getElementById('authDisplayName')?.value;
-
-        elements.authSubmit.disabled = true;
-        elements.authError.classList.remove('show');
-
-        try {
-            if (state.authMode === 'login') {
-                const user = await authService.signInWithEmail(email, password);
-                if (authService.needsEmailVerification(user)) {
-                    showVerifyScreen(user);
-                }
-            } else {
-                await authService.registerWithEmail(email, password, displayName);
-            }
-        } catch (error) {
-            showAuthError(error.code);
-        }
-
-        elements.authSubmit.disabled = false;
-    });
-
-    // Resend verification
-    elements.resendVerification.addEventListener('click', async () => {
-        elements.resendVerification.disabled = true;
-        elements.resendVerification.textContent = t('auth.sending');
-
-        try {
-            await authService.resendVerificationEmail();
-            elements.resendVerification.textContent = t('auth.emailSent');
-        } catch (error) {
-            elements.resendVerification.textContent = t('auth.sendError');
-        }
-
-        setTimeout(() => {
-            elements.resendVerification.textContent = t('auth.resendEmail');
-            elements.resendVerification.disabled = false;
-        }, 3000);
-    });
-
-    // Use another account
-    elements.useAnotherAccount.addEventListener('click', logout);
-
-    // Logout button
-    elements.logoutBtn.addEventListener('click', logout);
-}
-
-function showAuthError(errorCode) {
-    elements.authError.textContent = authService.getErrorMessage(errorCode);
-    elements.authError.classList.add('show');
-}
 
 // ============================================================================
 // Data Subscriptions
 // ============================================================================
 function subscribeToData(userId) {
+    if (!userId || subscribedUserId === userId) return;
+    unsubscribeFromData();
+    subscribedUserId = userId;
+    const onSubscriptionError = (error) => handleFirebaseError(error, t('toast.errorDefault'));
     quoteService.subscribe(userId, (quotes) => {
+        if (subscribedUserId !== userId) return;
         state.quotes = quotes;
         renderQuotes();
         updateStats();
-    });
+    }, onSubscriptionError);
 
     collectionService.subscribe(userId, (collections) => {
+        if (subscribedUserId !== userId) return;
         state.collections = collections;
         updateCollectionSelects();
-    });
+        renderSidebarCollections();
+    }, onSubscriptionError);
+
+    topicService.subscribe(userId, (topics) => {
+        if (subscribedUserId !== userId) return;
+        state.topics = topics;
+        renderSidebarTopics();
+        if (state.currentSection === 'wiki' && !state.currentTopicId) {
+            renderWikiView();
+        }
+    }, onSubscriptionError);
+
+    insightService.subscribe(userId, (insights) => {
+        if (subscribedUserId !== userId) return;
+        state.insights = insights;
+        updateInsightsCounts();
+
+        // Only render the list view if we're NOT viewing a specific insight detail
+        // This prevents the detail view from being replaced when highlights are updated
+        if (state.currentSection === 'insights' && !state.currentInsightId) {
+            renderInsightsView();
+        }
+    }, onSubscriptionError);
 }
 
 function unsubscribeFromData() {
+    subscribedUserId = null;
     quoteService.unsubscribeAll();
     collectionService.unsubscribeAll();
+    topicService.unsubscribeAll();
+    insightService.unsubscribeAll();
+    knowledgeEntryService.unsubscribeAll();
+}
+
+function clearSensitiveState() {
+    state.quotes = [];
+    state.collections = [];
+    state.topics = [];
+    state.insights = [];
+    state.knowledgeEntries = [];
+    state.currentTopicId = null;
+    state.currentInsightId = null;
+    state.insightStatusFilter = '';
+    replyParentId = null;
+
+    // Remove account A's content before account B's shell becomes visible.
+    elements.quoteForm?.reset();
+    elements.insightForm?.reset();
+    elements.topicForm?.reset();
+    elements.newCollectionName && (elements.newCollectionName.value = '');
+    elements.searchInput && (elements.searchInput.value = '');
+    elements.mobileSearchInput && (elements.mobileSearchInput.value = '');
+    elements.filterCollection && (elements.filterCollection.value = '');
+    elements.filterStance && (elements.filterStance.value = '');
+    elements.filterFavorite && (elements.filterFavorite.value = '');
+
+    renderQuotes();
+    renderSidebarCollections();
+    renderSidebarTags();
+    renderSidebarTopics();
+    updateCollectionSelects();
+    updateStats();
+    updateInsightsCounts();
+    if (state.currentSection === 'wiki') renderWikiView();
+    if (state.currentSection === 'insights') renderInsightsView();
 }
 
 // ============================================================================
@@ -374,7 +368,9 @@ function renderQuotes() {
 
 function renderListView() {
     const filters = getFilters();
-    let filtered = quoteService.filterQuotes(state.quotes, filters);
+    // Filter root quotes only (replies are nested)
+    const rootQuotes = quoteService.getRootQuotes(state.quotes);
+    let filtered = quoteService.filterQuotes(rootQuotes, filters);
     filtered = quoteService.sortQuotes(filtered, filters.sortBy);
 
     if (filtered.length === 0) {
@@ -383,8 +379,13 @@ function renderListView() {
         return;
     }
 
+    // Build tree structure with replies
+    const quotesWithReplies = filtered.map(quote =>
+        quoteService.buildQuoteNode(quote, state.quotes)
+    );
+
     elements.emptyState.classList.add('hidden');
-    elements.quotesList.innerHTML = renderQuoteList(filtered, state.collections);
+    elements.quotesList.innerHTML = renderQuoteList(quotesWithReplies, state.collections);
 }
 
 function renderCompareViewMode() {
@@ -413,14 +414,4311 @@ function getFilters() {
 
 function updateStats() {
     elements.totalQuotes.textContent = state.quotes.length;
-    elements.totalQuotesMobile.textContent = state.quotes.length;
+    if (elements.totalQuotesMobile) {
+        elements.totalQuotesMobile.textContent = state.quotes.length;
+    }
+
+    // Update navigation sidebar
+    renderNavSidebar();
 }
+
+function renderNavSidebar() {
+    renderSidebarCollections();
+    renderSidebarTags();
+}
+
+function renderSidebarCollections() {
+    if (!elements.sidebarCollections) return;
+
+    if (state.collections.length === 0) {
+        elements.sidebarCollections.innerHTML = `<span class="nav-empty">${t('sidebar.noCollections')}</span>`;
+        return;
+    }
+
+    // Count quotes per collection
+    const collectionCounts = {};
+    state.quotes.forEach(quote => {
+        if (quote.collectionId) {
+            collectionCounts[quote.collectionId] = (collectionCounts[quote.collectionId] || 0) + 1;
+        }
+    });
+
+    const currentFilter = elements.filterCollection.value;
+
+    const html = state.collections.map(collection => {
+        const count = collectionCounts[collection.id] || 0;
+        const isActive = currentFilter === collection.id;
+        return `
+            <button class="nav-item${isActive ? ' active' : ''}" data-collection-id="${collection.id}">
+                <span>${escapeHtml(collection.name)}</span>
+                <span class="item-count">${count}</span>
+            </button>
+        `;
+    }).join('');
+
+    elements.sidebarCollections.innerHTML = html;
+
+    // Add click handlers
+    elements.sidebarCollections.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const collectionId = item.dataset.collectionId;
+            const currentValue = elements.filterCollection.value;
+
+            // Toggle filter
+            if (currentValue === collectionId) {
+                elements.filterCollection.value = '';
+            } else {
+                elements.filterCollection.value = collectionId;
+            }
+
+            renderQuotes();
+            renderSidebarCollections();
+        });
+    });
+}
+
+function renderSidebarTags() {
+    if (!elements.sidebarTags) return;
+
+    // Collect all tags and count occurrences
+    const tagCounts = {};
+    state.quotes.forEach(quote => {
+        if (quote.tags && Array.isArray(quote.tags)) {
+            quote.tags.forEach(tag => {
+                const normalizedTag = tag.toLowerCase().trim();
+                if (normalizedTag) {
+                    tagCounts[normalizedTag] = (tagCounts[normalizedTag] || 0) + 1;
+                }
+            });
+        }
+    });
+
+    // Sort by count and take top 10
+    const sortedTags = Object.entries(tagCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+
+    if (sortedTags.length === 0) {
+        elements.sidebarTags.innerHTML = `<span class="nav-empty">${t('sidebar.noTags')}</span>`;
+        return;
+    }
+
+    const html = sortedTags.map(([tag, count]) => `
+        <button class="nav-tag" data-tag="${escapeHtml(tag)}" data-tooltip="${count} ${t('sidebar.quotes')}">
+            ${escapeHtml(tag)}
+        </button>
+    `).join('');
+
+    elements.sidebarTags.innerHTML = html;
+
+    // Add click handlers to filter by tag
+    elements.sidebarTags.querySelectorAll('.nav-tag').forEach(tagEl => {
+        tagEl.addEventListener('click', () => {
+            const tag = tagEl.dataset.tag;
+            const currentSearch = elements.searchInput.value;
+
+            if (currentSearch === tag) {
+                elements.searchInput.value = '';
+                tagEl.classList.remove('active');
+            } else {
+                // Remove active from all tags
+                elements.sidebarTags.querySelectorAll('.nav-tag').forEach(t => t.classList.remove('active'));
+                elements.searchInput.value = tag;
+                tagEl.classList.add('active');
+            }
+            renderQuotes();
+        });
+    });
+}
+
+function renderSidebarTopics() {
+    if (!elements.sidebarTopics) return;
+
+    // Update total count
+    if (elements.totalTopics) {
+        elements.totalTopics.textContent = state.topics.length;
+    }
+
+    if (state.topics.length === 0) {
+        elements.sidebarTopics.innerHTML = `<span class="nav-empty">${t('sidebar.noTopics')}</span>`;
+        return;
+    }
+
+    const html = state.topics.map(topic => `
+        <button class="nav-item" data-topic-id="${topic.id}">
+            <span class="topic-icon-small" data-icon="${topic.icon || 'folder'}">${getTopicIconSvg(topic.icon || 'folder', 16)}</span>
+            <span class="topic-name">${escapeHtml(topic.name)}</span>
+        </button>
+    `).join('');
+
+    elements.sidebarTopics.innerHTML = html;
+
+    // Add click handlers
+    elements.sidebarTopics.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const topicId = item.dataset.topicId;
+            openTopicView(topicId);
+        });
+    });
+}
+
+async function openTopicView(topicId) {
+    const topic = state.topics.find(t => t.id === topicId);
+    if (!topic) return;
+
+    state.currentTopicId = topicId;
+
+    // Hide wiki header when viewing topic detail
+    if (elements.wikiHeader) elements.wikiHeader.style.display = 'none';
+
+    const contentBody = document.querySelector('.content-body');
+    if (!contentBody) return;
+
+    // Get linked quotes and insights
+    const linkedQuotes = state.quotes.filter(q => q.topicId === topicId);
+    const linkedInsights = state.insights.filter(i => i.linkedTopicId === topicId);
+
+    // Render the topic detail view
+    contentBody.innerHTML = renderTopicDetailView(topic, linkedQuotes, linkedInsights);
+
+    // Setup event listeners
+    setupTopicDetailListeners();
+}
+
+function renderTopicDetailView(topic, linkedQuotes, linkedInsights) {
+    const customSections = topic.customSections || [];
+    const sortedSections = [...customSections].sort((a, b) => (a.order || 0) - (b.order || 0));
+    const topicIcon = getTopicIconSvg(topic.icon || 'folder', 16);
+    const sectionCountLabel = sortedSections.length === 1
+        ? t('topics.sectionCountSingular', { count: sortedSections.length })
+        : t('topics.sectionCountPlural', { count: sortedSections.length });
+
+    return `
+        <div class="topic-detail-view">
+            <!-- Header -->
+            <div class="topic-detail-header">
+                <button class="btn btn-secondary btn-back" onclick="switchSection('wiki')" data-tooltip="${t('tooltips.back')}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                    ${t('sidebar.topics')}
+                </button>
+
+                <div class="topic-detail-title-row">
+                    <div class="topic-detail-monogram" data-icon="${topic.icon || 'folder'}" aria-hidden="true">${topicIcon}</div>
+                    <div class="topic-detail-title">
+                        <h1>${escapeHtml(topic.name)}</h1>
+                        ${topic.description ? `<p class="topic-detail-description">${escapeHtml(topic.description)}</p>` : ''}
+                        <div class="topic-detail-meta">
+                            <span class="topic-section-count">${sectionCountLabel}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Search in header -->
+                <div class="header-search" aria-label="Buscar en secciones">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.35-4.35"></path>
+                    </svg>
+                    <input
+                        type="text"
+                        id="topicSearchInput"
+                        placeholder="${t('topics.searchPlaceholder')}"
+                        oninput="filterTopicSections(this.value)"
+                    />
+                </div>
+
+                <div class="topic-detail-actions">
+                    <button class="btn btn-primary" onclick="openNewSectionModal()" data-tooltip="Nueva sección" aria-label="Nueva sección">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                        </button>
+                    <button class="btn btn-secondary" onclick="editTopic('${topic.id}')" data-tooltip="Editar" aria-label="Editar">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                        </button>
+                    <button class="btn btn-secondary" onclick="deleteTopicConfirm('${topic.id}')" data-tooltip="Eliminar" aria-label="Eliminar">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+            <!-- Body with Masonry Grid and Insights Sidebar -->
+            <div class="topic-detail-body">
+                <!-- Masonry Sections Grid -->
+                <div class="topic-sections-masonry">
+                    ${sortedSections.length > 0 ? sortedSections.map((section, index) => renderCustomSectionCard(section, index)).join('') : `
+                        <div class="empty-topic-state">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <h3>Tu wiki está vacía</h3>
+                            <p>Añade tu primera sección para empezar a organizar el conocimiento sobre este tema</p>
+                        </div>
+                    `}
+                </div>
+
+                <!-- Insights Sidebar -->
+                <div class="topic-insights-sidebar" id="topicInsightsSidebar">
+                    <div class="insights-sidebar-header">
+                        <h3>${t('topics.linkedInsights')} (${linkedInsights.length})</h3>
+                        <button class="insights-sidebar-toggle" onclick="toggleInsightsSidebar()" data-tooltip="${t('tooltips.hideLinkedInsights')}">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="15 18 9 12 15 6"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                    ${linkedInsights.length > 0 ? `
+                        <div class="insights-sidebar-list">
+                            ${linkedInsights.map(insight => renderInsightSidebarCard(insight)).join('')}
+                        </div>
+                    ` : `
+                        <div class="insights-sidebar-empty">
+                            <p>${t('topics.noLinkedInsights')}</p>
+                        </div>
+                    `}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderCustomSectionCard(section, index = 0) {
+    const hasContent = section.content && section.content.trim().length > 0;
+    const wordCount = section.content ? section.content.split(/\s+/).filter(w => w).length : 0;
+    const wordCountLabel = wordCount === 1
+        ? t('topics.wordCountSingular', { count: wordCount })
+        : t('topics.wordCountPlural', { count: wordCount });
+    const preview = hasContent ? escapeHtml(getContentPreview(section.content)) : '';
+    const iconHtml = getSectionIconSvg(section.icon || 'document', 22);
+    const colorIndex = index % 8;
+    const linkedCount = (section.linkedHighlights || []).length;
+
+    return `
+        <div class="section-card ${hasContent ? 'has-content' : ''} custom-section card-color-${colorIndex}"
+             data-section-id="${section.id}"
+             onclick="openCustomSectionModal('${section.id}')">
+            <div class="section-card-header">
+                <div class="section-card-title">
+                    <span class="section-card-icon">${iconHtml}</span>
+                    <h3>${escapeHtml(section.name)}</h3>
+                </div>
+                <div class="section-card-badges">
+                    ${linkedCount > 0 ? `<span class="linked-highlights-badge">📎 ${linkedCount}</span>` : ''}
+                    ${wordCount > 0 ? `<span class="section-card-count">${wordCountLabel}</span>` : ''}
+                </div>
+            </div>
+
+            ${hasContent ? `
+                <div class="section-card-content">
+                    <div class="section-card-preview-text">
+                        ${preview}
+                    </div>
+                </div>
+            ` : `
+                <div class="section-card-empty">
+                    ${getSectionIconSvg(section.icon || 'document', 32)}
+                    <p>Sección vacía</p>
+                    <span>Haz clic para añadir contenido</span>
+                </div>
+            `}
+
+            <div class="section-card-actions">
+                <button class="btn-icon-small" onclick="event.stopPropagation(); deleteCustomSection('${section.id}')" data-tooltip="${t('tooltips.delete')}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function getContentPreview(content) {
+    // Simple markdown to text conversion for preview
+    const plainText = content
+        .replace(/#{1,6}\s/g, '') // Remove headers
+        .replace(/\*\*(.+?)\*\*/g, '$1') // Remove bold
+        .replace(/\*(.+?)\*/g, '$1') // Remove italic
+        .replace(/\[(.+?)\]\(.+?\)/g, '$1') // Remove links, keep text
+        .replace(/`(.+?)`/g, '$1') // Remove code
+        .replace(/>\s/g, '') // Remove blockquotes
+        .replace(/\n\n+/g, '\n\n') // Normalize line breaks
+        .trim();
+
+    // Return more text for masonry effect - show substantial content
+    return plainText.substring(0, 800);
+}
+
+
+function renderInsightSidebarCard(insight) {
+    const highlights = insight.highlights || [];
+    const hasHighlights = highlights.length > 0;
+
+    return `
+        <div class="insight-sidebar-card ${hasHighlights ? 'has-highlights' : ''}" data-insight-id="${insight.id}">
+            <div class="insight-sidebar-header" onclick="event.stopPropagation(); ${hasHighlights ? `toggleInsightExpand('${insight.id}')` : `openInsightView('${insight.id}')`}">
+                <div class="insight-sidebar-info">
+                    <div class="insight-card-title">${escapeHtml(insight.sourceTitle || t('insights.untitled'))}</div>
+                    <div class="insight-card-meta">
+                        <span class="insight-card-status ${insight.status}">${t('insights.' + insight.status)}</span>
+                        ${hasHighlights ? `<span>• ${highlights.length} ${t('insights.highlights').toLowerCase()}</span>` : ''}
+                    </div>
+                </div>
+                ${hasHighlights ? `
+                    <svg class="insight-expand-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                ` : ''}
+            </div>
+            ${hasHighlights ? `
+                <div class="insight-highlights-list" id="insightHighlights-${insight.id}">
+                    ${highlights.map(h => `
+                        <div class="draggable-highlight"
+                             draggable="true"
+                             data-insight-id="${insight.id}"
+                             data-highlight-id="${h.id}"
+                             data-highlight-text="${escapeHtml(h.text)}"
+                             data-highlight-color="${h.color || 'yellow'}">
+                            <div class="highlight-drag-handle">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                    <circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/>
+                                    <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+                                    <circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/>
+                                </svg>
+                            </div>
+                            <div class="highlight-drag-color" style="background: ${getHighlightColor(h.color)}"></div>
+                            <div class="highlight-drag-text">"${escapeHtml(h.text)}"</div>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+function toggleInsightExpand(insightId) {
+    const card = document.querySelector(`.insight-sidebar-card[data-insight-id="${insightId}"]`);
+    if (card) {
+        card.classList.toggle('expanded');
+    }
+}
+
+function setupTopicDetailListeners() {
+    // Setup drag & drop for highlights to sections
+    setupHighlightDragAndDrop();
+}
+
+function setupHighlightDragAndDrop() {
+    // Setup draggable highlights
+    const draggableHighlights = document.querySelectorAll('.draggable-highlight');
+    draggableHighlights.forEach(highlight => {
+        highlight.addEventListener('dragstart', handleHighlightDragStart);
+        highlight.addEventListener('dragend', handleHighlightDragEnd);
+    });
+
+    // Setup droppable section cards
+    const sectionCards = document.querySelectorAll('.section-card');
+    sectionCards.forEach(card => {
+        card.addEventListener('dragover', handleSectionDragOver);
+        card.addEventListener('dragleave', handleSectionDragLeave);
+        card.addEventListener('drop', handleSectionDrop);
+    });
+}
+
+function handleHighlightDragStart(e) {
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('application/json', JSON.stringify({
+        insightId: e.target.dataset.insightId,
+        highlightId: e.target.dataset.highlightId,
+        text: e.target.dataset.highlightText,
+        color: e.target.dataset.highlightColor
+    }));
+
+    // Add visual feedback to sections
+    document.querySelectorAll('.section-card').forEach(card => {
+        card.classList.add('drop-target');
+    });
+}
+
+function handleHighlightDragEnd(e) {
+    e.target.classList.remove('dragging');
+
+    // Remove visual feedback from sections
+    document.querySelectorAll('.section-card').forEach(card => {
+        card.classList.remove('drop-target', 'drag-over');
+    });
+}
+
+function handleSectionDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    e.currentTarget.classList.add('drag-over');
+}
+
+function handleSectionDragLeave(e) {
+    e.currentTarget.classList.remove('drag-over');
+}
+
+async function handleSectionDrop(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over', 'drop-target');
+
+    const sectionId = e.currentTarget.dataset.sectionId;
+    if (!sectionId) return;
+
+    try {
+        const data = JSON.parse(e.dataTransfer.getData('application/json'));
+        await linkHighlightToSection(sectionId, data);
+    } catch (error) {
+        console.error('Error handling drop:', error);
+    }
+}
+
+async function linkHighlightToSection(sectionId, highlightData) {
+    const topic = state.topics.find(t => t.id === state.currentTopicId);
+    if (!topic) return;
+
+    const section = (topic.customSections || []).find(s => s.id === sectionId);
+    if (!section) return;
+
+    // Initialize linkedHighlights array if doesn't exist
+    if (!section.linkedHighlights) {
+        section.linkedHighlights = [];
+    }
+
+    // Check if already linked
+    const alreadyLinked = section.linkedHighlights.some(
+        lh => lh.insightId === highlightData.insightId && lh.highlightId === highlightData.highlightId
+    );
+
+    if (alreadyLinked) {
+        toast.info(t('toast.highlightAlreadyLinked'));
+        return;
+    }
+
+    // Add the link
+    section.linkedHighlights.push({
+        insightId: highlightData.insightId,
+        highlightId: highlightData.highlightId,
+        text: highlightData.text,
+        color: highlightData.color,
+        linkedAt: new Date().toISOString()
+    });
+
+    // Save to Firebase
+    try {
+        await topicService.update(state.currentTopicId, {
+            customSections: topic.customSections
+        });
+
+        toast.success(t('toast.highlightLinkedToSection'));
+
+        // Update section card to show linked count
+        updateSectionCardLinkedCount(sectionId, section.linkedHighlights.length);
+    } catch (error) {
+        // Rollback on error
+        section.linkedHighlights.pop();
+        handleFirebaseError(error, t('toast.errorLinking'));
+    }
+}
+
+function updateSectionCardLinkedCount(sectionId, count) {
+    const card = document.querySelector(`.section-card[data-section-id="${sectionId}"]`);
+    if (!card) return;
+
+    let badge = card.querySelector('.linked-highlights-badge');
+    if (count > 0) {
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'linked-highlights-badge';
+            const header = card.querySelector('.section-card-header');
+            if (header) header.appendChild(badge);
+        }
+        badge.textContent = `📎 ${count}`;
+    } else if (badge) {
+        badge.remove();
+    }
+}
+
+function copyHighlightToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        toast.success(t('toast.copiedToClipboard'));
+    }).catch(() => {
+        toast.error(t('toast.errorCopying'));
+    });
+}
+
+async function unlinkHighlightFromSection(sectionId, highlightId) {
+    const topic = state.topics.find(t => t.id === state.currentTopicId);
+    if (!topic) return;
+
+    const section = (topic.customSections || []).find(s => s.id === sectionId);
+    if (!section || !section.linkedHighlights) return;
+
+    // Remove the highlight link
+    section.linkedHighlights = section.linkedHighlights.filter(lh => lh.highlightId !== highlightId);
+
+    try {
+        await topicService.update(state.currentTopicId, {
+            customSections: topic.customSections
+        });
+
+        toast.success(t('toast.highlightUnlinked'));
+
+        // Refresh the modal
+        closeCustomSectionModal();
+        openCustomSectionModal(sectionId);
+    } catch (error) {
+        handleFirebaseError(error, t('toast.errorUpdating'));
+    }
+}
+
+function toggleTopicStatus(topicId) {
+    const topic = state.topics.find(t => t.id === topicId);
+    if (!topic) return;
+
+    topicService.toggleStatus(topicId, topic.status)
+        .then(() => {
+            toast.success(t('toast.topicUpdated'));
+        })
+        .catch(error => {
+            handleFirebaseError(error, t('toast.errorUpdating'));
+        });
+}
+
+function toggleInsightsSidebar() {
+    const sidebar = document.getElementById('topicInsightsSidebar');
+    if (sidebar) {
+        const isCollapsed = sidebar.classList.toggle('collapsed');
+        const toggleBtn = sidebar.querySelector('.insights-sidebar-toggle');
+        if (toggleBtn) {
+            toggleBtn.setAttribute('data-tooltip', isCollapsed ? t('tooltips.showLinkedInsights') : t('tooltips.hideLinkedInsights'));
+        }
+    }
+}
+
+// ============================================================================
+// Custom Section Functions
+// ============================================================================
+
+function openNewSectionModal() {
+    const topic = state.topics.find(t => t.id === state.currentTopicId);
+    if (!topic) return;
+
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay active';
+    modal.id = 'newSectionModal';
+    modal.innerHTML = `
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h2>${t('sections.newSectionTitle')}</h2>
+                <button class="btn-close" onclick="closeNewSectionModal()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="newSectionForm" onsubmit="event.preventDefault(); createCustomSection();">
+                    <div class="form-group">
+                        <label for="sectionName">${t('sections.nameLabel')}</label>
+                        <input type="text" id="sectionName" required placeholder="${t('sections.namePlaceholder')}" autofocus>
+                    </div>
+
+                    <div class="form-group">
+                        <label>${t('sections.iconLabel')}</label>
+                        <div class="icon-picker-grid" id="sectionIconPicker">
+                            <button type="button" class="icon-btn selected" data-icon="document">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            </button>
+                            <button type="button" class="icon-btn" data-icon="list">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+                            </button>
+                            <button type="button" class="icon-btn" data-icon="bookmark">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+                            </button>
+                            <button type="button" class="icon-btn" data-icon="book">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+                            </button>
+                            <button type="button" class="icon-btn" data-icon="lightbulb">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7V16a1 1 0 001 1h6a1 1 0 001-1v-1.3A7 7 0 0012 2z"/></svg>
+                            </button>
+                            <button type="button" class="icon-btn" data-icon="star">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            </button>
+                            <button type="button" class="icon-btn" data-icon="globe">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+                            </button>
+                            <button type="button" class="icon-btn" data-icon="compass">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+                            </button>
+                            <button type="button" class="icon-btn" data-icon="layers">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                            </button>
+                            <button type="button" class="icon-btn" data-icon="hash">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+                            </button>
+                            <button type="button" class="icon-btn" data-icon="clock">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            </button>
+                            <button type="button" class="icon-btn" data-icon="users">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                            </button>
+                        </div>
+                        <input type="hidden" id="sectionIconValue" value="document">
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="closeNewSectionModal()">${t('form.cancel')}</button>
+                        <button type="submit" class="btn btn-primary">${t('sections.createButton')}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Setup icon picker
+    setupSvgIconPicker('sectionIconPicker', 'sectionIconValue');
+
+    // Close on overlay click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeNewSectionModal();
+        }
+    });
+
+    // Focus name input
+    setTimeout(() => {
+        document.getElementById('sectionName')?.focus();
+    }, 100);
+}
+
+function closeNewSectionModal() {
+    const modal = document.getElementById('newSectionModal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+async function createCustomSection() {
+    const topic = state.topics.find(t => t.id === state.currentTopicId);
+    if (!topic) return;
+
+    const name = document.getElementById('sectionName')?.value?.trim();
+    const icon = document.getElementById('sectionIconValue')?.value;
+
+    if (!name) {
+        toast.error('El nombre es requerido');
+        return;
+    }
+
+    try {
+        await topicService.addCustomSection(
+            state.currentTopicId,
+            { name, icon, type: 'document' }, // Always document type
+            topic.customSections || []
+        );
+
+        toast.success('Sección creada');
+        closeNewSectionModal();
+
+        // Reload topic view
+        await openTopicView(state.currentTopicId);
+    } catch (error) {
+        handleFirebaseError(error, 'Error al crear la sección');
+    }
+}
+
+function openCustomSectionModal(sectionId) {
+    const topic = state.topics.find(t => t.id === state.currentTopicId);
+    if (!topic) return;
+
+    const section = topic.customSections?.find(s => s.id === sectionId);
+    if (!section) return;
+
+    // Get linked highlights and headings
+    const linkedHighlights = section.linkedHighlights || [];
+    const headings = extractHeadingsFromMarkdown(section.content || '');
+    const hasSidebar = linkedHighlights.length > 0 || headings.length > 0;
+
+    const iconHtml = getSectionIconSvg(section.icon || 'document', 22);
+
+    const modal = document.createElement('div');
+    modal.className = 'section-detail-modal';
+    modal.id = 'customSectionModal';
+    modal.innerHTML = `
+        <div class="section-detail-content ${hasSidebar ? 'has-sidebar' : ''}">
+            <div class="section-detail-header">
+                <div class="section-detail-title">
+                    <span class="section-card-icon" style="font-size: 2rem;">${iconHtml}</span>
+                    <h2>${escapeHtml(section.name)}</h2>
+                </div>
+                <div class="section-detail-actions">
+                    <button class="btn-icon-small" id="editSectionBtn" onclick="toggleSectionEditMode('${sectionId}')" data-tooltip="${t('tooltips.edit')}">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                    </button>
+                    <button class="btn-icon-small" onclick="closeCustomSectionModal()" data-tooltip="${t('tooltips.close')}">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="section-detail-body">
+                <div class="section-main-content">
+                    <div id="sectionViewMode">
+                        ${section.content ? renderMarkdown(section.content) : `
+                            <div class="section-detail-empty">
+                                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                <h3>${t('topics.emptySection')}</h3>
+                                <p>${t('topics.clickToEdit')}</p>
+                            </div>
+                        `}
+                    </div>
+                    <div id="sectionEditMode" style="display: none;">
+                        <div class="md-toolbar" id="mdToolbar">
+                            <div class="md-toolbar-group">
+                                <button type="button" class="md-toolbar-btn" data-md-action="bold" data-tooltip="${t('mdToolbar.bold')} (Ctrl+B)">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                        <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path>
+                                        <path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path>
+                                    </svg>
+                                </button>
+                                <button type="button" class="md-toolbar-btn" data-md-action="italic" data-tooltip="${t('mdToolbar.italic')} (Ctrl+I)">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="19" y1="4" x2="10" y2="4"></line>
+                                        <line x1="14" y1="20" x2="5" y2="20"></line>
+                                        <line x1="15" y1="4" x2="9" y2="20"></line>
+                                    </svg>
+                                </button>
+                                <button type="button" class="md-toolbar-btn" data-md-action="strikethrough" data-tooltip="${t('mdToolbar.strikethrough')}">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M16 4H9a3 3 0 0 0-2.83 4"></path>
+                                        <path d="M14 12a4 4 0 0 1 0 8H6"></path>
+                                        <line x1="4" y1="12" x2="20" y2="12"></line>
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <div class="md-toolbar-separator"></div>
+
+                            <div class="md-toolbar-group">
+                                <div class="md-toolbar-dropdown" id="headingDropdownWrapper">
+                                    <button type="button" class="md-toolbar-btn" data-md-action="toggleHeadingDropdown" data-tooltip="${t('mdToolbar.heading')}">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M6 4v16"></path>
+                                            <path d="M18 4v16"></path>
+                                            <path d="M6 12h12"></path>
+                                        </svg>
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="md-toolbar-chevron">
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                        </svg>
+                                    </button>
+                                    <div class="md-toolbar-dropdown-menu" id="headingDropdown">
+                                        <button type="button" class="md-dropdown-item" data-md-action="heading1">
+                                            <span style="font-size: 1.2em; font-weight: 700;">H1</span>
+                                            <span class="md-dropdown-hint">${t('mdToolbar.heading1')}</span>
+                                        </button>
+                                        <button type="button" class="md-dropdown-item" data-md-action="heading2">
+                                            <span style="font-size: 1.05em; font-weight: 600;">H2</span>
+                                            <span class="md-dropdown-hint">${t('mdToolbar.heading2')}</span>
+                                        </button>
+                                        <button type="button" class="md-dropdown-item" data-md-action="heading3">
+                                            <span style="font-size: 0.95em; font-weight: 600;">H3</span>
+                                            <span class="md-dropdown-hint">${t('mdToolbar.heading3')}</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="md-toolbar-separator"></div>
+
+                            <div class="md-toolbar-group">
+                                <button type="button" class="md-toolbar-btn" data-md-action="bulletList" data-tooltip="${t('mdToolbar.bulletList')}">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="9" y1="6" x2="20" y2="6"></line>
+                                        <line x1="9" y1="12" x2="20" y2="12"></line>
+                                        <line x1="9" y1="18" x2="20" y2="18"></line>
+                                        <circle cx="4" cy="6" r="1.5" fill="currentColor" stroke="none"></circle>
+                                        <circle cx="4" cy="12" r="1.5" fill="currentColor" stroke="none"></circle>
+                                        <circle cx="4" cy="18" r="1.5" fill="currentColor" stroke="none"></circle>
+                                    </svg>
+                                </button>
+                                <button type="button" class="md-toolbar-btn" data-md-action="orderedList" data-tooltip="${t('mdToolbar.orderedList')}">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="10" y1="6" x2="21" y2="6"></line>
+                                        <line x1="10" y1="12" x2="21" y2="12"></line>
+                                        <line x1="10" y1="18" x2="21" y2="18"></line>
+                                        <text x="2" y="8" font-size="9" fill="currentColor" stroke="none" font-family="sans-serif">1</text>
+                                        <text x="2" y="14" font-size="9" fill="currentColor" stroke="none" font-family="sans-serif">2</text>
+                                        <text x="2" y="20" font-size="9" fill="currentColor" stroke="none" font-family="sans-serif">3</text>
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <div class="md-toolbar-separator"></div>
+
+                            <div class="md-toolbar-group">
+                                <button type="button" class="md-toolbar-btn" data-md-action="blockquote" data-tooltip="${t('mdToolbar.blockquote')}">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21z"></path>
+                                        <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3z"></path>
+                                    </svg>
+                                </button>
+                                <button type="button" class="md-toolbar-btn" data-md-action="inlineCode" data-tooltip="${t('mdToolbar.inlineCode')} (Ctrl+E)">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="16 18 22 12 16 6"></polyline>
+                                        <polyline points="8 6 2 12 8 18"></polyline>
+                                    </svg>
+                                </button>
+                                <button type="button" class="md-toolbar-btn" data-md-action="codeBlock" data-tooltip="${t('mdToolbar.codeBlock')}">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                        <polyline points="9 8 5 12 9 16"></polyline>
+                                        <polyline points="15 8 19 12 15 16"></polyline>
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <div class="md-toolbar-separator"></div>
+
+                            <div class="md-toolbar-group">
+                                <button type="button" class="md-toolbar-btn" data-md-action="link" data-tooltip="${t('mdToolbar.link')} (Ctrl+K)">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                                    </svg>
+                                </button>
+                                <button type="button" class="md-toolbar-btn" data-md-action="horizontalRule" data-tooltip="${t('mdToolbar.horizontalRule')}">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="md-toolbar-separator"></div>
+
+                            <div class="md-toolbar-group" style="margin-left: auto;">
+                                <button type="button" class="md-toolbar-btn md-split-toggle" data-md-action="toggleSplitPreview" data-tooltip="${t('tooltips.preview')}">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="2" y="3" width="20" height="18" rx="2"></rect>
+                                        <line x1="12" y1="3" x2="12" y2="21"></line>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="md-editor-split">
+                            <textarea id="sectionContentEdit" rows="20">${escapeHtml(section.content || '')}</textarea>
+                            <div class="md-preview-pane" id="mdPreviewPane">
+                                ${section.content ? renderMarkdown(section.content) : `<p style="color: var(--text-muted); font-style: italic;">${t('topics.clickToEdit')}</p>`}
+                            </div>
+                        </div>
+                        <div class="section-edit-actions">
+                            <button class="btn btn-secondary" onclick="toggleSectionEditMode('${sectionId}')">${t('form.cancel')}</button>
+                            <button class="btn btn-primary" onclick="saveCustomSectionContent('${sectionId}')">${t('form.save')}</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sidebar: TOC + Linked Highlights -->
+                ${hasSidebar ? `
+                    <div class="section-highlights-sidebar" id="sectionHighlightsSidebar">
+                        <div class="section-highlights-header">
+                            <button class="btn-icon-tiny" onclick="toggleSectionHighlightsSidebar()" data-tooltip="${t('tooltips.hideLinkedInsights')}">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+
+                        ${headings.length > 0 ? `
+                            <details class="sidebar-accordion sidebar-accordion-toc" open>
+                                <summary>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="9 18 15 12 9 6"></polyline>
+                                    </svg>
+                                    <span>${t('topics.tableOfContents')}</span>
+                                    <span class="sidebar-accordion-badge">${headings.length}</span>
+                                </summary>
+                                <div class="sidebar-accordion-content">
+                                    <nav class="sidebar-toc">
+                                        ${headings.map(h => `
+                                            <a class="sidebar-toc-item sidebar-toc-h${h.level}" href="javascript:void(0)" onclick="scrollToHeading('${h.id}')">
+                                                ${escapeHtml(h.text)}
+                                            </a>
+                                        `).join('')}
+                                    </nav>
+                                </div>
+                            </details>
+                        ` : ''}
+
+                        ${linkedHighlights.length > 0 ? `
+                            <details class="sidebar-accordion" open>
+                                <summary>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="9 18 15 12 9 6"></polyline>
+                                    </svg>
+                                    <span>${t('topics.linkedHighlights')}</span>
+                                    <span class="sidebar-accordion-badge">${linkedHighlights.length}</span>
+                                </summary>
+                                <div class="sidebar-accordion-content">
+                                    <div class="section-highlights-list">
+                                        ${linkedHighlights.map(lh => {
+                                            const insight = state.insights.find(i => i.id === lh.insightId);
+                                            return `
+                                                <div class="linked-highlight-item">
+                                                    <div class="linked-highlight-color" style="background: ${getHighlightColor(lh.color)}"></div>
+                                                    <div class="linked-highlight-content">
+                                                        <p class="linked-highlight-text">"${escapeHtml(lh.text)}"</p>
+                                                        ${insight ? `<span class="linked-highlight-source">${escapeHtml(insight.sourceTitle || t('insights.untitled'))}</span>` : ''}
+                                                    </div>
+                                                    <div class="linked-highlight-actions">
+                                                        <button class="btn-icon-tiny" onclick="copyHighlightToClipboard('${escapeHtml(lh.text)}')" data-tooltip="${t('tooltips.copy')}">
+                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                                            </svg>
+                                                        </button>
+                                                        <button class="btn-icon-tiny btn-danger" onclick="unlinkHighlightFromSection('${sectionId}', '${lh.highlightId}')" data-tooltip="${t('tooltips.unlink')}">
+                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            `;
+                                        }).join('')}
+                                    </div>
+                                </div>
+                            </details>
+                        ` : ''}
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Init TOC scroll spy
+    if (hasSidebar) initTocScrollSpy();
+
+    // Markdown toolbar: wire up button clicks via data-md-action
+    modal.querySelectorAll('[data-md-action]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const action = btn.dataset.mdAction;
+            switch (action) {
+                case 'bold': insertMarkdown('**', '**', { placeholder: t('mdToolbar.boldText') }); break;
+                case 'italic': insertMarkdown('*', '*', { placeholder: t('mdToolbar.italicText') }); break;
+                case 'strikethrough': insertMarkdown('~~', '~~', { placeholder: t('mdToolbar.strikethroughText') }); break;
+                case 'toggleHeadingDropdown': toggleHeadingDropdown(); break;
+                case 'heading1': insertHeading(1); break;
+                case 'heading2': insertHeading(2); break;
+                case 'heading3': insertHeading(3); break;
+                case 'bulletList': insertMarkdown('- ', '', { block: true, placeholder: t('mdToolbar.listItem') }); break;
+                case 'orderedList': insertMarkdown('1. ', '', { block: true, placeholder: t('mdToolbar.listItem') }); break;
+                case 'blockquote': insertMarkdown('> ', '', { block: true, placeholder: t('mdToolbar.quoteText') }); break;
+                case 'inlineCode': insertMarkdown('`', '`', { placeholder: 'code' }); break;
+                case 'codeBlock': insertMarkdown('```\n', '\n```', { block: true, placeholder: 'code' }); break;
+                case 'link': insertLink(); break;
+                case 'horizontalRule': insertMarkdown('\n---\n', '', { block: true }); break;
+                case 'toggleSplitPreview': toggleSplitPreview(); break;
+            }
+        });
+    });
+
+    // Keyboard shortcuts on textarea + live preview update
+    const textareaEl = modal.querySelector('#sectionContentEdit');
+    if (textareaEl) {
+        textareaEl.addEventListener('keydown', handleMarkdownShortcuts);
+        textareaEl.addEventListener('input', () => {
+            const preview = document.getElementById('mdPreviewPane');
+            if (preview && preview.offsetParent !== null) {
+                const val = textareaEl.value;
+                preview.innerHTML = val ? renderMarkdown(val) : `<p style="color: var(--text-muted); font-style: italic;">${t('topics.clickToEdit')}</p>`;
+            }
+        });
+    }
+
+    // Close heading dropdown on outside click
+    modal.addEventListener('click', (e) => {
+        if (!e.target.closest('#headingDropdownWrapper')) {
+            document.getElementById('headingDropdown')?.classList.remove('open');
+        }
+    });
+
+    // Close on overlay click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeCustomSectionModal();
+        }
+    });
+
+    // Close on ESC key
+    document.addEventListener('keydown', handleCustomSectionModalEscape);
+}
+
+function handleCustomSectionModalEscape(e) {
+    if (e.key === 'Escape') {
+        closeCustomSectionModal();
+    }
+}
+
+function closeCustomSectionModal() {
+    const modal = document.getElementById('customSectionModal');
+    if (modal) {
+        modal.remove();
+        document.removeEventListener('keydown', handleCustomSectionModalEscape);
+    }
+}
+
+function toggleSectionEditMode(sectionId) {
+    const viewMode = document.getElementById('sectionViewMode');
+    const editMode = document.getElementById('sectionEditMode');
+    const editBtn = document.getElementById('editSectionBtn');
+
+    if (viewMode && editMode) {
+        const isEditing = editMode.style.display !== 'none';
+        const detailBody = document.querySelector('.section-detail-body');
+        const mainContent = document.querySelector('.section-main-content');
+
+        if (isEditing) {
+            viewMode.style.display = 'block';
+            editMode.style.display = 'none';
+            if (detailBody) detailBody.classList.remove('editing-mode');
+            if (mainContent) mainContent.classList.remove('editing-mode');
+            if (editBtn) {
+                editBtn.setAttribute('data-tooltip', t('tooltips.edit'));
+                editBtn.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                `;
+            }
+        } else {
+            viewMode.style.display = 'none';
+            editMode.style.display = 'flex';
+            if (detailBody) detailBody.classList.add('editing-mode');
+            if (mainContent) mainContent.classList.add('editing-mode');
+            if (editBtn) {
+                editBtn.setAttribute('data-tooltip', t('tooltips.preview'));
+                editBtn.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                    </svg>
+                `;
+            }
+            // Focus textarea
+            document.getElementById('sectionContentEdit')?.focus();
+        }
+    }
+}
+
+async function saveCustomSectionContent(sectionId) {
+    const topic = state.topics.find(t => t.id === state.currentTopicId);
+    if (!topic) return;
+
+    const content = document.getElementById('sectionContentEdit')?.value || '';
+
+    try {
+        await topicService.updateCustomSection(
+            state.currentTopicId,
+            sectionId,
+            { content },
+            topic.customSections || []
+        );
+
+        toast.success('Contenido guardado');
+
+        // Update the view mode with the new rendered content
+        const viewMode = document.getElementById('sectionViewMode');
+        if (viewMode) {
+            viewMode.innerHTML = content ? renderMarkdown(content) : `
+                <div class="section-detail-empty">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <h3>${t('topics.emptySection')}</h3>
+                    <p>${t('topics.clickToEdit')}</p>
+                </div>
+            `;
+        }
+
+        // Update the TOC in the sidebar
+        updateSidebarTOC(content);
+
+        // Switch back to view mode
+        toggleSectionEditMode(sectionId);
+
+        // Reload topic view in background to update cards
+        openTopicView(state.currentTopicId);
+    } catch (error) {
+        handleFirebaseError(error, 'Error al guardar');
+    }
+}
+
+// ========================================================================
+// Markdown Toolbar Helpers
+// ========================================================================
+
+function insertMarkdown(prefix, suffix = '', options = {}) {
+    const textarea = document.getElementById('sectionContentEdit');
+    if (!textarea) return;
+    textarea.focus();
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const selected = text.substring(start, end);
+    const { block = false, placeholder = '', replaceLineStart = false } = options;
+
+    let newText, cursorStart, cursorEnd;
+
+    if (replaceLineStart) {
+        // For headings: toggle prefix at line start
+        const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+        const lineEnd = text.indexOf('\n', end);
+        const lineEndPos = lineEnd === -1 ? text.length : lineEnd;
+        const line = text.substring(lineStart, lineEndPos);
+
+        if (line.startsWith(prefix)) {
+            newText = text.substring(0, lineStart) + line.substring(prefix.length) + text.substring(lineEndPos);
+            cursorStart = cursorEnd = start - prefix.length;
+        } else {
+            const stripped = line.replace(/^#{1,3}\s/, '');
+            newText = text.substring(0, lineStart) + prefix + stripped + text.substring(lineEndPos);
+            cursorStart = cursorEnd = lineStart + prefix.length + stripped.length;
+        }
+    } else if (block) {
+        const before = start > 0 && text[start - 1] !== '\n' ? '\n' : '';
+        const after = end < text.length && text[end] !== '\n' ? '\n' : '';
+        const content = selected || placeholder;
+        const insertion = `${before}${prefix}${content}${suffix}${after}`;
+        newText = text.substring(0, start) + insertion + text.substring(end);
+        if (selected) {
+            cursorStart = cursorEnd = start + before.length + prefix.length + content.length + suffix.length;
+        } else {
+            cursorStart = start + before.length + prefix.length;
+            cursorEnd = cursorStart + placeholder.length;
+        }
+    } else {
+        // Inline wrap
+        if (selected) {
+            const beforeSel = text.substring(Math.max(0, start - prefix.length), start);
+            const afterSel = text.substring(end, end + suffix.length);
+            if (beforeSel === prefix && afterSel === suffix) {
+                // Toggle off
+                newText = text.substring(0, start - prefix.length) + selected + text.substring(end + suffix.length);
+                cursorStart = start - prefix.length;
+                cursorEnd = cursorStart + selected.length;
+            } else {
+                newText = text.substring(0, start) + prefix + selected + suffix + text.substring(end);
+                cursorStart = start + prefix.length;
+                cursorEnd = cursorStart + selected.length;
+            }
+        } else {
+            newText = text.substring(0, start) + prefix + placeholder + suffix + text.substring(end);
+            cursorStart = start + prefix.length;
+            cursorEnd = cursorStart + placeholder.length;
+        }
+    }
+
+    textarea.value = newText;
+    textarea.selectionStart = cursorStart;
+    textarea.selectionEnd = cursorEnd;
+    textarea.dispatchEvent(new Event('input'));
+}
+
+function insertLink() {
+    const textarea = document.getElementById('sectionContentEdit');
+    if (!textarea) return;
+    const selected = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
+    if (selected && (selected.startsWith('http://') || selected.startsWith('https://'))) {
+        // Selected text is a URL — wrap it
+        const linkText = t('mdToolbar.linkText');
+        const before = textarea.value.substring(0, textarea.selectionStart);
+        const after = textarea.value.substring(textarea.selectionEnd);
+        textarea.value = before + '[' + linkText + '](' + selected + ')' + after;
+        textarea.selectionStart = before.length + 1;
+        textarea.selectionEnd = before.length + 1 + linkText.length;
+        textarea.focus();
+    } else if (selected) {
+        insertMarkdown('[' + selected + '](', ')', { placeholder: 'url' });
+    } else {
+        insertMarkdown('[', '](url)', { placeholder: t('mdToolbar.linkText') });
+    }
+}
+
+function insertHeading(level) {
+    const prefix = '#'.repeat(level) + ' ';
+    insertMarkdown(prefix, '', { replaceLineStart: true });
+    document.getElementById('headingDropdown')?.classList.remove('open');
+}
+
+function toggleHeadingDropdown() {
+    document.getElementById('headingDropdown')?.classList.toggle('open');
+}
+
+function toggleSectionHighlightsSidebar() {
+    const sidebar = document.getElementById('sectionHighlightsSidebar');
+    if (!sidebar) return;
+    sidebar.classList.toggle('collapsed');
+}
+
+function updateSidebarTOC(content) {
+    const headings = extractHeadingsFromMarkdown(content || '');
+    const sidebar = document.getElementById('sectionHighlightsSidebar');
+    const detailContent = document.querySelector('.section-detail-content');
+
+    // Find or create the TOC accordion
+    let tocAccordion = sidebar?.querySelector('.sidebar-accordion-toc');
+
+    if (headings.length === 0) {
+        // Remove TOC accordion if no headings
+        if (tocAccordion) tocAccordion.remove();
+        // If no highlights either, remove sidebar entirely
+        if (sidebar && !sidebar.querySelector('.sidebar-accordion')) {
+            sidebar.remove();
+            if (detailContent) detailContent.classList.remove('has-sidebar');
+        }
+        return;
+    }
+
+    const tocHtml = `
+        <details class="sidebar-accordion sidebar-accordion-toc" open>
+            <summary>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+                <span>${t('topics.tableOfContents')}</span>
+                <span class="sidebar-accordion-badge">${headings.length}</span>
+            </summary>
+            <div class="sidebar-accordion-content">
+                <nav class="sidebar-toc">
+                    ${headings.map(h => `
+                        <a class="sidebar-toc-item sidebar-toc-h${h.level}" href="javascript:void(0)" onclick="scrollToHeading('${h.id}')">
+                            ${escapeHtml(h.text)}
+                        </a>
+                    `).join('')}
+                </nav>
+            </div>
+        </details>
+    `;
+
+    if (tocAccordion) {
+        // Update existing
+        tocAccordion.outerHTML = tocHtml;
+    } else if (sidebar) {
+        // Insert after header, before highlights accordion
+        const header = sidebar.querySelector('.section-highlights-header');
+        if (header) {
+            header.insertAdjacentHTML('afterend', tocHtml);
+        }
+    } else {
+        // No sidebar exists yet — create one
+        if (detailContent) detailContent.classList.add('has-sidebar');
+        const body = document.querySelector('.section-detail-body');
+        if (body) {
+            const sidebarHtml = `
+                <div class="section-highlights-sidebar" id="sectionHighlightsSidebar">
+                    <div class="section-highlights-header">
+                        <button class="btn-icon-tiny" onclick="toggleSectionHighlightsSidebar()" data-tooltip="${t('tooltips.hideLinkedInsights')}">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                    ${tocHtml}
+                </div>
+            `;
+            body.insertAdjacentHTML('beforeend', sidebarHtml);
+        }
+    }
+}
+
+let _tocScrollSpyPaused = false;
+
+function scrollToHeading(headingId) {
+    const heading = document.getElementById(headingId);
+    if (!heading) return;
+
+    // Update active state in TOC
+    setActiveTocItem(headingId);
+
+    // Pause scroll spy while programmatic scroll happens
+    _tocScrollSpyPaused = true;
+
+    // Scroll to heading
+    const scrollable = heading.closest('.section-main-content') || heading.closest('.section-detail-body');
+    if (scrollable) {
+        const offset = heading.offsetTop - scrollable.offsetTop;
+        scrollable.scrollTo({ top: offset, behavior: 'smooth' });
+    }
+
+    setTimeout(() => { _tocScrollSpyPaused = false; }, 600);
+}
+
+function setActiveTocItem(headingId) {
+    document.querySelectorAll('.sidebar-toc-item').forEach(item => item.classList.remove('active'));
+    const tocLink = document.querySelector(`.sidebar-toc-item[onclick*="${headingId}"]`);
+    if (tocLink) tocLink.classList.add('active');
+}
+
+function initTocScrollSpy() {
+    const scrollable = document.querySelector('.section-main-content') || document.querySelector('.section-detail-body');
+    if (!scrollable) return;
+
+    const onScroll = () => {
+        if (_tocScrollSpyPaused) return;
+
+        const headings = scrollable.querySelectorAll('h1[id^="heading-"], h2[id^="heading-"], h3[id^="heading-"]');
+        if (!headings.length) return;
+
+        let activeId = headings[0].id;
+        const scrollTop = scrollable.scrollTop;
+        const offset = scrollable.offsetTop + 40;
+
+        for (const heading of headings) {
+            if (heading.offsetTop - offset <= scrollTop) {
+                activeId = heading.id;
+            } else {
+                break;
+            }
+        }
+
+        setActiveTocItem(activeId);
+    };
+
+    scrollable.addEventListener('scroll', onScroll, { passive: true });
+    // Run once to set initial state
+    onScroll();
+}
+
+function toggleSplitPreview() {
+    const split = document.querySelector('.md-editor-split');
+    const toggleBtn = document.querySelector('.md-split-toggle');
+    if (!split) return;
+
+    const isActive = split.classList.toggle('split-active');
+
+    if (toggleBtn) {
+        toggleBtn.classList.toggle('active', isActive);
+    }
+
+    // Update preview content when activating
+    if (isActive) {
+        const textarea = document.getElementById('sectionContentEdit');
+        const preview = document.getElementById('mdPreviewPane');
+        if (textarea && preview) {
+            const val = textarea.value;
+            preview.innerHTML = val ? renderMarkdown(val) : `<p style="color: var(--text-muted); font-style: italic;">${t('topics.clickToEdit')}</p>`;
+        }
+    }
+}
+
+function handleMarkdownShortcuts(e) {
+    // Auto-continue lists on Enter
+    if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+        const textarea = e.target;
+        const pos = textarea.selectionStart;
+        const text = textarea.value;
+
+        // Find the current line
+        const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+        const line = text.substring(lineStart, pos);
+
+        // Check for ordered list: "1. text"
+        const olMatch = line.match(/^(\d+)\. (.+)$/);
+        if (olMatch) {
+            const nextNum = parseInt(olMatch[1]) + 1;
+            e.preventDefault();
+            const before = text.substring(0, pos);
+            const after = text.substring(pos);
+            const insert = '\n' + nextNum + '. ';
+            textarea.value = before + insert + after;
+            textarea.selectionStart = textarea.selectionEnd = pos + insert.length;
+            textarea.dispatchEvent(new Event('input'));
+            return;
+        }
+
+        // Check for empty ordered list item: "1. " (just the prefix, no content) — remove it
+        const olEmptyMatch = line.match(/^(\d+)\. $/);
+        if (olEmptyMatch) {
+            e.preventDefault();
+            const before = text.substring(0, lineStart);
+            const after = text.substring(pos);
+            textarea.value = before + after;
+            textarea.selectionStart = textarea.selectionEnd = lineStart;
+            textarea.dispatchEvent(new Event('input'));
+            return;
+        }
+
+        // Check for unordered list: "- text"
+        const ulMatch = line.match(/^- (.+)$/);
+        if (ulMatch) {
+            e.preventDefault();
+            const before = text.substring(0, pos);
+            const after = text.substring(pos);
+            const insert = '\n- ';
+            textarea.value = before + insert + after;
+            textarea.selectionStart = textarea.selectionEnd = pos + insert.length;
+            textarea.dispatchEvent(new Event('input'));
+            return;
+        }
+
+        // Check for empty unordered list item: "- " — remove it
+        if (line === '- ') {
+            e.preventDefault();
+            const before = text.substring(0, lineStart);
+            const after = text.substring(pos);
+            textarea.value = before + after;
+            textarea.selectionStart = textarea.selectionEnd = lineStart;
+            textarea.dispatchEvent(new Event('input'));
+            return;
+        }
+
+        // Check for blockquote: "> text"
+        const bqMatch = line.match(/^> (.+)$/);
+        if (bqMatch) {
+            e.preventDefault();
+            const before = text.substring(0, pos);
+            const after = text.substring(pos);
+            const insert = '\n> ';
+            textarea.value = before + insert + after;
+            textarea.selectionStart = textarea.selectionEnd = pos + insert.length;
+            textarea.dispatchEvent(new Event('input'));
+            return;
+        }
+
+        // Check for empty blockquote: "> " — remove it
+        if (line === '> ') {
+            e.preventDefault();
+            const before = text.substring(0, lineStart);
+            const after = text.substring(pos);
+            textarea.value = before + after;
+            textarea.selectionStart = textarea.selectionEnd = lineStart;
+            textarea.dispatchEvent(new Event('input'));
+            return;
+        }
+
+        return;
+    }
+
+    const isMod = e.ctrlKey || e.metaKey;
+    if (!isMod) return;
+
+    if (isMod && e.shiftKey) {
+        switch (e.key) {
+            case '7':
+                e.preventDefault();
+                insertMarkdown('1. ', '', { block: true, placeholder: t('mdToolbar.listItem') });
+                return;
+            case '8':
+                e.preventDefault();
+                insertMarkdown('- ', '', { block: true, placeholder: t('mdToolbar.listItem') });
+                return;
+        }
+    }
+
+    switch (e.key.toLowerCase()) {
+        case 'b':
+            e.preventDefault();
+            insertMarkdown('**', '**', { placeholder: t('mdToolbar.boldText') });
+            break;
+        case 'i':
+            e.preventDefault();
+            insertMarkdown('*', '*', { placeholder: t('mdToolbar.italicText') });
+            break;
+        case 'k':
+            e.preventDefault();
+            insertLink();
+            break;
+        case 'e':
+            e.preventDefault();
+            insertMarkdown('`', '`', { placeholder: 'code' });
+            break;
+    }
+}
+
+// ========================================================================
+// Section entries management (for list-type sections)
+// ========================================================================
+
+function renderSectionEntry(entry, sectionId) {
+    return `
+        <div class="entry-item" data-entry-id="${entry.id}">
+            <div class="entry-content">
+                ${entry.title ? `<h4 class="entry-title">${escapeHtml(entry.title)}</h4>` : ''}
+                ${entry.content ? `<p class="entry-text">${escapeHtml(entry.content)}</p>` : ''}
+                <div class="entry-meta">
+                    ${entry.date ? `<span class="entry-date">${escapeHtml(entry.date)}</span>` : ''}
+                    ${entry.source ? `<span class="entry-source">${escapeHtml(entry.source)}</span>` : ''}
+                </div>
+            </div>
+            <div class="entry-actions">
+                <button class="btn-icon-small" onclick="editEntry('${sectionId}', '${entry.id}')" data-tooltip="${t('tooltips.edit')}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                </button>
+                <button class="btn-icon-small" onclick="deleteEntry('${sectionId}', '${entry.id}')" data-tooltip="${t('tooltips.delete')}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function openAddEntryForm(sectionId, entryToEdit = null) {
+    const topic = state.topics.find(t => t.id === state.currentTopicId);
+    if (!topic) return;
+
+    const section = topic.customSections?.find(s => s.id === sectionId);
+    if (!section) return;
+
+    const isEditing = !!entryToEdit;
+    const entry = entryToEdit || { title: '', content: '', date: '', source: '', sourceUrl: '' };
+
+    const formHtml = `
+        <div class="entry-form-overlay" id="entryFormOverlay">
+            <div class="entry-form-modal">
+                <div class="modal-header">
+                    <h3>${isEditing ? t('entries.editEntry') : t('entries.newEntry')}</h3>
+                    <button class="btn-icon-small" onclick="closeEntryForm()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Título</label>
+                        <input type="text" id="entryTitle" class="input" value="${escapeHtml(entry.title || '')}" placeholder="Título de la entrada...">
+                    </div>
+                    <div class="form-group">
+                        <label>Contenido</label>
+                        <textarea id="entryContent" class="input" rows="6" placeholder="Contenido de la entrada...">${escapeHtml(entry.content || '')}</textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Fecha (opcional)</label>
+                            <input type="text" id="entryDate" class="input" value="${escapeHtml(entry.date || '')}" placeholder="Ej: 1948, Marzo 2020">
+                        </div>
+                        <div class="form-group">
+                            <label>Fuente (opcional)</label>
+                            <input type="text" id="entrySource" class="input" value="${escapeHtml(entry.source || '')}" placeholder="Nombre de la fuente">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>URL de la fuente (opcional)</label>
+                        <input type="url" id="entrySourceUrl" class="input" value="${escapeHtml(entry.sourceUrl || '')}" placeholder="https://...">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="closeEntryForm()">${t('form.cancel')}</button>
+                    <button class="btn btn-primary" onclick="saveEntry('${sectionId}', ${isEditing ? `'${entry.id}'` : 'null'})">${t('form.save')}</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const existingForm = document.getElementById('entryFormOverlay');
+    if (existingForm) existingForm.remove();
+
+    document.body.insertAdjacentHTML('beforeend', formHtml);
+}
+
+function closeEntryForm() {
+    const form = document.getElementById('entryFormOverlay');
+    if (form) form.remove();
+}
+
+async function saveEntry(sectionId, entryId = null) {
+    const topic = state.topics.find(t => t.id === state.currentTopicId);
+    if (!topic) return;
+
+    const title = document.getElementById('entryTitle')?.value?.trim() || '';
+    const content = document.getElementById('entryContent')?.value?.trim() || '';
+    const date = document.getElementById('entryDate')?.value?.trim() || '';
+    const source = document.getElementById('entrySource')?.value?.trim() || '';
+    const sourceUrl = document.getElementById('entrySourceUrl')?.value?.trim() || '';
+
+    if (!title && !content) {
+        toast.error('Añade al menos un título o contenido');
+        return;
+    }
+
+    const entryData = { title, content, date, source, sourceUrl };
+
+    try {
+        if (entryId) {
+            // Update existing entry
+            await topicService.updateSectionEntry(
+                state.currentTopicId,
+                sectionId,
+                entryId,
+                entryData,
+                topic.customSections || []
+            );
+            toast.success('Entrada actualizada');
+        } else {
+            // Add new entry
+            await topicService.addEntryToSection(
+                state.currentTopicId,
+                sectionId,
+                entryData,
+                topic.customSections || []
+            );
+            toast.success('Entrada añadida');
+        }
+
+        closeEntryForm();
+
+        // Reload the section modal
+        closeCustomSectionModal();
+        await openTopicView(state.currentTopicId);
+        setTimeout(() => openCustomSectionModal(sectionId), 100);
+    } catch (error) {
+        handleFirebaseError(error, 'Error al guardar la entrada');
+    }
+}
+
+async function editEntry(sectionId, entryId) {
+    const topic = state.topics.find(t => t.id === state.currentTopicId);
+    if (!topic) return;
+
+    const section = topic.customSections?.find(s => s.id === sectionId);
+    if (!section) return;
+
+    const entry = section.entries?.find(e => e.id === entryId);
+    if (!entry) return;
+
+    openAddEntryForm(sectionId, entry);
+}
+
+async function deleteEntry(sectionId, entryId) {
+    if (!confirm(t('confirm.areYouSure'))) return;
+
+    const topic = state.topics.find(t => t.id === state.currentTopicId);
+    if (!topic) return;
+
+    try {
+        await topicService.deleteSectionEntry(
+            state.currentTopicId,
+            sectionId,
+            entryId,
+            topic.customSections || []
+        );
+
+        toast.success('Entrada eliminada');
+
+        // Reload the section modal
+        closeCustomSectionModal();
+        await openTopicView(state.currentTopicId);
+        setTimeout(() => openCustomSectionModal(sectionId), 100);
+    } catch (error) {
+        handleFirebaseError(error, 'Error al eliminar la entrada');
+    }
+}
+
+// ========================================================================
+// Topic search with dimming effect
+// ========================================================================
+
+function filterTopicSections(searchTerm) {
+    const term = searchTerm.toLowerCase().trim();
+    const cards = document.querySelectorAll('.section-card');
+
+    cards.forEach(card => {
+        if (!term) {
+            // No search term: show all cards
+            card.classList.remove('dimmed');
+            return;
+        }
+
+        // Get card text content
+        const title = card.querySelector('.section-card-title h3')?.textContent || '';
+        const preview = card.querySelector('.section-card-preview-text')?.textContent || '';
+        const content = (title + ' ' + preview).toLowerCase();
+
+        // Apply dimming effect if it doesn't match
+        if (content.includes(term)) {
+            card.classList.remove('dimmed');
+        } else {
+            card.classList.add('dimmed');
+        }
+    });
+}
+
+async function deleteCustomSection(sectionId) {
+    const topic = state.topics.find(t => t.id === state.currentTopicId);
+    if (!topic) return;
+
+    const section = topic.customSections?.find(s => s.id === sectionId);
+    if (!section) return;
+
+    if (!confirm(`¿Eliminar la sección "${section.name}"? Se eliminará todo su contenido y esta acción no se puede deshacer.`)) return;
+
+    try {
+        await topicService.deleteCustomSection(
+            state.currentTopicId,
+            sectionId,
+            topic.customSections || []
+        );
+
+        toast.success('Sección eliminada');
+
+        // Reload topic view
+        await openTopicView(state.currentTopicId);
+    } catch (error) {
+        handleFirebaseError(error, 'Error al eliminar la sección');
+    }
+}
+
+function setupIconPicker(pickerId, inputId) {
+    const picker = document.getElementById(pickerId);
+    const input = document.getElementById(inputId);
+
+    if (!picker || !input) return;
+
+    picker.querySelectorAll('.icon-option').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            picker.querySelectorAll('.icon-option').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            input.value = btn.dataset.icon;
+        });
+    });
+}
+
+function setupSvgIconPicker(pickerId, inputId) {
+    const picker = document.getElementById(pickerId);
+    const input = document.getElementById(inputId);
+
+    if (!picker || !input) return;
+
+    picker.querySelectorAll('.icon-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            picker.querySelectorAll('.icon-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            input.value = btn.dataset.icon;
+        });
+    });
+}
+
+
+function handleModalEscape(e) {
+    if (e.key === 'Escape') {
+        closeSectionModal();
+    }
+}
+
+function closeSectionModal() {
+    const modal = document.getElementById('sectionModal');
+    if (modal) {
+        modal.remove();
+        document.removeEventListener('keydown', handleModalEscape);
+    }
+}
+
+
+function openInsightView(insightId) {
+    const insight = state.insights.find(i => i.id === insightId);
+    if (!insight) return;
+
+    // Store current insight ID for later reference
+    state.currentInsightId = insightId;
+
+    // Hide insights header when in detail view
+    if (elements.insightsHeader) elements.insightsHeader.style.display = 'none';
+
+    const contentBody = document.querySelector('.content-body');
+    if (!contentBody) return;
+
+    const linkedTopic = insight.linkedTopicId ? state.topics.find(t => t.id === insight.linkedTopicId) : null;
+    const videoId = insightService.extractYouTubeVideoId(insight.sourceUrl);
+    const isYouTube = insight.sourceType === 'youtube' && videoId;
+
+    contentBody.innerHTML = `
+        <div class="insight-detail-view">
+            <div class="insight-detail-header">
+                <button class="btn btn-secondary btn-back" onclick="switchSection('insights')" data-tooltip="${t('tooltips.back')}" data-tooltip-position="bottom">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </button>
+                <div class="insight-detail-title">
+                    <h1>${escapeHtml(insight.sourceTitle || t('insights.untitled'))}</h1>
+                    <div class="insight-detail-meta">
+                        <div class="status-dropdown-wrapper">
+                            <button class="insight-meta-pill insight-status-badge ${insight.status}" onclick="toggleStatusDropdown()" data-tooltip="${t('tooltips.changeStatus')}" data-tooltip-position="right">
+                                ${t('insights.' + insight.status)}
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="status-dropdown hidden" id="statusDropdown">
+                                ${['draft', 'reviewed', 'integrated', 'discarded'].map(s => `
+                                    <button class="status-option ${s}${s === insight.status ? ' active' : ''}" data-status="${s}" onclick="changeInsightStatus('${insight.id}', '${s}')">
+                                        ${t('insights.' + s)}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div class="insight-topic-selector">
+                            <button class="insight-meta-pill insight-linked-topic-btn" onclick="toggleTopicSelector('${insight.id}')">
+                                ${linkedTopic
+                                    ? `${getTopicIconSvg(linkedTopic.icon || 'folder', 14)} <span>${escapeHtml(linkedTopic.name)}</span>`
+                                    : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> <span>${t('insights.linkToTopic')}</span>`
+                                }
+                                <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="topic-selector-dropdown hidden" id="topicSelectorDropdown">
+                                <div class="topic-selector-option" onclick="linkInsightToTopic('${insight.id}', null)">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                    ${t('insights.noTopic')}
+                                </div>
+                                ${state.topics.map(topic => `
+                                    <div class="topic-selector-option ${topic.id === insight.linkedTopicId ? 'active' : ''}" onclick="linkInsightToTopic('${insight.id}', '${topic.id}')">
+                                        ${getTopicIconSvg(topic.icon || 'folder', 14)}
+                                        ${escapeHtml(topic.name)}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="insight-detail-actions">
+                    ${insight.sourceUrl ? `
+                        <a href="${escapeHtml(insight.sourceUrl)}" target="_blank" rel="noopener" class="btn btn-secondary${isYouTube ? ' btn-open-youtube' : ''}">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                <polyline points="15 3 21 3 21 9"></polyline>
+                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                            </svg>
+                            ${isYouTube ? t('insights.openOnYouTube') : t('insights.openSource')}
+                        </a>
+                    ` : ''}
+                    <button class="btn btn-secondary" onclick="editInsight('${insight.id}')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                        ${t('insights.editInfo')}
+                    </button>
+                </div>
+            </div>
+
+            <div class="insight-detail-content" id="insightDetailContent">
+                ${isYouTube ? `
+                    <div class="insight-video-section" id="insightVideoSection">
+                        <div class="video-container">
+                            <div id="ytPlayerContainer" data-video-id="${videoId}"></div>
+                        </div>
+                        <div class="video-notes-section">
+                            <div class="video-notes-header">
+                                <h3>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                                    </svg>
+                                    ${t('insights.myNotes')}
+                                </h3>
+                                <span class="notes-count">${t('insights.notesCount', { count: (insight.timestampedNotes || []).length })}</span>
+                            </div>
+
+                            <!-- Quick note input -->
+                            <div class="quick-note-input">
+                                <div class="quick-note-type-selector">
+                                    <button class="note-type-btn active" data-type="key" data-tooltip="${t('tooltips.key')}">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                                        </svg>
+                                    </button>
+                                    <button class="note-type-btn" data-type="question" data-tooltip="${t('tooltips.question')}">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="12" cy="12" r="10"></circle>
+                                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                        </svg>
+                                    </button>
+                                    <button class="note-type-btn" data-type="idea" data-tooltip="${t('tooltips.idea')}">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <line x1="9" y1="18" x2="15" y2="18"></line>
+                                            <line x1="10" y1="22" x2="14" y2="22"></line>
+                                            <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"></path>
+                                        </svg>
+                                    </button>
+                                    <button class="note-type-btn" data-type="todo" data-tooltip="${t('tooltips.todo')}">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div class="quick-note-field">
+                                    <input
+                                        type="text"
+                                        id="quickNoteInput"
+                                        placeholder="${t('insights.quickNotePlaceholder')}"
+                                        data-insight-id="${insight.id}"
+                                        data-video-id="${videoId}"
+                                    />
+                                    <button class="btn-timestamp" onclick="insertTimestampNote('${insight.id}', '${videoId}')" data-tooltip="${t('tooltips.addTimestampNote')}">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="12" cy="12" r="10"></circle>
+                                            <polyline points="12 6 12 12 16 14"></polyline>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Timestamped notes list -->
+                            <div class="timestamped-notes-list" id="timestampedNotesList">
+                                ${renderTimestampedNotes(insight.timestampedNotes || [], insight.id, videoId)}
+                            </div>
+
+                            <!-- Collapsible free notes -->
+                            <details class="free-notes-section">
+                                <summary>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="9 18 15 12 9 6"></polyline>
+                                    </svg>
+                                    ${t('insights.freeNotesLabel')}
+                                </summary>
+                                <div class="free-notes-content">
+                                    <textarea
+                                        id="insightNotesEditor"
+                                        class="video-notes-textarea"
+                                        placeholder="${t('insights.freeNotesPlaceholder')}"
+                                        data-insight-id="${insight.id}"
+                                    >${escapeHtml(insight.structuredNotes || insight.rawNotes || '')}</textarea>
+                                    <button class="btn btn-secondary btn-sm" onclick="saveInsightNotes('${insight.id}')">
+                                        ${t('insights.saveFreeNotes')}
+                                    </button>
+                                </div>
+                            </details>
+                        </div>
+                    </div>
+                    <div class="resize-handle" id="resizeHandle">
+                        <div class="resize-handle-line"></div>
+                    </div>
+                ` : ''}
+
+                <div class="insight-workspace" id="insightWorkspace">
+                    ${insight.videoDescription ? `
+                        <details class="insight-source-description">
+                            <summary>
+                                <svg class="desc-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                                <span>${t('insights.sourceDescription')}</span>
+                            </summary>
+                            <div class="insight-source-description-body">
+                                <p>${escapeHtml(insight.videoDescription)}</p>
+                            </div>
+                        </details>
+                    ` : ''}
+                    <div class="insight-tabs">
+                        <button class="insight-tab active" data-tab="transcript">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="9" y1="9" x2="15" y2="9"></line>
+                                <line x1="9" y1="13" x2="15" y2="13"></line>
+                                <line x1="9" y1="17" x2="12" y2="17"></line>
+                            </svg>
+                            ${t('insights.transcript')}
+                        </button>
+                        <button class="insight-tab" data-tab="highlights">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                                <path d="M2 17l10 5 10-5"></path>
+                                <path d="M2 12l10 5 10-5"></path>
+                            </svg>
+                            ${t('insights.highlights')} (${(insight.highlights || []).length})
+                        </button>
+                    </div>
+
+                    <div class="insight-tab-content" id="insightTabContent">
+                        <!-- Transcript tab (default) -->
+                        <div class="tab-pane active" data-pane="transcript">
+                            <div class="transcript-container">
+                                ${insight.transcript ? `
+                                    <div class="transcript-toolbar">
+                                        <div class="transcript-toolbar-left">
+                                            <span class="transcript-hint">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                                                    <path d="M2 17l10 5 10-5"></path>
+                                                </svg>
+                                                ${t('insights.selectTextToHighlight')}
+                                            </span>
+                                        </div>
+                                        <div class="transcript-toolbar-right">
+                                            ${isYouTube ? `
+                                                <button class="btn btn-secondary btn-sm" onclick="fetchYouTubeTranscript('${insight.id}', '${videoId}')" data-tooltip="${t('tooltips.reloadTranscript')}" data-tooltip-position="bottom">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <polyline points="23 4 23 10 17 10"></polyline>
+                                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                                                    </svg>
+                                                </button>
+                                            ` : ''}
+                                            <button class="btn btn-secondary btn-sm" onclick="clearTranscript('${insight.id}')">
+                                                ${t('insights.clearTranscript')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="transcript-article" id="transcriptText">
+                                        ${renderTranscriptArticle(insight)}
+                                    </div>
+                                ` : `
+                                    <div class="transcript-empty">
+                                        <div class="transcript-empty-icon">
+                                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                                <line x1="9" y1="9" x2="15" y2="9"></line>
+                                                <line x1="9" y1="13" x2="15" y2="13"></line>
+                                                <line x1="9" y1="17" x2="12" y2="17"></line>
+                                            </svg>
+                                        </div>
+                                        <h3>${t('insights.noTranscript')}</h3>
+                                        <p class="transcript-hint">${t('insights.getTranscriptHint')}</p>
+                                        ${isYouTube ? `
+                                            <div class="transcript-language-selector">
+                                                <label for="transcriptLang">${t('insights.transcriptLanguage')}:</label>
+                                                <select id="transcriptLang" class="transcript-lang-select">
+                                                    ${transcriptService.getAvailableLanguages().map(lang =>
+                                                        `<option value="${lang.code}">${lang.label}</option>`
+                                                    ).join('')}
+                                                </select>
+                                            </div>
+                                        ` : ''}
+                                        <div class="transcript-actions">
+                                            ${isYouTube ? `
+                                                <button class="btn btn-primary" onclick="fetchYouTubeTranscript('${insight.id}', '${videoId}')" id="fetchTranscriptBtn">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <polyline points="23 4 23 10 17 10"></polyline>
+                                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                                                    </svg>
+                                                    ${t('insights.fetchFromYouTube')}
+                                                </button>
+                                            ` : ''}
+                                            <button class="btn btn-secondary" onclick="showTranscriptInput()">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                                                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                                                </svg>
+                                                ${t('insights.pasteManually')}
+                                            </button>
+                                        </div>
+                                        <div class="transcript-input-container hidden" id="transcriptInputContainer">
+                                            <textarea id="transcriptInput" class="transcript-input" placeholder="${t('insights.pasteTranscriptPlaceholder')}"></textarea>
+                                            <div class="transcript-input-actions">
+                                                <button class="btn btn-secondary btn-sm" onclick="hideTranscriptInput()">${t('form.cancel')}</button>
+                                                <button class="btn btn-primary btn-sm" onclick="saveTranscript('${insight.id}')">${t('insights.saveTranscript')}</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `}
+                            </div>
+                        </div>
+
+                        <!-- Highlights tab -->
+                        <div class="tab-pane" data-pane="highlights">
+                            <div class="highlights-container">
+                                ${(insight.highlights || []).length > 0 ? `
+                                    <div class="highlights-list">
+                                        ${(insight.highlights || []).map(h => `
+                                            <div class="highlight-item" data-highlight-id="${h.id}">
+                                                <button class="highlight-color" style="background: ${getHighlightColor(h.color)}" onclick="showColorPicker('${insight.id}', '${h.id}', this)" data-tooltip="${t('tooltips.changeColor')}"></button>
+                                                <div class="highlight-content">
+                                                    <p class="highlight-text">"${escapeHtml(h.text)}"</p>
+                                                    ${h.note ? `<p class="highlight-note">${escapeHtml(h.note)}</p>` : ''}
+                                                    ${h.timestamp ? `<span class="highlight-timestamp">${h.timestamp}</span>` : ''}
+                                                </div>
+                                                <div class="highlight-actions">
+                                                    <button class="btn-icon" onclick="convertHighlightToQuote('${insight.id}', '${h.id}')" data-tooltip="${t('tooltips.convertToQuote')}" data-tooltip-position="bottom">
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                                        </svg>
+                                                    </button>
+                                                    <button class="btn-icon btn-danger" onclick="removeHighlight('${insight.id}', '${h.id}')" data-tooltip="${t('tooltips.removeHighlight')}" data-tooltip-position="bottom">
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                ` : `
+                                    <div class="highlights-empty">
+                                        <p>${t('insights.noHighlights')}</p>
+                                        <p class="highlight-hint">${t('insights.highlightsHint')}</p>
+                                    </div>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Setup tab switching
+    setupInsightDetailTabs();
+
+    // Setup transcript text selection for highlighting
+    setupTranscriptHighlighting(insight.id);
+
+    // Setup resize handle for video/workspace split
+    setupResizeHandle();
+
+    // Setup quick note input
+    setupQuickNoteInput();
+
+    // Initialize YouTube player if it's a YouTube video
+    if (isYouTube && videoId) {
+        initYouTubePlayer(videoId);
+    }
+}
+
+function setupInsightDetailTabs() {
+    const tabs = document.querySelectorAll('.insight-tab');
+    const panes = document.querySelectorAll('.tab-pane');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const targetPane = tab.dataset.tab;
+
+            // Update tabs
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+
+            // Update panes
+            panes.forEach(p => {
+                p.classList.toggle('active', p.dataset.pane === targetPane);
+            });
+        });
+    });
+}
+
+function setupResizeHandle() {
+    const container = document.getElementById('insightDetailContent');
+    const handle = document.getElementById('resizeHandle');
+    const videoSection = document.getElementById('insightVideoSection');
+
+    if (!container || !handle || !videoSection) return;
+
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = 0;
+
+    handle.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        startX = e.clientX;
+        startWidth = videoSection.offsetWidth;
+        container.classList.add('resizing');
+        handle.classList.add('dragging');
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+
+        const containerRect = container.getBoundingClientRect();
+        const deltaX = e.clientX - startX;
+        const newWidth = startWidth + deltaX;
+
+        // Calculate percentage
+        const containerWidth = containerRect.width;
+        const minWidth = 300;
+        const maxWidth = containerWidth * 0.8;
+
+        if (newWidth >= minWidth && newWidth <= maxWidth) {
+            const percentage = (newWidth / containerWidth) * 100;
+            videoSection.style.flex = `0 0 ${percentage}%`;
+            videoSection.style.maxWidth = `${percentage}%`;
+        }
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            container.classList.remove('resizing');
+            handle.classList.remove('dragging');
+        }
+    });
+
+    // Also support touch for tablets
+    handle.addEventListener('touchstart', (e) => {
+        isResizing = true;
+        startX = e.touches[0].clientX;
+        startWidth = videoSection.offsetWidth;
+        container.classList.add('resizing');
+        handle.classList.add('dragging');
+        e.preventDefault();
+    });
+
+    document.addEventListener('touchmove', (e) => {
+        if (!isResizing) return;
+
+        const containerRect = container.getBoundingClientRect();
+        const deltaX = e.touches[0].clientX - startX;
+        const newWidth = startWidth + deltaX;
+
+        const containerWidth = containerRect.width;
+        const minWidth = 300;
+        const maxWidth = containerWidth * 0.8;
+
+        if (newWidth >= minWidth && newWidth <= maxWidth) {
+            const percentage = (newWidth / containerWidth) * 100;
+            videoSection.style.flex = `0 0 ${percentage}%`;
+            videoSection.style.maxWidth = `${percentage}%`;
+        }
+    });
+
+    document.addEventListener('touchend', () => {
+        if (isResizing) {
+            isResizing = false;
+            container.classList.remove('resizing');
+            handle.classList.remove('dragging');
+        }
+    });
+}
+
+function setupTranscriptHighlighting(insightId) {
+    const transcriptText = document.getElementById('transcriptText');
+    if (!transcriptText) return;
+
+    // Handle text selection for new highlights
+    transcriptText.addEventListener('mouseup', (e) => {
+        // Don't show highlight popup if clicking on existing highlight
+        if (e.target.tagName === 'MARK') return;
+
+        const selection = window.getSelection();
+        const selectedText = selection.toString().trim();
+
+        if (selectedText.length > 5) {
+            showHighlightPopup(insightId, selectedText, selection);
+        }
+    });
+
+    // Handle click on existing highlights to change color
+    transcriptText.addEventListener('click', (e) => {
+        if (e.target.tagName === 'MARK') {
+            const highlightId = e.target.dataset.highlightId;
+            if (highlightId) {
+                showColorPicker(insightId, highlightId, e.target);
+            }
+        }
+    });
+}
+
+function showHighlightPopup(insightId, text, selection) {
+    // Remove existing popup
+    const existingPopup = document.querySelector('.highlight-popup');
+    if (existingPopup) existingPopup.remove();
+
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+
+    const popup = document.createElement('div');
+    popup.className = 'highlight-popup';
+    popup.innerHTML = `
+        <button class="highlight-btn" data-color="yellow" style="background: #fef08a" data-tooltip="${t('highlightColors.yellow')}"></button>
+        <button class="highlight-btn" data-color="green" style="background: #bbf7d0" data-tooltip="${t('highlightColors.green')}"></button>
+        <button class="highlight-btn" data-color="blue" style="background: #bfdbfe" data-tooltip="${t('highlightColors.blue')}"></button>
+        <button class="highlight-btn" data-color="pink" style="background: #fbcfe8" data-tooltip="${t('highlightColors.pink')}"></button>
+    `;
+
+    popup.style.position = 'fixed';
+    popup.style.left = `${rect.left + rect.width / 2}px`;
+    popup.style.top = `${rect.top - 40}px`;
+    popup.style.transform = 'translateX(-50%)';
+
+    document.body.appendChild(popup);
+
+    // Handle color selection
+    popup.querySelectorAll('.highlight-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const color = btn.dataset.color;
+            await addHighlightToInsight(insightId, text, color);
+            popup.remove();
+            selection.removeAllRanges();
+        });
+    });
+
+    // Close popup on click outside
+    setTimeout(() => {
+        document.addEventListener('click', function closePopup(e) {
+            if (!popup.contains(e.target)) {
+                popup.remove();
+                document.removeEventListener('click', closePopup);
+            }
+        });
+    }, 100);
+}
+
+function showColorPicker(insightId, highlightId, buttonElement) {
+    // Remove existing popup
+    const existingPopup = document.querySelector('.color-picker-popup');
+    if (existingPopup) existingPopup.remove();
+
+    const rect = buttonElement.getBoundingClientRect();
+
+    const popup = document.createElement('div');
+    popup.className = 'color-picker-popup';
+    popup.innerHTML = `
+        <button class="highlight-btn" data-color="yellow" style="background: #fef08a" data-tooltip="${t('highlightColors.yellow')}"></button>
+        <button class="highlight-btn" data-color="green" style="background: #bbf7d0" data-tooltip="${t('highlightColors.green')}"></button>
+        <button class="highlight-btn" data-color="blue" style="background: #bfdbfe" data-tooltip="${t('highlightColors.blue')}"></button>
+        <button class="highlight-btn" data-color="pink" style="background: #fbcfe8" data-tooltip="${t('highlightColors.pink')}"></button>
+    `;
+
+    popup.style.position = 'fixed';
+    popup.style.left = `${rect.left}px`;
+    popup.style.top = `${rect.bottom + 8}px`;
+
+    document.body.appendChild(popup);
+
+    // Handle color selection
+    popup.querySelectorAll('.highlight-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const color = btn.dataset.color;
+            await changeHighlightColor(insightId, highlightId, color);
+            popup.remove();
+        });
+    });
+
+    // Close popup on click outside
+    setTimeout(() => {
+        document.addEventListener('click', function closePopup(e) {
+            if (!popup.contains(e.target) && e.target !== buttonElement) {
+                popup.remove();
+                document.removeEventListener('click', closePopup);
+            }
+        });
+    }, 100);
+}
+
+async function changeHighlightColor(insightId, highlightId, color) {
+    try {
+        await insightService.updateHighlightColor(insightId, highlightId, color);
+        toast.success(t('toast.colorUpdated'));
+
+        // Update local state
+        const insight = state.insights.find(i => i.id === insightId);
+        if (insight) {
+            const updated = await insightService.getById(insightId);
+            Object.assign(insight, updated);
+
+            refreshTranscriptContent(insight);
+            refreshHighlightsTab(insight);
+        }
+    } catch (error) {
+        handleFirebaseError(error, t('toast.errorUpdating'));
+    }
+}
+
+async function addHighlightToInsight(insightId, text, color) {
+    try {
+        await insightService.addHighlight(insightId, { text, color });
+        toast.success(t('toast.highlightAdded'));
+
+        // Update local state WITHOUT reloading the entire view (keeps video playing)
+        const insight = state.insights.find(i => i.id === insightId);
+        if (insight) {
+            // Re-fetch to get updated highlights
+            const updated = await insightService.getById(insightId);
+            Object.assign(insight, updated);
+
+            // Only refresh the transcript and highlights sections (not the video!)
+            refreshTranscriptContent(insight);
+            refreshHighlightsTab(insight);
+            updateHighlightsTabCount(insight.highlights?.length || 0);
+        }
+    } catch (error) {
+        console.error('Error adding highlight:', error);
+        toast.error(t('toast.errorHighlighting'));
+    }
+}
+
+/**
+ * Refresh only the transcript content without reloading the video
+ */
+function refreshTranscriptContent(insight) {
+    const transcriptContainer = document.getElementById('transcriptText');
+    if (transcriptContainer) {
+        transcriptContainer.innerHTML = renderTranscriptArticle(insight);
+        // Re-setup highlighting
+        setupTranscriptHighlighting(insight.id);
+    }
+}
+
+/**
+ * Refresh only the highlights tab content
+ */
+function refreshHighlightsTab(insight) {
+    const highlightsPane = document.querySelector('.tab-pane[data-pane="highlights"]');
+    if (!highlightsPane) return;
+
+    const highlights = insight.highlights || [];
+
+    if (highlights.length > 0) {
+        highlightsPane.innerHTML = `
+            <div class="highlights-container">
+                <div class="highlights-list">
+                    ${highlights.map(h => `
+                        <div class="highlight-item" data-highlight-id="${h.id}">
+                            <button class="highlight-color" style="background: ${getHighlightColor(h.color)}" onclick="showColorPicker('${insight.id}', '${h.id}', this)" data-tooltip="${t('tooltips.changeColor')}"></button>
+                            <div class="highlight-content">
+                                <p class="highlight-text">"${escapeHtml(h.text)}"</p>
+                                ${h.note ? `<p class="highlight-note">${escapeHtml(h.note)}</p>` : ''}
+                                ${h.timestamp ? `<span class="highlight-timestamp">${h.timestamp}</span>` : ''}
+                            </div>
+                            <div class="highlight-actions">
+                                <button class="btn-icon" onclick="convertHighlightToQuote('${insight.id}', '${h.id}')" data-tooltip="${t('tooltips.convertToQuote')}" data-tooltip-position="bottom">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                    </svg>
+                                </button>
+                                <button class="btn-icon btn-danger" onclick="removeHighlight('${insight.id}', '${h.id}')" data-tooltip="${t('tooltips.removeHighlight')}" data-tooltip-position="bottom">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    } else {
+        highlightsPane.innerHTML = `
+            <div class="highlights-container">
+                <div class="highlights-empty">
+                    <p>${t('insights.noHighlights')}</p>
+                    <p class="highlight-hint">${t('insights.highlightsHint')}</p>
+                </div>
+            </div>
+        `;
+    }
+}
+
+/**
+ * Update highlights count in tab
+ */
+function updateHighlightsTabCount(count) {
+    const highlightsTab = document.querySelector('.insight-tab[data-tab="highlights"]');
+    if (highlightsTab) {
+        highlightsTab.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                <path d="M2 17l10 5 10-5"></path>
+                <path d="M2 12l10 5 10-5"></path>
+            </svg>
+            ${t('insights.highlights')} (${count})
+        `;
+    }
+}
+
+async function removeHighlight(insightId, highlightId) {
+    try {
+        await insightService.removeHighlight(insightId, highlightId);
+        toast.success(t('toast.highlightRemoved'));
+
+        // Update local state WITHOUT reloading the view
+        const insight = state.insights.find(i => i.id === insightId);
+        if (insight) {
+            insight.highlights = (insight.highlights || []).filter(h => h.id !== highlightId);
+            refreshTranscriptContent(insight);
+            refreshHighlightsTab(insight);
+            updateHighlightsTabCount(insight.highlights?.length || 0);
+        }
+    } catch (error) {
+        console.error('Error removing highlight:', error);
+        toast.error(t('toast.errorRemovingHighlight'));
+    }
+}
+
+async function convertHighlightToQuote(insightId, highlightId) {
+    const insight = state.insights.find(i => i.id === insightId);
+    if (!insight) return;
+
+    const highlight = (insight.highlights || []).find(h => h.id === highlightId);
+    if (!highlight) return;
+
+    // Open quote modal pre-filled with highlight data
+    replyParentId = null;
+    const form = elements.quoteForm;
+    form.reset();
+    document.getElementById('quoteId').value = '';
+    document.getElementById('quoteText').value = highlight.text;
+    document.getElementById('quoteAuthor').value = insight.sourceChannel || insight.sourceTitle || '';
+    document.getElementById('quoteSource').value = insight.sourceUrl || '';
+    document.getElementById('quoteNotes').value = highlight.note || `Extraído de: ${insight.sourceTitle}`;
+
+    // If insight is linked to a topic, try to find a matching collection
+    // (for now, leave collection empty)
+
+    elements.modalTitle.textContent = t('quotes.newQuote');
+    elements.modal.classList.add('active');
+}
+
+// ============================================================================
+// Timestamped Notes Functions
+// ============================================================================
+
+function renderTimestampedNotes(notes, insightId, videoId) {
+    if (!notes || notes.length === 0) {
+        return `
+            <div class="timestamped-notes-empty">
+                <p>${t('insights.noNotes')}</p>
+                <span>${t('insights.noNotesHint')}</span>
+            </div>
+        `;
+    }
+
+    // Sort by timestamp
+    const sortedNotes = [...notes].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+    return sortedNotes.map(note => {
+        const typeIcons = {
+            key: `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                  </svg>`,
+            question: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                      </svg>`,
+            idea: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="9" y1="18" x2="15" y2="18"></line>
+                    <line x1="10" y1="22" x2="14" y2="22"></line>
+                    <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"></path>
+                   </svg>`,
+            todo: note.completed
+                ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <polyline points="9 11 12 14 22 4"></polyline>
+                   </svg>`
+                : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                   </svg>`
+        };
+        const typeClasses = {
+            key: 'note-type-key',
+            question: 'note-type-question',
+            idea: 'note-type-idea',
+            todo: 'note-type-todo'
+        };
+
+        const icon = typeIcons[note.type] || `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>`;
+        const typeClass = typeClasses[note.type] || '';
+        const timestamp = note.timestamp !== null ? formatTimestamp(note.timestamp) : null;
+        const completedClass = note.type === 'todo' && note.completed ? 'completed' : '';
+
+        return `
+            <div class="timestamped-note ${typeClass} ${completedClass}" data-note-id="${note.id}">
+                ${timestamp !== null ? `
+                    <button class="note-timestamp" onclick="seekToTime(${note.timestamp})" data-tooltip="${t('insights.seekTo', { time: timestamp })}" data-tooltip-position="left">
+                        ${timestamp}
+                    </button>
+                ` : ''}
+                <span class="note-type-icon" ${note.type === 'todo' ? `onclick="toggleTodoNote('${insightId}', '${note.id}')"` : ''}>${icon}</span>
+                <span class="note-text">${escapeHtml(note.text)}</span>
+                <button class="note-delete" onclick="deleteTimestampedNote('${insightId}', '${note.id}')" data-tooltip="${t('tooltips.deleteNote')}" data-tooltip-position="right">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+        `;
+    }).join('');
+}
+
+async function insertTimestampNote(insightId, videoId) {
+    const input = document.getElementById('quickNoteInput');
+    const text = input.value.trim();
+
+    if (!text) {
+        input.focus();
+        return;
+    }
+
+    // Get selected note type
+    const activeTypeBtn = document.querySelector('.note-type-btn.active');
+    const noteType = activeTypeBtn ? activeTypeBtn.dataset.type : 'key';
+
+    // Get current video time
+    let currentTime = 0;
+    try {
+        const iframe = document.querySelector('.video-container iframe');
+        if (iframe) {
+            // Try to get time from YouTube API (if available)
+            // For now, we'll use 0 as fallback since YouTube iframe API needs special setup
+            currentTime = await getYouTubeCurrentTime() || 0;
+        }
+    } catch (e) {
+        console.warn('Could not get video time:', e);
+    }
+
+    await addTimestampedNote(insightId, {
+        text,
+        type: noteType,
+        timestamp: currentTime
+    });
+
+    input.value = '';
+    input.focus();
+}
+
+async function addTimestampedNote(insightId, noteData) {
+    try {
+        const insight = state.insights.find(i => i.id === insightId);
+        if (!insight) return;
+
+        const notes = insight.timestampedNotes || [];
+        const newNote = {
+            id: Date.now().toString(),
+            text: noteData.text,
+            type: noteData.type || 'key',
+            timestamp: noteData.timestamp !== undefined ? noteData.timestamp : null,
+            completed: false,
+            createdAt: new Date().toISOString()
+        };
+
+        notes.push(newNote);
+
+        await insightService.update(insightId, { timestampedNotes: notes });
+
+        // Update local state
+        insight.timestampedNotes = notes;
+
+        // Re-render notes list
+        refreshTimestampedNotes(insightId);
+
+    } catch (error) {
+        console.error('Error adding note:', error);
+        showNotification(t('toast.errorNoteAdd'), 'error');
+    }
+}
+
+async function deleteTimestampedNote(insightId, noteId) {
+    try {
+        const insight = state.insights.find(i => i.id === insightId);
+        if (!insight) return;
+
+        const notes = (insight.timestampedNotes || []).filter(n => n.id !== noteId);
+
+        await insightService.update(insightId, { timestampedNotes: notes });
+
+        // Update local state
+        insight.timestampedNotes = notes;
+
+        // Re-render notes list
+        refreshTimestampedNotes(insightId);
+
+    } catch (error) {
+        console.error('Error deleting note:', error);
+        showNotification(t('toast.errorNoteDelete'), 'error');
+    }
+}
+
+async function toggleTodoNote(insightId, noteId) {
+    try {
+        const insight = state.insights.find(i => i.id === insightId);
+        if (!insight) return;
+
+        const notes = (insight.timestampedNotes || []).map(n =>
+            n.id === noteId ? { ...n, completed: !n.completed } : n
+        );
+
+        await insightService.update(insightId, { timestampedNotes: notes });
+
+        // Update local state
+        insight.timestampedNotes = notes;
+
+        // Re-render notes list
+        refreshTimestampedNotes(insightId);
+
+    } catch (error) {
+        console.error('Error toggling todo:', error);
+    }
+}
+
+function refreshTimestampedNotes(insightId) {
+    const insight = state.insights.find(i => i.id === insightId);
+    if (!insight) return;
+
+    const videoId = insightService.extractYouTubeVideoId(insight.sourceUrl);
+    const container = document.getElementById('timestampedNotesList');
+    const countEl = document.querySelector('.notes-count');
+
+    if (container) {
+        container.innerHTML = renderTimestampedNotes(insight.timestampedNotes || [], insightId, videoId);
+    }
+
+    if (countEl) {
+        const count = (insight.timestampedNotes || []).length;
+        countEl.textContent = `${count} nota${count !== 1 ? 's' : ''}`;
+    }
+}
+
+function setupQuickNoteInput() {
+    const input = document.getElementById('quickNoteInput');
+    if (!input) return;
+
+    input.addEventListener('keypress', async (e) => {
+        if (e.key === 'Enter') {
+            const insightId = input.dataset.insightId;
+            const videoId = input.dataset.videoId;
+            await insertTimestampNote(insightId, videoId);
+        }
+    });
+
+    // Note type buttons
+    const typeButtons = document.querySelectorAll('.note-type-btn');
+    typeButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            typeButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            input.focus();
+        });
+    });
+}
+
+// YouTube IFrame API integration
+let ytPlayer = null;
+let ytApiReady = false;
+let ytApiLoadPromise = null;
+
+/**
+ * Load YouTube IFrame API if not already loaded
+ */
+function loadYouTubeAPI() {
+    if (ytApiLoadPromise) return ytApiLoadPromise;
+
+    ytApiLoadPromise = new Promise((resolve) => {
+        // Check if API is already loaded
+        if (globalThis.YT?.Player) {
+            ytApiReady = true;
+            resolve();
+            return;
+        }
+
+        // Define the callback that YouTube API will call
+        globalThis.onYouTubeIframeAPIReady = () => {
+            ytApiReady = true;
+            resolve();
+        };
+
+        // Load the API script if not already in DOM
+        if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+            const tag = document.createElement('script');
+            tag.src = 'https://www.youtube.com/iframe_api';
+            const firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        }
+    });
+
+    return ytApiLoadPromise;
+}
+
+/**
+ * Initialize YouTube player in the container
+ */
+async function initYouTubePlayer(videoId) {
+    await loadYouTubeAPI();
+
+    const container = document.getElementById('ytPlayerContainer');
+    if (!container) return;
+
+    // Destroy existing player if any
+    if (ytPlayer && typeof ytPlayer.destroy === 'function') {
+        try {
+            ytPlayer.destroy();
+        } catch (e) {
+            console.warn('Error destroying player:', e);
+        }
+        ytPlayer = null;
+    }
+
+    // Create new player
+    ytPlayer = new globalThis.YT.Player('ytPlayerContainer', {
+        videoId: videoId,
+        width: '100%',
+        height: '100%',
+        playerVars: {
+            autoplay: 0,
+            modestbranding: 1,
+            rel: 0
+        },
+        events: {
+            onReady: (event) => {
+                console.log('YouTube player ready');
+            },
+            onError: (event) => {
+                console.error('YouTube player error:', event.data);
+            }
+        }
+    });
+}
+
+/**
+ * Get current time from YouTube player
+ */
+function getYouTubeCurrentTime() {
+    return new Promise((resolve) => {
+        if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
+            try {
+                const time = ytPlayer.getCurrentTime();
+                resolve(time || 0);
+            } catch (e) {
+                console.warn('Error getting YouTube time:', e);
+                resolve(0);
+            }
+        } else {
+            resolve(0);
+        }
+    });
+}
+
+function renderTranscriptArticle(insight) {
+    const transcript = insight.transcript;
+    const highlights = insight.highlights || [];
+    const paragraphs = insight.transcriptParagraphs;
+
+    if (!transcript) return '';
+
+    // If we have pre-formatted paragraphs, use them
+    if (paragraphs && paragraphs.length > 0) {
+        return paragraphs.map(p => {
+            const timestamp = formatTimestamp(p.startTime);
+            const highlightedText = applyHighlightsToText(p.text, highlights);
+
+            return `
+                <div class="transcript-paragraph" data-time="${p.startTime}">
+                    <button class="transcript-timestamp" onclick="seekToTime(${p.startTime})" data-tooltip="${t('insights.seekTo', { time: timestamp })}" data-tooltip-position="left">
+                        ${timestamp}
+                    </button>
+                    <p>${highlightedText}</p>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Fallback: format raw transcript into paragraphs
+    const rawParagraphs = transcript.split(/\n\n+/).filter(p => p.trim());
+
+    if (rawParagraphs.length > 1) {
+        return rawParagraphs.map(p => {
+            const highlightedText = applyHighlightsToText(p.trim(), highlights);
+            return `
+                <div class="transcript-paragraph">
+                    <p>${highlightedText}</p>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Single block of text - split by sentences for readability
+    const sentences = transcript.match(/[^.!?]+[.!?]+/g) || [transcript];
+    const chunks = [];
+    let currentChunk = '';
+
+    sentences.forEach(sentence => {
+        if (currentChunk.length + sentence.length > 400) {
+            if (currentChunk) chunks.push(currentChunk.trim());
+            currentChunk = sentence;
+        } else {
+            currentChunk += ' ' + sentence;
+        }
+    });
+    if (currentChunk) chunks.push(currentChunk.trim());
+
+    return chunks.map(chunk => {
+        const highlightedText = applyHighlightsToText(chunk, highlights);
+        return `
+            <div class="transcript-paragraph">
+                <p>${highlightedText}</p>
+            </div>
+        `;
+    }).join('');
+}
+
+function applyHighlightsToText(text, highlights) {
+    if (!highlights || highlights.length === 0) {
+        return escapeHtml(text);
+    }
+
+    let result = escapeHtml(text);
+
+    // Sort highlights by text length (longest first) to avoid partial replacements
+    const sortedHighlights = [...highlights].sort((a, b) => b.text.length - a.text.length);
+
+    sortedHighlights.forEach(h => {
+        const escapedText = escapeHtml(h.text);
+        const color = getHighlightColor(h.color);
+        // Use word boundaries to avoid partial matches
+        const regex = new RegExp(escapedText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        result = result.replace(regex, `<mark style="background: ${color}" data-highlight-id="${h.id}">${escapedText}</mark>`);
+    });
+
+    return result;
+}
+
+function formatTimestamp(seconds) {
+    if (!seconds && seconds !== 0) return '';
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+
+    if (hrs > 0) {
+        return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function getTopicStats(topic) {
+    const sections = topic.customSections || [];
+    const sectionCount = sections.length;
+    const wordCount = sections.reduce((total, section) => {
+        const words = section.content ? section.content.split(/\s+/).filter(w => w).length : 0;
+        return total + words;
+    }, 0);
+    return { sectionCount, wordCount };
+}
+
+function seekToTime(seconds) {
+    // Use YouTube IFrame API if player is available
+    if (ytPlayer && typeof ytPlayer.seekTo === 'function') {
+        ytPlayer.seekTo(seconds, true);
+        ytPlayer.playVideo();
+        toast.info(`Saltando a ${formatTimestamp(seconds)}`);
+    } else {
+        // Fallback: Find the YouTube iframe and reload with start time
+        const iframe = document.querySelector('.video-container iframe');
+        if (iframe && iframe.src.includes('youtube.com')) {
+            const currentSrc = iframe.src;
+            const baseUrl = currentSrc.split('?')[0];
+            const videoId = baseUrl.split('/').pop();
+            iframe.src = `https://www.youtube.com/embed/${videoId}?start=${Math.floor(seconds)}&autoplay=1`;
+            toast.info(`Saltando a ${formatTimestamp(seconds)}`);
+        }
+    }
+}
+
+function showTranscriptInput() {
+    const container = document.getElementById('transcriptInputContainer');
+    if (container) {
+        container.classList.remove('hidden');
+    }
+}
+
+function hideTranscriptInput() {
+    const container = document.getElementById('transcriptInputContainer');
+    if (container) {
+        container.classList.add('hidden');
+    }
+}
+
+async function saveTranscript(insightId) {
+    const textarea = document.getElementById('transcriptInput');
+    if (!textarea) return;
+
+    const transcript = textarea.value.trim();
+    if (!transcript) {
+        toast.warning(t('toast.pasteTranscriptFirst'));
+        return;
+    }
+
+    try {
+        await insightService.saveTranscript(insightId, transcript);
+        toast.success(t('toast.transcriptSaved'));
+        // Update local state and refresh
+        const insight = state.insights.find(i => i.id === insightId);
+        if (insight) {
+            insight.transcript = transcript;
+            openInsightView(insightId);
+            const transcriptTab = document.querySelector('.insight-tab[data-tab="transcript"]');
+            if (transcriptTab) transcriptTab.click();
+        }
+    } catch (error) {
+        console.error('Error saving transcript:', error);
+        toast.error(t('toast.errorSavingTranscript'));
+    }
+}
+
+async function clearTranscript(insightId) {
+    confirmModal.show({
+        title: t('insights.clearTranscriptTitle'),
+        message: t('insights.clearTranscriptWarning'),
+        actionText: t('insights.clearTranscript'),
+        onConfirm: async () => {
+            try {
+                await insightService.update(insightId, { transcript: '', highlights: [] });
+                const insight = state.insights.find(i => i.id === insightId);
+                if (insight) {
+                    insight.transcript = '';
+                    insight.highlights = [];
+                    openInsightView(insightId);
+                    const transcriptTab = document.querySelector('.insight-tab[data-tab="transcript"]');
+                    if (transcriptTab) transcriptTab.click();
+                }
+                toast.success(t('toast.transcriptDeleted'));
+            } catch (error) {
+                handleFirebaseError(error, t('toast.errorDeletingTranscript'));
+            }
+        }
+    });
+}
+
+async function saveInsightNotes(insightId) {
+    const textarea = document.getElementById('insightNotesEditor');
+    if (!textarea) return;
+
+    try {
+        await insightService.saveNotes(insightId, textarea.value);
+        toast.success(t('toast.notesSaved'));
+        // Update local state
+        const insight = state.insights.find(i => i.id === insightId);
+        if (insight) {
+            insight.structuredNotes = textarea.value;
+        }
+    } catch (error) {
+        handleFirebaseError(error, t('toast.errorSavingNotes'));
+    }
+}
+
+async function fetchYouTubeTranscript(insightId, videoId) {
+    const fetchBtn = document.querySelector('#fetchTranscriptBtn, [onclick*="fetchYouTubeTranscript"]');
+    const langSelect = document.getElementById('transcriptLang');
+    const selectedLang = langSelect?.value || 'auto';
+
+    if (fetchBtn) {
+        fetchBtn.disabled = true;
+        fetchBtn.innerHTML = `
+            <svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+                <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path>
+            </svg>
+            ${t('insights.fetching')}
+        `;
+    }
+
+    // Disable language selector while fetching
+    if (langSelect) langSelect.disabled = true;
+
+    try {
+        toast.info(t('insights.fetchingTranscript'));
+
+        const result = await transcriptService.fetchTranscript(videoId, selectedLang);
+
+        if (result && result.raw) {
+            // Prepare update object
+            const updateData = {
+                transcript: result.raw,
+                transcriptFormatted: result.formatted,
+                transcriptParagraphs: result.paragraphs
+            };
+
+            // If video info is available, save it
+            if (result.videoInfo) {
+                if (result.videoInfo.duration) {
+                    updateData.sourceDuration = result.videoInfo.duration;
+                }
+                // Update title if not already set
+                const currentInsight = state.insights.find(i => i.id === insightId);
+                if (result.videoInfo.title && (!currentInsight?.sourceTitle || currentInsight.sourceTitle === 'Untitled')) {
+                    updateData.sourceTitle = result.videoInfo.title;
+                }
+                // Update thumbnail if not already set
+                if (result.videoInfo.thumbnail && !currentInsight?.sourceThumbnail) {
+                    updateData.sourceThumbnail = result.videoInfo.thumbnail;
+                }
+            }
+
+            // Save the formatted transcript
+            await insightService.update(insightId, updateData);
+
+            // Update local state
+            const insight = state.insights.find(i => i.id === insightId);
+            if (insight) {
+                Object.assign(insight, updateData);
+            }
+
+            toast.success(t('toast.transcriptFetched'));
+
+            // Refresh the view
+            openInsightView(insightId);
+            // Switch to transcript tab
+            setTimeout(() => {
+                const transcriptTab = document.querySelector('.insight-tab[data-tab="transcript"]');
+                if (transcriptTab) transcriptTab.click();
+            }, 100);
+        } else {
+            throw new Error(t('toast.transcriptNotFound'));
+        }
+    } catch (error) {
+        console.error('Error fetching transcript:', error);
+
+        // Check if it's a Firebase blocking error
+        if (error instanceof FirebaseBlockedError || error?.name === 'FirebaseBlockedError') {
+            handleFirebaseError(error);
+        } else {
+            toast.error(error.message || t('toast.errorFetchingTranscript'));
+
+            // Show manual input as fallback
+            const container = document.getElementById('transcriptInputContainer');
+            if (container) {
+                container.classList.remove('hidden');
+                const textarea = document.getElementById('transcriptInput');
+                if (textarea) {
+                    textarea.placeholder = t('insights.manualCopyInstructions');
+                }
+            }
+        }
+    } finally {
+        // Re-enable language selector
+        const langSelect = document.getElementById('transcriptLang');
+        if (langSelect) langSelect.disabled = false;
+
+        if (fetchBtn) {
+            fetchBtn.disabled = false;
+            fetchBtn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                </svg>
+                ${t('insights.fetchFromYouTube')}
+            `;
+        }
+    }
+}
+
+function editTopic(topicId) {
+    const topic = state.topics.find(t => t.id === topicId);
+    if (topic) {
+        openTopicModal(topic);
+    }
+}
+
+function editInsight(insightId) {
+    const insight = state.insights.find(i => i.id === insightId);
+    if (insight) {
+        openInsightModal(insight);
+    }
+}
+
+function deleteTopic(topicId) {
+    const topic = state.topics.find(t => t.id === topicId);
+    if (!topic) return;
+
+    confirmModal.show({
+        title: t('confirm.deleteItem', { item: topic.name }),
+        message: t('confirm.cannotUndo'),
+        actionText: t('quotes.delete'),
+        onConfirm: async () => {
+            try {
+                await topicService.delete(topicId);
+                toast.success(t('toast.topicDeleted'));
+                if (state.currentSection === 'wiki') {
+                    renderWikiView();
+                }
+            } catch (error) {
+                console.error('Error deleting topic:', error);
+                toast.error(t('toast.errorDeletingTopic'));
+            }
+        }
+    });
+}
+
+function deleteInsight(insightId) {
+    const insight = state.insights.find(i => i.id === insightId);
+    if (!insight) return;
+
+    confirmModal.show({
+        title: t('confirm.areYouSure'),
+        message: t('confirm.cannotUndo'),
+        actionText: t('quotes.delete'),
+        onConfirm: async () => {
+            try {
+                await insightService.delete(insightId);
+                toast.success(t('toast.insightDeleted'));
+                if (state.currentSection === 'insights') {
+                    renderInsightsView();
+                }
+            } catch (error) {
+                console.error('Error deleting insight:', error);
+                toast.error(t('toast.errorDeletingInsight'));
+            }
+        }
+    });
+}
+
+function toggleStatusDropdown() {
+    const dropdown = document.getElementById('statusDropdown');
+    if (!dropdown) return;
+
+    if (!dropdown.classList.contains('hidden')) {
+        dropdown.classList.add('hidden');
+        return;
+    }
+
+    dropdown.classList.remove('hidden');
+
+    // Close on outside click
+    setTimeout(() => {
+        document.addEventListener('click', function closeDropdown(e) {
+            const wrapper = document.querySelector('.status-dropdown-wrapper');
+            if (!wrapper || !wrapper.contains(e.target)) {
+                dropdown.classList.add('hidden');
+                document.removeEventListener('click', closeDropdown);
+            }
+        });
+    }, 0);
+}
+
+function toggleTopicSelector(insightId) {
+    const dropdown = document.getElementById('topicSelectorDropdown');
+    if (!dropdown) return;
+
+    if (!dropdown.classList.contains('hidden')) {
+        dropdown.classList.add('hidden');
+        return;
+    }
+
+    dropdown.classList.remove('hidden');
+
+    // Close on outside click
+    setTimeout(() => {
+        document.addEventListener('click', function closeDropdown(e) {
+            const wrapper = document.querySelector('.insight-topic-selector');
+            if (!wrapper || !wrapper.contains(e.target)) {
+                dropdown.classList.add('hidden');
+                document.removeEventListener('click', closeDropdown);
+            }
+        });
+    }, 0);
+}
+
+async function linkInsightToTopic(insightId, topicId) {
+    const dropdown = document.getElementById('topicSelectorDropdown');
+    if (dropdown) dropdown.classList.add('hidden');
+
+    try {
+        await insightService.linkToTopic(insightId, topicId);
+
+        // Update local state
+        const insight = state.insights.find(i => i.id === insightId);
+        if (insight) {
+            insight.linkedTopicId = topicId;
+        }
+
+        // Update the button in-place
+        const btn = document.querySelector('.insight-linked-topic-btn');
+        if (btn) {
+            const topic = topicId ? state.topics.find(t => t.id === topicId) : null;
+            btn.innerHTML = topic
+                ? `${getTopicIconSvg(topic.icon || 'folder', 14)} <span>${escapeHtml(topic.name)}</span><svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>`
+                : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> <span>${t('insights.linkToTopic')}</span><svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+        }
+
+        toast.success(topicId ? t('toast.insightLinked') : t('toast.insightUnlinked'));
+    } catch (error) {
+        handleFirebaseError(error, t('toast.errorUpdating'));
+    }
+}
+
+async function changeInsightStatus(insightId, newStatus) {
+    const dropdown = document.getElementById('statusDropdown');
+    if (dropdown) dropdown.classList.add('hidden');
+
+    const insight = state.insights.find(i => i.id === insightId);
+    if (!insight || insight.status === newStatus) return;
+
+    try {
+        await insightService.updateStatus(insightId, newStatus);
+        insight.status = newStatus;
+
+        // Update badge class and text in-place (avoids restarting video)
+        const badge = document.querySelector('.insight-status-badge');
+        if (badge) {
+            badge.className = `insight-status-badge ${newStatus}`;
+            badge.innerHTML = `${t('insights.' + newStatus)}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+        }
+
+        // Update active checkmark in dropdown
+        document.querySelectorAll('.status-option').forEach(opt => {
+            opt.classList.toggle('active', opt.dataset.status === newStatus);
+        });
+
+        toast.success(t('toast.statusUpdated'));
+    } catch (error) {
+        handleFirebaseError(error, t('toast.errorDefault'));
+    }
+}
+
+function updateInsightsCounts() {
+    const counts = insightService.getStatusCounts(state.insights);
+
+    // Update total
+    if (elements.totalInsights) {
+        elements.totalInsights.textContent = counts.total;
+    }
+
+    // Update draft badge (shown on tab)
+    if (elements.insightsDraftBadge) {
+        if (counts.draft > 0) {
+            elements.insightsDraftBadge.textContent = counts.draft;
+            elements.insightsDraftBadge.classList.remove('hidden');
+        } else {
+            elements.insightsDraftBadge.classList.add('hidden');
+        }
+    }
+
+    // Update individual counts
+    if (elements.insightsDraftCount) {
+        elements.insightsDraftCount.textContent = counts.draft;
+    }
+    if (elements.insightsReviewedCount) {
+        elements.insightsReviewedCount.textContent = counts.reviewed;
+    }
+    if (elements.insightsIntegratedCount) {
+        elements.insightsIntegratedCount.textContent = counts.integrated;
+    }
+}
+
+
+function updateInsightStatusActive() {
+    if (!elements.sidebarInsightStatus) return;
+
+    elements.sidebarInsightStatus.querySelectorAll('.nav-item').forEach(item => {
+        const status = item.dataset.status || '';
+        item.classList.toggle('active', !!state.insightStatusFilter && status === state.insightStatusFilter);
+    });
+}
+
+
+
+// Restore quotes view if content-body was replaced by wiki/insights
+
+// Wiki and Insights views
+function renderWikiView() {
+    // TODO: Implement wiki view rendering
+    const contentBody = document.querySelector('.content-body');
+    if (contentBody && state.currentSection === 'wiki') {
+        if (state.topics.length === 0) {
+            contentBody.innerHTML = `
+                <div class="empty-state">
+                    <h3>${t('sidebar.noTopics')}</h3>
+                    <p>Crea tu primer tema para comenzar a organizar tu conocimiento</p>
+                    <button class="btn btn-primary" onclick="openTopicModal()">
+                        ${t('sidebar.newTopic')}
+                    </button>
+                </div>
+            `;
+        } else {
+            renderTopicsList();
+        }
+    }
+}
+
+function renderTopicsList() {
+    const contentBody = document.querySelector('.content-body');
+    if (!contentBody) return;
+
+    // Get filter values
+    const searchTerm = elements.wikiSearchInput?.value?.toLowerCase() || '';
+    const sortBy = elements.topicSortBy?.value || 'recent';
+
+    // Filter topics
+    let filteredTopics = state.topics.filter(topic => {
+        // Search filter
+        const matchesSearch = !searchTerm ||
+            topic.name.toLowerCase().includes(searchTerm) ||
+            (topic.description && topic.description.toLowerCase().includes(searchTerm));
+
+        return matchesSearch;
+    });
+
+    // Count quotes per topic
+    const quoteCounts = {};
+    state.quotes.forEach(quote => {
+        if (quote.topicId) {
+            quoteCounts[quote.topicId] = (quoteCounts[quote.topicId] || 0) + 1;
+        }
+    });
+
+    // Sort topics based on selected option
+    filteredTopics.sort((a, b) => {
+        switch (sortBy) {
+            case 'az':
+                // Alphabetical A-Z
+                return a.name.localeCompare(b.name);
+
+            case 'mostVisited':
+                // Most visited (by number of knowledge entries/sections)
+                const aStats = getTopicStats(a);
+                const bStats = getTopicStats(b);
+                return bStats.sectionCount - aStats.sectionCount;
+
+            case 'recent':
+            default:
+                // Most recent (by updatedAt or createdAt)
+                const aDate = new Date(a.updatedAt || a.createdAt);
+                const bDate = new Date(b.updatedAt || b.createdAt);
+                return bDate - aDate;
+        }
+    });
+
+    // Show empty state if no results
+    if (filteredTopics.length === 0) {
+        contentBody.innerHTML = `
+            <div class="empty-state">
+                <h3>${t('wiki.noResults')}</h3>
+                <p>${t('wiki.tryDifferentFilters')}</p>
+            </div>
+        `;
+        return;
+    }
+
+    const html = filteredTopics.map(topic => {
+        const stats = getTopicStats(topic);
+        const lastEdited = getRelativeTime(topic.updatedAt || topic.createdAt);
+        const description = topic.description ? escapeHtml(topic.description) : '';
+        const truncatedDesc = description.length > 80 ? description.substring(0, 80) + '...' : description;
+        const hasDescription = truncatedDesc.length > 0;
+        const emptyStateClass = !hasDescription ? 'topic-card-empty' : '';
+
+        // Render tags pills
+        const tags = topic.tags || [];
+        const tagsHtml = tags.length > 0 ? `
+            <div class="topic-tags">
+                ${tags.slice(0, 3).map(tag => `<span class="topic-tag">${escapeHtml(tag)}</span>`).join('')}
+                ${tags.length > 3 ? `<span class="topic-tag-more">+${tags.length - 3}</span>` : ''}
+            </div>
+        ` : '';
+
+        return `
+        <div class="topic-card ${emptyStateClass}" data-topic-id="${topic.id}">
+            <div class="topic-card-header">
+                <div class="topic-icon" data-icon="${topic.icon || 'folder'}">${getTopicIconSvg(topic.icon || 'folder', 22)}</div>
+                <div class="topic-actions">
+                    <button class="btn-icon" onclick="event.stopPropagation(); editTopic('${topic.id}')" data-tooltip="${t('tooltips.edit')}">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                    </button>
+                    <button class="btn-icon btn-danger" onclick="event.stopPropagation(); deleteTopic('${topic.id}')" data-tooltip="${t('tooltips.delete')}">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="topic-card-body">
+                <h3 class="topic-name">${escapeHtml(topic.name)}</h3>
+                <div class="topic-stats">
+                    <span>${stats.sectionCount} ${stats.sectionCount === 1 ? t('wiki.section') : t('wiki.sections')}</span>
+                    <span class="topic-stats-dot">·</span>
+                    <span>${stats.wordCount.toLocaleString()} ${t('wiki.words')}</span>
+                </div>
+                ${tagsHtml}
+                ${truncatedDesc ? `<p class="topic-preview">"${truncatedDesc}"</p>` : ''}
+            </div>
+            ${lastEdited ? `<div class="topic-card-footer">${t('wiki.edited')} ${lastEdited}</div>` : ''}
+        </div>
+        `;
+    }).join('');
+
+    contentBody.innerHTML = `
+        <div class="topics-grid">
+            ${html}
+        </div>
+    `;
+
+    // Add click handlers to open topic detail
+    contentBody.querySelectorAll('.topic-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const topicId = card.dataset.topicId;
+            openTopicView(topicId);
+        });
+    });
+}
+
+function getFilteredInsights() {
+    // Get filter values from header
+    const searchTerm = elements.insightsSearchInput?.value?.toLowerCase() || '';
+    const headerStatusFilter = elements.insightsFilterStatus?.value || '';
+    const sourceFilter = elements.insightsFilterSource?.value || '';
+
+    // Use header status filter if set, otherwise use sidebar filter
+    const statusFilter = headerStatusFilter || state.insightStatusFilter;
+
+    // Start with status filter
+    let filtered = insightService.filterByStatus(state.insights, statusFilter);
+
+    // Apply search filter
+    if (searchTerm) {
+        filtered = filtered.filter(insight => {
+            const title = (insight.sourceTitle || '').toLowerCase();
+            const author = (insight.sourceAuthor || '').toLowerCase();
+            const keyTakeaway = (insight.keyTakeaway || '').toLowerCase();
+            return title.includes(searchTerm) || author.includes(searchTerm) || keyTakeaway.includes(searchTerm);
+        });
+    }
+
+    // Apply source type filter
+    if (sourceFilter) {
+        filtered = filtered.filter(insight => {
+            // Map 'video' to 'youtube' for compatibility
+            const insightSource = insight.sourceType === 'youtube' ? 'video' : insight.sourceType;
+            return insightSource === sourceFilter || insight.sourceType === sourceFilter;
+        });
+    }
+
+    return filtered;
+}
+
+function renderInsightsView() {
+    const contentBody = document.querySelector('.content-body');
+    if (contentBody && state.currentSection === 'insights') {
+        const filteredInsights = getFilteredInsights();
+
+        updateInsightStatusActive();
+
+        if (filteredInsights.length === 0) {
+            const hasFilters = elements.insightsSearchInput?.value || elements.insightsFilterStatus?.value || elements.insightsFilterSource?.value || state.insightStatusFilter;
+            contentBody.innerHTML = `
+                <div class="empty-state">
+                    <h3>${hasFilters ? t('insights.noResults') : t('insights.noInsights')}</h3>
+                    <p>${hasFilters ? t('insights.tryDifferentFilters') : t('insights.captureFirst')}</p>
+                    ${!hasFilters ? `
+                        <button class="btn btn-primary" onclick="openInsightModal()">
+                            ${t('sidebar.captureInsight')}
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+        } else {
+            renderInsightsList();
+        }
+    }
+}
+
+function renderInsightsList() {
+    const contentBody = document.querySelector('.content-body');
+    if (!contentBody) return;
+
+    const filteredInsights = getFilteredInsights();
+
+    const html = filteredInsights.map(insight => {
+        const linkedTopic = insight.linkedTopicId ? state.topics.find(t => t.id === insight.linkedTopicId) : null;
+        const notesCount = (insight.timestampedNotes || []).length;
+        const highlightsCount = (insight.highlights || []).length;
+
+        // Source type icons
+        const sourceIcons = {
+            youtube: `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                      </svg>`,
+            article: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                      </svg>`,
+            podcast: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                        <line x1="12" y1="19" x2="12" y2="23"></line>
+                      </svg>`,
+            book: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                     <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                   </svg>`,
+            other: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="16" x2="12" y2="12"></line>
+                      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>`
+        };
+
+        const sourceIcon = sourceIcons[insight.sourceType] || sourceIcons.other;
+
+        return `
+            <div class="insight-card" data-insight-id="${insight.id}">
+                <div class="insight-card-thumbnail">
+                    ${insight.sourceThumbnail
+                        ? `<img src="${insight.sourceThumbnail}" alt="" loading="lazy">`
+                        : `<div class="insight-card-placeholder">
+                             ${sourceIcon}
+                           </div>`
+                    }
+                    ${insight.sourceDuration ? `
+                        <div class="insight-card-duration">${formatTimestamp(insight.sourceDuration)}</div>
+                    ` : ''}
+                    <div class="insight-card-source-badge ${insight.sourceType}">
+                        ${sourceIcon}
+                        <span>${insight.sourceType || 'other'}</span>
+                    </div>
+                    <div class="insight-card-actions">
+                        <button class="insight-card-action" onclick="event.stopPropagation(); editInsight('${insight.id}')" data-tooltip="${t('tooltips.edit')}">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                        </button>
+                        <button class="insight-card-action danger" onclick="event.stopPropagation(); deleteInsight('${insight.id}')" data-tooltip="${t('tooltips.delete')}">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="insight-card-body">
+                    <div class="insight-card-status-line">
+                        <div class="insight-status-group">
+                            <span class="insight-status-dot ${insight.status}"></span>
+                            <span class="insight-status-text">${t('insights.' + insight.status)}</span>
+                        </div>
+                        <span class="insight-card-date">${new Date(insight.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <h3 class="insight-card-title">${escapeHtml(insight.sourceTitle || t('insights.untitled'))}</h3>
+                    ${insight.sourceChannel ? `
+                        <p class="insight-card-author">${escapeHtml(insight.sourceChannel)}</p>
+                    ` : ''}
+                    ${insight.videoDescription ? `
+                        <div class="insight-card-description">
+                            <p class="insight-card-description-text">${escapeHtml(insight.videoDescription)}</p>
+                        </div>
+                    ` : ''}
+                    ${(linkedTopic || notesCount > 0 || highlightsCount > 0 || insight.transcript) ? `
+                        <div class="insight-card-footer">
+                            ${linkedTopic ? `
+                                <div class="insight-card-topic">
+                                    ${getTopicIconSvg(linkedTopic.icon || 'folder', 14)}
+                                    <span>${escapeHtml(linkedTopic.name)}</span>
+                                </div>
+                            ` : ''}
+                            ${(notesCount > 0 || highlightsCount > 0 || insight.transcript) ? `
+                                <div class="insight-card-stats">
+                                    ${notesCount > 0 ? `
+                                        <span class="insight-stat" data-tooltip="${t('insights.notesCount', { count: notesCount })}">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                <polyline points="14 2 14 8 20 8"></polyline>
+                                            </svg>
+                                            ${notesCount}
+                                        </span>
+                                    ` : ''}
+                                    ${highlightsCount > 0 ? `
+                                        <span class="insight-stat" data-tooltip="${t('insights.highlightsCount', { count: highlightsCount })}">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                                                <path d="M2 17l10 5 10-5"></path>
+                                            </svg>
+                                            ${highlightsCount}
+                                        </span>
+                                    ` : ''}
+                                    ${insight.transcript ? `
+                                        <span class="insight-stat" data-tooltip="${t('insights.hasTranscript')}">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                                <line x1="9" y1="9" x2="15" y2="9"></line>
+                                                <line x1="9" y1="13" x2="15" y2="13"></line>
+                                            </svg>
+                                        </span>
+                                    ` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    });
+
+    const colCount = window.innerWidth >= 1400 ? 3 : window.innerWidth >= 1000 ? 2 : 1;
+    const columns = Array.from({ length: colCount }, () => []);
+    filteredInsights.forEach((_, i) => columns[i % colCount].push(html[i]));
+    const columnsHtml = columns
+        .map(col => `<div class="insights-column">${col.join('')}</div>`)
+        .join('');
+
+    contentBody.innerHTML = `
+        <div class="insights-grid">
+            ${filteredInsights.length > 0 ? columnsHtml : `
+                <div class="insights-empty">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                    </svg>
+                    <p>No hay insights en esta categoría</p>
+                    <span>Captura un nuevo insight para empezar</span>
+                </div>
+            `}
+        </div>
+    `;
+
+    // Add click handlers to open insight detail
+    contentBody.querySelectorAll('.insight-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const insightId = card.dataset.insightId;
+            openInsightView(insightId);
+        });
+    });
+}
+
+function openTopicModal(topicToEdit = null) {
+    // Reset form
+    elements.topicForm.reset();
+    elements.topicId.value = '';
+    elements.topicIconValue.value = '📁';
+
+    // Reset icon picker
+    elements.iconPicker.querySelectorAll('.icon-option').forEach(btn => {
+        btn.classList.toggle('selected', btn.dataset.icon === 'folder');
+    });
+
+    if (topicToEdit) {
+        elements.topicModalTitle.textContent = t('topics.editTopic');
+        elements.topicId.value = topicToEdit.id;
+        elements.topicName.value = topicToEdit.name;
+        elements.topicDescription.value = topicToEdit.description || '';
+        elements.topicTags.value = (topicToEdit.tags || []).join(', ');
+        elements.topicIconValue.value = topicToEdit.icon || 'folder';
+
+        // Update icon picker
+        elements.iconPicker.querySelectorAll('.icon-option').forEach(btn => {
+            btn.classList.toggle('selected', btn.dataset.icon === topicToEdit.icon);
+        });
+    } else {
+        elements.topicModalTitle.textContent = t('topics.newTopic');
+    }
+
+    elements.topicModal.classList.add('active');
+    elements.topicName.focus();
+}
+
+function closeTopicModal() {
+    elements.topicModal.classList.remove('active');
+    elements.topicForm.reset();
+}
+
+function openInsightModal(insightToEdit = null) {
+    // Reset form
+    elements.insightForm.reset();
+    elements.insightId.value = '';
+    elements.sourcePreview.classList.add('hidden');
+
+    // Populate topics dropdown
+    updateInsightTopicsDropdown();
+
+    if (insightToEdit) {
+        elements.insightModalTitle.textContent = t('insights.editInsight');
+        elements.insightId.value = insightToEdit.id;
+        elements.insightSourceUrl.value = insightToEdit.sourceUrl || '';
+        elements.insightTags.value = (insightToEdit.tags || []).join(', ');
+        elements.insightLinkedTopic.value = insightToEdit.linkedTopicId || '';
+
+        // Update custom select text
+        const selectedTopic = state.topics.find(t => t.id === insightToEdit.linkedTopicId);
+        const selectedText = elements.insightTopicSelect?.querySelector('.selected-text');
+        if (selectedText) {
+            selectedText.textContent = selectedTopic ? selectedTopic.name : t('insights.noTopic');
+        }
+
+        // Update active state in dropdown
+        const dropdown = document.getElementById('insightTopicDropdown');
+        if (dropdown) {
+            dropdown.querySelectorAll('.custom-select-option').forEach(opt => {
+                opt.classList.toggle('active', opt.dataset.value === (insightToEdit.linkedTopicId || ''));
+            });
+        }
+
+        // Show preview if we have source info
+        if (insightToEdit.sourceTitle) {
+            showSourcePreview({
+                title: insightToEdit.sourceTitle,
+                type: insightToEdit.sourceType,
+                thumbnail: insightToEdit.sourceThumbnail,
+                channel: insightToEdit.sourceChannel,
+                duration: insightToEdit.sourceDuration
+            });
+            // Set button to success state since metadata is already fetched
+            setFetchButtonState('success');
+        } else {
+            // Editing but no metadata yet
+            setFetchButtonState('search');
+        }
+    } else {
+        elements.insightModalTitle.textContent = t('insights.capture');
+        // New insight - show search icon
+        setFetchButtonState('search');
+
+        // Reset custom select to default "Sin vincular"
+        const selectedText = elements.insightTopicSelect?.querySelector('.selected-text');
+        if (selectedText) {
+            selectedText.textContent = t('insights.noTopic');
+        }
+        const dropdown = document.getElementById('insightTopicDropdown');
+        if (dropdown) {
+            dropdown.querySelectorAll('.custom-select-option').forEach(opt => {
+                opt.classList.toggle('active', opt.dataset.value === '');
+            });
+        }
+        elements.insightLinkedTopic.value = '';
+    }
+
+    elements.insightModal.classList.add('active');
+    elements.insightSourceUrl.focus();
+}
+
+function closeInsightModal() {
+    elements.insightModal.classList.remove('active');
+    elements.insightForm.reset();
+    elements.sourcePreview.classList.add('hidden');
+    // Reset fetch button to search state
+    setFetchButtonState('search');
+}
+
+function setFetchButtonState(state) {
+    if (!elements.fetchMetadataBtn) return;
+
+    const iconSearch = elements.fetchMetadataBtn.querySelector('.icon-search');
+    const iconLoading = elements.fetchMetadataBtn.querySelector('.icon-loading');
+    const iconSuccess = elements.fetchMetadataBtn.querySelector('.icon-success');
+
+    // Hide all icons first
+    iconSearch?.classList.add('hidden');
+    iconLoading?.classList.add('hidden');
+    iconSuccess?.classList.add('hidden');
+
+    // Show the appropriate icon
+    switch (state) {
+        case 'search':
+            iconSearch?.classList.remove('hidden');
+            elements.fetchMetadataBtn.disabled = false;
+            break;
+        case 'loading':
+            iconLoading?.classList.remove('hidden');
+            elements.fetchMetadataBtn.disabled = true;
+            break;
+        case 'success':
+            iconSuccess?.classList.remove('hidden');
+            elements.fetchMetadataBtn.disabled = false;
+            break;
+    }
+}
+
+function updateInsightTopicsDropdown() {
+    const select = elements.insightLinkedTopic;
+    const dropdown = document.getElementById('insightTopicDropdown');
+    if (!select || !dropdown) return;
+
+    // Update hidden select
+    select.innerHTML = '<option value="">Sin vincular</option>';
+
+    // Update custom dropdown - keep first "no link" option
+    const firstOption = dropdown.querySelector('.custom-select-option[data-value=""]');
+    dropdown.innerHTML = '';
+    if (firstOption) {
+        dropdown.appendChild(firstOption);
+    } else {
+        dropdown.innerHTML = `
+            <button type="button" class="custom-select-option active" data-value="">
+                <span>${t('insights.noTopic')}</span>
+                <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            </button>
+        `;
+    }
+
+    state.topics.forEach(topic => {
+        // Add to hidden select
+        const option = document.createElement('option');
+        option.value = topic.id;
+        option.textContent = topic.name;
+        select.appendChild(option);
+
+        // Add to custom dropdown
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'custom-select-option';
+        btn.dataset.value = topic.id;
+        btn.innerHTML = `
+            <span>${escapeHtml(topic.name)}</span>
+            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+        `;
+        dropdown.appendChild(btn);
+    });
+}
+
+function showSourcePreview(data) {
+    if (!data.title) return;
+
+    elements.sourceTitle.textContent = data.title;
+    elements.sourceTypeBadge.textContent = data.type || 'article';
+    elements.sourceTypeBadge.className = `source-type-badge ${data.type || 'article'}`;
+
+    // Display channel and duration for visual reference
+    const channelText = data.channel || '';
+    const durationText = data.duration ? formatTimestamp(data.duration) : '';
+
+    if (channelText && durationText) {
+        elements.sourceChannel.textContent = `${channelText} • ${durationText}`;
+    } else if (channelText) {
+        elements.sourceChannel.textContent = channelText;
+    } else if (durationText) {
+        elements.sourceChannel.textContent = `Duración: ${durationText}`;
+    } else {
+        elements.sourceChannel.textContent = '';
+    }
+
+    // Store duration, channel, and description separately in data attributes for saving
+    elements.sourcePreview.dataset.duration = data.duration || '';
+    elements.sourcePreview.dataset.channel = data.channel || '';
+    elements.sourcePreview.dataset.description = data.description || '';
+
+    if (data.thumbnail) {
+        elements.sourceThumbnail.src = data.thumbnail;
+        elements.sourceThumbnail.style.display = 'block';
+    } else {
+        elements.sourceThumbnail.style.display = 'none';
+    }
+
+    elements.sourcePreview.classList.remove('hidden');
+}
+
+async function fetchUrlMetadata(url) {
+    if (!url) return null;
+
+    const sourceType = insightService.detectSourceType(url);
+
+    // For YouTube, extract video info using Netlify Function (yt-dlp)
+    if (sourceType === 'youtube') {
+        const videoId = insightService.extractYouTubeVideoId(url);
+        if (videoId) {
+            try {
+                // Try video-metadata function first (faster, just metadata)
+                const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+                const metadataEndpoints = [`${backendUrl}/api/video-metadata`];
+
+                for (const endpoint of metadataEndpoints) {
+                    try {
+                        const response = await fetch(`${endpoint}?videoId=${videoId}`);
+                        if (response.ok) {
+                            const data = await response.json();
+                            return {
+                                title: data.title,
+                                channel: data.channel,
+                                thumbnail: data.thumbnail || `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+                                duration: data.duration,
+                                description: data.description,
+                                type: 'youtube'
+                            };
+                        }
+                    } catch (err) {
+                        console.warn(`Error with ${endpoint}:`, err);
+                        continue;
+                    }
+                }
+
+                // Fallback to transcript function if video-metadata fails
+                const transcriptEndpoints = [`${backendUrl}/api/transcript`];
+
+                for (const endpoint of transcriptEndpoints) {
+                    try {
+                        const response = await fetch(`${endpoint}?videoId=${videoId}&lang=en`);
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.videoInfo) {
+                                const channelValue = data.videoInfo.uploader || data.videoInfo.channel || data.videoInfo.author;
+                                return {
+                                    title: data.videoInfo.title,
+                                    channel: channelValue,
+                                    thumbnail: data.videoInfo.thumbnail || `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+                                    duration: data.videoInfo.duration,
+                                    description: data.videoInfo.description,
+                                    type: 'youtube'
+                                };
+                            }
+                        }
+                    } catch (err) {
+                        console.warn(`Error with ${endpoint}:`, err);
+                        continue;
+                    }
+                }
+
+                // Fallback to oEmbed if Netlify function fails
+                const response = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+                if (response.ok) {
+                    const data = await response.json();
+                    return {
+                        title: data.title,
+                        channel: data.author_name,
+                        thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+                        duration: null,
+                        type: 'youtube'
+                    };
+                }
+            } catch (err) {
+                console.warn('Error fetching YouTube metadata:', err);
+            }
+        }
+    }
+
+    // For other URLs, just return basic info
+    return {
+        title: url,
+        type: sourceType,
+        thumbnail: null,
+        channel: null,
+        duration: null
+    };
+}
+
+// Setup modal listeners
+function setupInsightModalListeners() {
+    // Cancel button
+    if (elements.cancelInsightBtn) {
+        elements.cancelInsightBtn.onclick = closeInsightModal;
+    }
+
+    // Close on overlay click
+    if (elements.insightModal) {
+        elements.insightModal.onclick = (e) => {
+            if (e.target === elements.insightModal) {
+                closeInsightModal();
+            }
+        };
+    }
+
+    // Fetch metadata button
+    if (elements.fetchMetadataBtn) {
+        elements.fetchMetadataBtn.onclick = async () => {
+            const url = elements.insightSourceUrl.value.trim();
+            if (!url) {
+                toast.warning(t('toast.enterUrlFirst'));
+                return;
+            }
+
+            const saveBtn = document.getElementById('saveInsightBtn');
+
+            // Change to loading state
+            setFetchButtonState('loading');
+            if (saveBtn) saveBtn.disabled = true;
+
+            try {
+                const metadata = await fetchUrlMetadata(url);
+                if (metadata) {
+                    showSourcePreview(metadata);
+                    // Change to success state
+                    setFetchButtonState('success');
+                } else {
+                    // Back to search state if failed
+                    setFetchButtonState('search');
+                }
+            } catch (err) {
+                toast.error(t('toast.errorFetchingMetadata'));
+                // Back to search state on error
+                setFetchButtonState('search');
+            } finally {
+                if (saveBtn) saveBtn.disabled = false;
+            }
+        };
+    }
+
+    // Form submit
+    if (elements.insightForm) {
+        elements.insightForm.onsubmit = async (e) => {
+            e.preventDefault();
+            await handleInsightSubmit();
+        };
+    }
+}
+
+async function handleInsightSubmit() {
+    const url = elements.insightSourceUrl.value.trim();
+
+    if (!url) {
+        toast.warning(t('toast.addUrl'));
+        return;
+    }
+
+    const insightId = elements.insightId.value;
+    const sourceType = insightService.detectSourceType(url);
+
+    // Get metadata from preview if available
+    const sourceTitle = elements.sourceTitle.textContent || url || t('insights.untitled');
+    const sourceChannel = elements.sourcePreview.dataset.channel || null;
+    const sourceThumbnail = elements.sourceThumbnail.src || null;
+    const sourceDuration = elements.sourcePreview.dataset.duration ? parseInt(elements.sourcePreview.dataset.duration) : null;
+    const videoDescription = elements.sourcePreview.dataset.description || null;
+
+    const data = {
+        sourceUrl: url,
+        sourceTitle: sourceTitle,
+        sourceType: sourceType,
+        sourceChannel: sourceChannel,
+        sourceThumbnail: sourceThumbnail && !sourceThumbnail.includes('data:') ? sourceThumbnail : null,
+        sourceDuration: sourceDuration,
+        videoDescription: videoDescription,
+        tags: elements.insightTags.value.split(',').map(t => t.trim().toLowerCase()).filter(Boolean),
+        linkedTopicId: elements.insightLinkedTopic.value || null
+    };
+
+    try {
+        const user = authService.getCurrentUser();
+        if (!user) throw new Error(t('auth.errors.sessionRequired'));
+        if (insightId) {
+            await insightService.update(insightId, data);
+            toast.success(t('toast.insightUpdated'));
+        } else {
+            await insightService.create(data, user.uid);
+            toast.success(t('toast.insightSaved'));
+        }
+        closeInsightModal();
+
+        // Switch to insights view
+        if (state.currentSection !== 'insights') {
+            window.switchSection?.('insights');
+        }
+    } catch (err) {
+        handleFirebaseError(err, t('toast.saveError'));
+    }
+}
+
+function setupTopicModalListeners() {
+    // Cancel button
+    if (elements.cancelTopicBtn) {
+        elements.cancelTopicBtn.onclick = closeTopicModal;
+    }
+
+    // Close on overlay click
+    if (elements.topicModal) {
+        elements.topicModal.onclick = (e) => {
+            if (e.target === elements.topicModal) {
+                closeTopicModal();
+            }
+        };
+    }
+
+    // Icon picker
+    if (elements.iconPicker) {
+        elements.iconPicker.onclick = (e) => {
+            const btn = e.target.closest('.icon-option');
+            if (btn) {
+                elements.iconPicker.querySelectorAll('.icon-option').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                elements.topicIconValue.value = btn.dataset.icon;
+            }
+        };
+    }
+
+    // Form submit
+    if (elements.topicForm) {
+        elements.topicForm.onsubmit = async (e) => {
+            e.preventDefault();
+            await handleTopicSubmit();
+        };
+    }
+}
+
+async function handleTopicSubmit() {
+    const name = elements.topicName.value.trim();
+    if (!name) {
+        toast.warning(t('toast.nameRequired'));
+        return;
+    }
+
+    const topicId = elements.topicId.value;
+
+    // Parse tags
+    const tagsInput = elements.topicTags.value.trim();
+    const tags = tagsInput ? tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) : [];
+
+    const data = {
+        name: name,
+        description: elements.topicDescription.value.trim(),
+        icon: elements.topicIconValue.value || '📁',
+        tags: tags
+    };
+
+    try {
+        const user = authService.getCurrentUser();
+        if (!user) throw new Error(t('auth.errors.sessionRequired'));
+        if (topicId) {
+            await topicService.update(topicId, data);
+            toast.success(t('toast.topicUpdated'));
+        } else {
+            await topicService.create(data, user.uid);
+            toast.success(t('toast.topicCreated'));
+        }
+        closeTopicModal();
+
+        // Switch to wiki view
+        if (state.currentSection !== 'wiki') {
+            window.switchSection?.('wiki');
+        }
+    } catch (err) {
+        console.error('Error saving topic:', err);
+        toast.error(err.message === t('auth.errors.sessionRequired')
+            ? err.message
+            : t('toast.errorSavingTopic'));
+    }
+}
+
+// Make functions globally available for onclick handlers
+window.openTopicModal = openTopicModal;
+window.openInsightModal = openInsightModal;
 
 function updateCollectionSelects() {
     updateAllCollectionSelects({
         filter: elements.filterCollection,
         form: elements.quoteCollection
-    }, state.collections, elements.collectionSelect);
+    }, state.collections);
 }
 
 // ============================================================================
@@ -444,13 +4742,15 @@ async function handleQuoteSubmit(e) {
         collectionId: document.getElementById('quoteCollection').value,
         stance: document.getElementById('quoteStance').value,
         tags: document.getElementById('quoteTags').value,
-        notes: document.getElementById('quoteNotes').value
+        notes: document.getElementById('quoteNotes').value,
+        parentId: replyParentId
     };
 
     const quoteData = quoteService.prepareQuoteData(formData);
 
     try {
         const user = authService.getCurrentUser();
+        if (!user) throw new Error(t('auth.errors.sessionRequired'));
         if (id) {
             await quoteService.update(id, { ...quoteData, userId: user.uid });
             toast.success(t('toast.quoteUpdated'));
@@ -461,7 +4761,9 @@ async function handleQuoteSubmit(e) {
         closeModal();
     } catch (error) {
         console.error('Error saving quote:', error);
-        toast.error(t('toast.errorSavingQuote'));
+        toast.error(error.message === t('auth.errors.sessionRequired')
+            ? error.message
+            : t('toast.errorSavingQuote'));
     }
 
     elements.saveBtn.disabled = false;
@@ -474,63 +4776,72 @@ async function handleQuoteSubmit(e) {
 function setupFilterListeners() {
     elements.searchInput.addEventListener('input', renderQuotes);
 
-    // Setup custom selects
-    setupCustomSelect(elements.stanceSelect, elements.filterStance);
-    setupCustomSelect(elements.favoriteSelect, elements.filterFavorite);
-    setupCustomSelect(elements.sortSelect, elements.sortBy);
-    setupCustomSelect(elements.collectionSelect, elements.filterCollection);
+    // Setup custom selects - Quotes
+    new CustomSelect(elements.stanceSelect, elements.filterStance, renderQuotes).mount();
+    new CustomSelect(elements.favoriteSelect, elements.filterFavorite, renderQuotes).mount();
+    new CustomSelect(elements.sortSelect, elements.sortBy, renderQuotes).mount();
+    // Collection filter is now controlled by sidebar navigation
+
+    // Setup custom selects - Wiki
+    new CustomSelect(elements.topicSortSelect, elements.topicSortBy, renderWikiView).mount();
+
+    // Setup custom selects - Insights
+    new CustomSelect(elements.insightsStatusSelect, elements.insightsFilterStatus, renderInsightsView).mount();
+    new CustomSelect(elements.insightsSourceSelect, elements.insightsFilterSource, renderInsightsView).mount();
+
+    // Setup custom select - Insight Modal
+    new CustomSelect(elements.insightTopicSelect, elements.insightLinkedTopic, null).mount();
+
+    // Wiki search listener
+    if (elements.wikiSearchInput) {
+        elements.wikiSearchInput.addEventListener('input', debounce(() => {
+            renderWikiView();
+        }, 300));
+    }
+
+    // Insights search listener
+    if (elements.insightsSearchInput) {
+        elements.insightsSearchInput.addEventListener('input', debounce(() => {
+            renderInsightsView();
+        }, 300));
+    }
+
+    // New topic button in header
+    if (elements.newTopicBtnHeader) {
+        elements.newTopicBtnHeader.addEventListener('click', () => {
+            openTopicModal();
+        });
+    }
+
+    // New insight button in header
+    if (elements.newInsightBtnHeader) {
+        elements.newInsightBtnHeader.addEventListener('click', () => {
+            openInsightModal();
+        });
+    }
 
     // Close all dropdowns when clicking outside
     document.addEventListener('click', (e) => {
         document.querySelectorAll('.custom-select.open').forEach(select => {
             if (!select.contains(e.target)) {
                 select.classList.remove('open');
+                // Reset inline styles AFTER transition (for modals)
+                const dropdown = select.querySelector('.custom-select-dropdown');
+                if (dropdown && dropdown.style.position === 'fixed') {
+                    setTimeout(() => {
+                        if (!select.classList.contains('open')) {
+                            dropdown.style.position = '';
+                            dropdown.style.top = '';
+                            dropdown.style.left = '';
+                            dropdown.style.width = '';
+                        }
+                    }, 200); // Match the CSS transition duration
+                }
             }
         });
     });
 }
 
-function setupCustomSelect(customSelect, hiddenSelect) {
-    const btn = customSelect.querySelector('.custom-select-btn');
-    const dropdown = customSelect.querySelector('.custom-select-dropdown');
-    const selectedText = btn.querySelector('.selected-text');
-
-    // Toggle dropdown
-    btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        // Close other dropdowns
-        document.querySelectorAll('.custom-select.open').forEach(s => {
-            if (s !== customSelect) s.classList.remove('open');
-        });
-        customSelect.classList.toggle('open');
-    });
-
-    // Handle option selection
-    dropdown.querySelectorAll('.custom-select-option').forEach(option => {
-        option.addEventListener('click', () => {
-            const value = option.dataset.value;
-            const text = option.querySelector('span').textContent;
-
-            // Update hidden select
-            hiddenSelect.value = value;
-
-            // Update button text
-            selectedText.textContent = text;
-
-            // Update active state
-            dropdown.querySelectorAll('.custom-select-option').forEach(opt => {
-                opt.classList.toggle('active', opt === option);
-            });
-
-            // Close dropdown
-            customSelect.classList.remove('open');
-
-            // Trigger change event
-            hiddenSelect.dispatchEvent(new Event('change'));
-            renderQuotes();
-        });
-    });
-}
 
 function setupViewListeners() {
     elements.viewList.addEventListener('click', () => {
@@ -593,6 +4904,7 @@ function setupModalListeners() {
 // Global Functions (exposed to window for onclick handlers in rendered HTML)
 // ============================================================================
 function openModal(quoteId = null) {
+    replyParentId = null; // Reset reply state
     const form = elements.quoteForm;
     form.reset();
     document.getElementById('quoteId').value = '';
@@ -620,6 +4932,7 @@ function openModal(quoteId = null) {
 
 function closeModal() {
     elements.modal.classList.remove('active');
+    replyParentId = null; // Reset reply state
 }
 
 function deleteQuote(id) {
@@ -629,6 +4942,7 @@ function deleteQuote(id) {
         actionText: t('quotes.delete'),
         onConfirm: async () => {
             try {
+                if (!authService.getCurrentUser()) throw { code: 'auth/no-current-user' };
                 await quoteService.delete(id);
                 toast.success(t('toast.quoteDeleted'));
             } catch (error) {
@@ -641,6 +4955,7 @@ function deleteQuote(id) {
 
 async function toggleFavorite(id, value) {
     try {
+        if (!authService.getCurrentUser()) throw { code: 'auth/no-current-user' };
         await quoteService.toggleFavorite(id, value);
         toast.success(value ? t('toast.quoteFavorited') : t('toast.quoteUnfavorited'));
     } catch (error) {
@@ -667,17 +4982,60 @@ async function createCollection() {
 
     try {
         const user = authService.getCurrentUser();
+        if (!user) throw { code: 'auth/no-current-user' };
         await collectionService.create(name, user.uid);
         toast.success(t('toast.collectionCreated'));
         closeCollectionModal();
     } catch (error) {
         console.error('Error creating collection:', error);
-        toast.error(t('toast.errorCreatingCollection'));
+        toast.error(error.code === 'auth/no-current-user'
+            ? authService.getErrorMessage(error.code)
+            : t('toast.errorCreatingCollection'));
     }
 }
 
-async function logout() {
-    await authService.logout();
+
+function openReplyModal(parentId, suggestedStance, collectionId) {
+    const parentQuote = state.quotes.find(q => q.id === parentId);
+    if (!parentQuote) return;
+
+    replyParentId = parentId;
+
+    const form = elements.quoteForm;
+    form.reset();
+    document.getElementById('quoteId').value = '';
+    document.getElementById('quoteCollection').value = collectionId || '';
+    document.getElementById('quoteStance').value = suggestedStance;
+
+    // Update modal title to show it's a reply
+    elements.modalTitle.innerHTML = `
+        ${t('replies.newReply')}
+        <div class="reply-context">
+            <small>${t('replies.replyingTo')}</small>
+            <blockquote>"${parentQuote.text.substring(0, 100)}${parentQuote.text.length > 100 ? '...' : ''}"</blockquote>
+        </div>
+    `;
+
+    elements.modal.classList.add('active');
+}
+
+function toggleReplies(toggleId) {
+    const repliesContainer = document.getElementById(toggleId);
+    const toggleBtn = repliesContainer?.previousElementSibling;
+
+    if (!repliesContainer || !toggleBtn) return;
+
+    const isExpanded = toggleBtn.dataset.expanded === 'true';
+
+    if (isExpanded) {
+        repliesContainer.classList.add('collapsed');
+        toggleBtn.dataset.expanded = 'false';
+        toggleBtn.querySelector('.toggle-icon').style.transform = 'rotate(-90deg)';
+    } else {
+        repliesContainer.classList.remove('collapsed');
+        toggleBtn.dataset.expanded = 'true';
+        toggleBtn.querySelector('.toggle-icon').style.transform = 'rotate(0deg)';
+    }
 }
 
 // Expose functions to window for onclick handlers in rendered HTML
@@ -688,7 +5046,80 @@ window.toggleFavorite = toggleFavorite;
 window.openNewCollectionModal = openNewCollectionModal;
 window.closeCollectionModal = closeCollectionModal;
 window.createCollection = createCollection;
-window.logout = logout;
+window.openReplyModal = openReplyModal;
+window.toggleReplies = toggleReplies;
+// window.switchSection is set by AppShell after mount
+window.editTopic = editTopic;
+window.deleteTopic = deleteTopic;
+window.editInsight = editInsight;
+window.deleteInsight = deleteInsight;
+window.saveInsightNotes = saveInsightNotes;
+window.showTranscriptInput = showTranscriptInput;
+window.hideTranscriptInput = hideTranscriptInput;
+window.saveTranscript = saveTranscript;
+window.clearTranscript = clearTranscript;
+window.fetchYouTubeTranscript = fetchYouTubeTranscript;
+window.removeHighlight = removeHighlight;
+window.showColorPicker = showColorPicker;
+window.changeHighlightColor = changeHighlightColor;
+window.convertHighlightToQuote = convertHighlightToQuote;
+window.seekToTime = seekToTime;
+window.insertTimestampNote = insertTimestampNote;
+window.deleteTimestampedNote = deleteTimestampedNote;
+window.toggleTodoNote = toggleTodoNote;
+window.toggleStatusDropdown = toggleStatusDropdown;
+window.changeInsightStatus = changeInsightStatus;
+window.toggleTopicSelector = toggleTopicSelector;
+window.linkInsightToTopic = linkInsightToTopic;
+window.toggleInsightExpand = toggleInsightExpand;
+
+// Bridge: render functions exposed for AppShell locale-change handler + _restoreQuotesView
+window.renderSidebarCollections   = renderSidebarCollections;
+window.renderSidebarTags          = renderSidebarTags;
+window.renderSidebarTopics        = renderSidebarTopics;
+window.updateInsightsCounts       = updateInsightsCounts;
+window.updateStats                = updateStats;
+window.updateCollectionSelects    = updateCollectionSelects;
+window.updateMobileFiltersPanel   = updateMobileFiltersPanel;
+window.openTopicView              = openTopicView;
+window.openInsightView            = openInsightView;
+window.setupViewListeners         = setupViewListeners;
+// Bridge: re-cache quote element refs after DOM recreation in AppShell._restoreQuotesView
+window._recacheQuotesElements = () => {
+    elements.quotesList    = document.getElementById('quotesList');
+    elements.quotesCompare = document.getElementById('quotesCompare');
+    elements.quotesFavor   = document.getElementById('quotesFavor');
+    elements.quotesAgainst = document.getElementById('quotesAgainst');
+    elements.emptyState    = document.getElementById('emptyState');
+    elements.viewList      = document.getElementById('viewList');
+    elements.viewCompare   = document.getElementById('viewCompare');
+};
+
+// Custom Sections
+window.openNewSectionModal = openNewSectionModal;
+window.closeNewSectionModal = closeNewSectionModal;
+window.createCustomSection = createCustomSection;
+window.openCustomSectionModal = openCustomSectionModal;
+window.closeCustomSectionModal = closeCustomSectionModal;
+window.copyHighlightToClipboard = copyHighlightToClipboard;
+window.unlinkHighlightFromSection = unlinkHighlightFromSection;
+window.toggleSectionEditMode = toggleSectionEditMode;
+window.saveCustomSectionContent = saveCustomSectionContent;
+window.deleteCustomSection = deleteCustomSection;
+window.toggleTopicStatus = toggleTopicStatus;
+window.toggleInsightsSidebar = toggleInsightsSidebar;
+window.openAddEntryForm = openAddEntryForm;
+window.closeEntryForm = closeEntryForm;
+window.saveEntry = saveEntry;
+window.editEntry = editEntry;
+window.deleteEntry = deleteEntry;
+window.filterTopicSections = filterTopicSections;
+window.insertMarkdown = insertMarkdown;
+window.insertLink = insertLink;
+window.insertHeading = insertHeading;
+window.toggleHeadingDropdown = toggleHeadingDropdown;
+window.toggleSectionHighlightsSidebar = toggleSectionHighlightsSidebar;
+window.scrollToHeading = scrollToHeading;
 
 // ============================================================================
 // Mobile Handlers
@@ -718,7 +5149,10 @@ function setupMobileListeners() {
     });
 
     // Mobile logout
-    elements.logoutBtnMobile.addEventListener('click', logout);
+    elements.logoutBtnMobile.addEventListener('click', async () => {
+        try { await authService.logout(); }
+        catch (error) { handleFirebaseError(error, t('auth.errors.default')); }
+    });
 
     // Filter panel toggle
     elements.filterToggleBtn.addEventListener('click', openFiltersPanel);
@@ -742,7 +5176,6 @@ function setupMobileListeners() {
         option.addEventListener('click', () => {
             const lang = option.dataset.lang;
             i18n.setLocale(lang);
-            updateLanguageSelector(lang);
             elements.languageSelectorMobile.classList.remove('open');
         });
     });
@@ -919,10 +5352,11 @@ function applyMobileFilters() {
     elements.sortBy.value = mobileFiltersState.sort;
 
     // Update custom selects UI
-    syncCustomSelectUI(elements.collectionSelect, mobileFiltersState.collection);
     syncCustomSelectUI(elements.stanceSelect, mobileFiltersState.stance);
     syncCustomSelectUI(elements.favoriteSelect, mobileFiltersState.favorite);
     syncCustomSelectUI(elements.sortSelect, mobileFiltersState.sort);
+    // Update sidebar collections selection
+    renderSidebarCollections();
 
     // Update filter badge
     updateFilterBadge();
@@ -933,6 +5367,8 @@ function applyMobileFilters() {
 }
 
 function syncCustomSelectUI(customSelect, value) {
+    if (!customSelect) return;
+
     const options = customSelect.querySelectorAll('.custom-select-option');
     const selectedText = customSelect.querySelector('.selected-text');
 
@@ -963,4 +5399,46 @@ function updateFilterBadge() {
 // ============================================================================
 // Start Application
 // ============================================================================
-init();
+new AppShell(document.body, {
+    // Servicios
+    state,
+    authService,
+    quoteService,
+    collectionService,
+    topicService,
+    insightService,
+    i18n,
+    // Suscripciones a datos
+    subscribeToData,
+    unsubscribeFromData,
+    clearSensitiveState,
+    // Renderizadores de sección (bridge hasta T-10, T-16, T-21)
+    renderQuotes,
+    renderWikiView,
+    renderInsightsView,
+    // Setup de listeners restantes (bridge hasta T-08 → T-28)
+    onMainAppReady() {
+        setupQuoteListeners();
+        setupFilterListeners();
+        setupViewListeners();
+        setupModalListeners();
+        setupMobileListeners();
+        initMobileFiltersPanel();
+        setupInsightModalListeners();
+        setupTopicModalListeners();
+    }
+}).mount();
+
+// Re-render insights grid when viewport crosses column-count breakpoints
+let _insightsResizeTimer;
+let _lastInsightColCount = null;
+window.addEventListener('resize', () => {
+    clearTimeout(_insightsResizeTimer);
+    _insightsResizeTimer = setTimeout(() => {
+        const newColCount = window.innerWidth >= 1400 ? 3 : window.innerWidth >= 1000 ? 2 : 1;
+        if (newColCount !== _lastInsightColCount && state.currentSection === 'insights' && !state.currentInsightId) {
+            _lastInsightColCount = newColCount;
+            renderInsightsList();
+        }
+    }, 200);
+});

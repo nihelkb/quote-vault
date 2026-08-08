@@ -26,3 +26,15 @@ npm-debug.log*
 # Build output
 dist/
 build/
+
+.claude/
+# Local Netlify folder
+.netlify
+
+# Backend env (contains API keys)
+backend/.env
+
+# yt-dlp binary
+yt-dlp
+yt-dlp.exe
+deno.lock

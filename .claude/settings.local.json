@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(del \"c:\\\\Users\\\\nihel\\\\repos\\\\quote-vault\\\\firebase-config.js\")",
-      "Bash(npm run build:*)",
-      "Bash(npx vite build:*)"
-    ]
-  }
-}

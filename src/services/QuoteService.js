@@ -27,7 +27,7 @@ class QuoteService {
      * @param {Function} callback - Function to execute when quotes change
      * @returns {Function} - Unsubscribe function
      */
-    subscribe(userId, callback) {
+    subscribe(userId, callback, onError = console.error) {
         if (this.unsubscribe) {
             this.unsubscribe();
         }
@@ -44,7 +44,7 @@ class QuoteService {
                 ...doc.data()
             }));
             callback(quotes);
-        });
+        }, error => onError(error));
 
         return this.unsubscribe;
     }
@@ -114,10 +114,29 @@ class QuoteService {
             author: formData.author.trim(),
             source: formData.source?.trim() || '',
             collectionId: formData.collectionId || null,
+            topicId: formData.topicId || null, // New: link to wiki topic
             stance: formData.stance,
             tags: this.parseTags(formData.tags),
-            notes: formData.notes?.trim() || ''
+            notes: formData.notes?.trim() || '',
+            parentId: formData.parentId || null
         };
+    }
+
+    /**
+     * Link a quote to a topic
+     */
+    async linkToTopic(quoteId, topicId) {
+        await updateDoc(doc(db, this.collectionName, quoteId), {
+            topicId: topicId,
+            updatedAt: new Date().toISOString()
+        });
+    }
+
+    /**
+     * Get quotes linked to a specific topic
+     */
+    getQuotesByTopic(quotes, topicId) {
+        return quotes.filter(q => q.topicId === topicId);
     }
 
     /**
@@ -135,7 +154,7 @@ class QuoteService {
      * Filter quotes by criteria
      */
     filterQuotes(quotes, filters) {
-        const { searchTerm, collectionId, stance, favoriteOnly } = filters;
+        const { searchTerm, collectionId, topicId, stance, favoriteOnly } = filters;
 
         return quotes.filter(quote => {
             const matchesSearch = !searchTerm ||
@@ -145,10 +164,11 @@ class QuoteService {
                 (quote.tags && quote.tags.some(t => t.includes(searchTerm)));
 
             const matchesCollection = !collectionId || quote.collectionId === collectionId;
+            const matchesTopic = !topicId || quote.topicId === topicId;
             const matchesStance = !stance || quote.stance === stance;
             const matchesFavorite = !favoriteOnly || quote.favorite === true;
 
-            return matchesSearch && matchesCollection && matchesStance && matchesFavorite;
+            return matchesSearch && matchesCollection && matchesTopic && matchesStance && matchesFavorite;
         });
     }
 
@@ -174,6 +194,62 @@ class QuoteService {
      */
     getQuotesByStance(quotes, stance) {
         return quotes.filter(q => q.stance === stance);
+    }
+
+    /**
+     * Get root quotes (quotes without parent)
+     */
+    getRootQuotes(quotes) {
+        return quotes.filter(q => !q.parentId);
+    }
+
+    /**
+     * Get replies/counterarguments for a specific quote
+     */
+    getReplies(quotes, parentId) {
+        return quotes.filter(q => q.parentId === parentId);
+    }
+
+    /**
+     * Build a tree structure of quotes with their replies
+     */
+    buildQuoteTree(quotes) {
+        const rootQuotes = this.getRootQuotes(quotes);
+        return rootQuotes.map(quote => this.buildQuoteNode(quote, quotes));
+    }
+
+    /**
+     * Recursively build a quote node with nested replies
+     */
+    buildQuoteNode(quote, allQuotes) {
+        const replies = this.getReplies(allQuotes, quote.id);
+        return {
+            ...quote,
+            replies: replies.map(reply => this.buildQuoteNode(reply, allQuotes))
+        };
+    }
+
+    /**
+     * Get the reply count for a quote (including nested)
+     */
+    getReplyCount(quotes, quoteId) {
+        const directReplies = this.getReplies(quotes, quoteId);
+        let count = directReplies.length;
+        directReplies.forEach(reply => {
+            count += this.getReplyCount(quotes, reply.id);
+        });
+        return count;
+    }
+
+    /**
+     * Delete a quote and all its replies recursively
+     */
+    async deleteWithReplies(quoteId, allQuotes) {
+        const replies = this.getReplies(allQuotes, quoteId);
+        for (const reply of replies) {
+            await this.deleteWithReplies(reply.id, allQuotes);
+        }
+        await this.delete(quoteId);
     }
 }
 
