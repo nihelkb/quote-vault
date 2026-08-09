@@ -1,0 +1,9 @@
+{
+  "projectId": "3c1a74ea-d2df-47d4-87b2-a9d68549874c",
+  "pkg": "quote-vault",
+  "globalName": "QuoteVault",
+  "shape": "package",
+  "cssEntry": "src/styles.css",
+  "extraFonts": [".design-sync/fonts/fonts.css"],
+  "readmeHeader": ".design-sync/conventions.md"
+}
