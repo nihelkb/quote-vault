@@ -38,3 +38,10 @@ backend/.env
 yt-dlp
 yt-dlp.exe
 deno.lock
+
+# design-sync
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
